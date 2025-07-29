@@ -1,0 +1,103 @@
+/* Mystical Tool Result Styling with Hover Effects */
+.tool-result {
+  margin: 1rem 0;
+  background: rgba(129, 93, 179, 0.08);
+  border: 0.1rem solid rgba(129, 93, 179, 0.25);
+  border-radius: 0.6rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  transform: translateY(0);
+  box-shadow: 0 0.2rem 0.5rem rgba(129, 93, 179, 0.1);
+}
+
+
+.tool-result:hover {
+  border-color: rgba(129, 93, 179, 0.4);
+  box-shadow: 0 0.3rem 0.8rem rgba(129, 93, 179, 0.15);
+  transform: translateY(-2px);
+}
+
+
+.tool-header {
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.15) 0%, rgba(129, 93, 179, 0.08) 100%);
+  padding: 0.8rem 1rem;
+  border-bottom: 0.1rem solid rgba(129, 93, 179, 0.2);
+  font-weight: 500;
+  color: var(--argonaut-mystic);
+  font-size: 0.9rem;
+  display: flex;
+  transition: all 0.3s ease;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+
+.tool-name {
+  font-family: var(--mono);
+  color: var(--argonaut-amber);
+  font-weight: 600;
+  text-shadow: 0 0 0.3rem rgba(255, 206, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+
+.tool-content {
+  padding: 0;
+}
+
+
+.tool-content pre {
+  margin: 0;
+  margin-bottom: 1em;
+  padding: 1rem;
+  background: rgba(0, 12, 22, 0.4);
+  color: var(--argonaut-steel);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  border: none;
+  border-radius: 0;
+}
+
+
+.tool-content details {
+  padding: 1rem;
+}
+
+
+.tool-content summary {
+  cursor: pointer;
+  padding: 0.5rem 0;
+  color: var(--argonaut-cosmic);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+
+.tool-content summary:hover {
+  color: var(--argonaut-azure);
+}
+
+
+/* General expandable content styling */
+details {
+  /*margin: 0.5rem 0;*/
+}
+
+
+details summary {
+  cursor: pointer;
+  padding: 0.0rem 0;
+  font-weight: 500;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+
+details summary:hover {
+  color: var(--argonaut-azure);
+}
+
+
+details[open] summary {
+  margin-bottom: 0.2rem;
+}

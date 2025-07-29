@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>beforeRunningCommand</key><string>nop</string>
+  <key>command</key>
+  <string><![CDATA[#!/usr/bin/env bash
+set -e
+export BUNDLE_GEMFILE="$TM_BUNDLE_SUPPORT/Gemfile"
+export GEM_HOME="$TM_BUNDLE_SUPPORT/.vendor_bundle"
+export GEM_PATH="$GEM_HOME"
+if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
+  source "$HOME/.rvm/scripts/rvm"
+  rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
+fi
+
+SNIPPET=$(bundle exec ruby "$TM_BUNDLE_SUPPORT/gatekeeper.rb" --method complete --file "$TM_FILEPATH" --cursor "$TM_LINE_NUMBER:$TM_COLUMN_NUMBER" --record=false 2>&1) || true
+
+# Output snippet directly; TM will insert it.
+printf "%s" "$SNIPPET"
+]]></string>
+  <key>input</key><string>none</string>
+  <key>inputFormat</key><string>text</string>
+  <key>keyEquivalent</key><string>^~C</string>
+  <key>name</key><string>AetherCodex: Whisper</string>
+  <key>outputFormat</key><string>snippet</string>
+  <key>outputLocation</key><string>insertAsSnippet</string>
+  <key>uuid</key><string>49364422-2614-4A4A-AD90-1DD78375172F</string>
+  <key>version</key><integer>2</integer>
+</dict>
+</plist>

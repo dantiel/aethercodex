@@ -1,0 +1,7 @@
+.deepseekrc
+*.js
+*.orig
+*.rej
+.vendor_bundle
+.tm-ai
+.bundle

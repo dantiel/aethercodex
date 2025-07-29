@@ -1,0 +1,32 @@
+# Settings
+
+projectDirectory      = "$CWD"
+# windowTitle         = "$TM_DISPLAYNAME — ${CWD/^.*\///}"
+
+
+# Includes
+
+includeFiles          = "{$includeFiles,.deepseekrc}"    
+includeDirectories    = "{$includeDirectories}"
+includeInFileChooser  = "{$includeInFileChooser,.gitignore}"
+includeInFolderSearch = "{$includeInFolderSearch}"
+
+
+# Excludes
+
+excludeFiles          = "{$excludeFiles,destroy,tmtags,tmtagsHistory,tags,.htaccess,dump.rdb,*rid,*lock,*log,*.map,config.codekit,*.orig,*.rej,*.js}"
+excludeDirectories    = "{$excludeDirectories,excludedDir1}"
+excludeInFileChooser  = "{$excludeInFileChooser}"
+excludeInFolderSearch = "{$excludeInFolderSearch}"
+
+
+# Variables
+
+TM_ORGANIZATION_NAME  = 'darographix'
+
+IOSEVKA_CURLY_FONT      = 'Iosevka-Curly-Light'
+
+fontName              = $IOSEVKA_CURLY_FONT
+
+[ source.ruby ]
+fontName              = $IOSEVKA_CURLY_FONT

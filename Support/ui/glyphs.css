@@ -1,0 +1,447 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+
+/* Argonaut Color Palette */
+:root {
+  --argonaut-deep: #000C16;     /* Deep space */
+  --argonaut-void: #151515;     /* Primary dark */
+  --argonaut-steel: #B2B2B2;   /* Light grey */
+  --argonaut-azure: #00A6FF;   /* Bright blue */
+  --argonaut-cosmic: #6497C5;  /* Cosmic blue */
+  --argonaut-ethereal: #A0A3F9; /* Light purple */
+  --argonaut-nexus: #62A6FF;   /* Nexus blue */
+  --argonaut-mystic: #815DB3;  /* Purple mystic */
+  --argonaut-sage: #7A88F6;    /* Sage blue */
+  --argonaut-emerald: #06960E; /* Emerald green */
+  --argonaut-aurora: #F18F94;  /* Aurora pink */
+  --argonaut-shadow: #606E7E;  /* Shadow grey */
+  --argonaut-amber: #FFCE00;   /* Golden amber */
+  --argonaut-crimson: #DB001C; /* Deep red */
+  --argonaut-mystic: #815DB3;  /* Purple */
+}
+
+:root{
+  --mono: "Iosevka Curly","Fira Code",monospace;
+  --sans: "Syne","General Sans","Plus Jakarta Sans","Inter",sans-serif;
+  --sigil:"Fraunces Soft","Syne",serif;
+}
+/*
+.syne {
+  font-family: "Syne", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+}*/
+
+h1,h2,.sigil{ 
+  font-family:var(--sigil);
+  letter-spacing:.02em;
+}
+
+
+/* Typography Enhancements */
+* { box-sizing: border-box; }
+html { font-size: 16px; line-height: 1.6; }
+
+
+body { 
+  font-family: var(--sans);
+  font-weight: 400; 
+  letter-spacing: 0.01em;
+  margin: 0; 
+  display: flex; 
+  flex-direction: column; 
+  height: 100vh; 
+  background: #111; 
+  color: #eee;
+  cursor: default;
+}
+
+
+/* Messages Container */
+#messages { 
+  flex: 1; 
+  overflow: auto; 
+  padding: 1.5rem;
+  background: rgba(0, 12, 22, 0.4);
+/*  backdrop-filter: blur(10px);*/
+  border-radius: 0.8rem 0.8rem 0 0;
+  margin: 0.5rem 0.5rem 0 0.5rem;
+  /*box-shadow: inset 0 0.1rem 0.3rem rgba(0, 166, 255, 0.1);*/
+}
+
+
+/* Enhanced Input Bar */
+#input-bar { 
+  display: flex; 
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--argonaut-void) 0%, var(--argonaut-deep) 100%);
+  border-top: 0.1rem solid var(--argonaut-cosmic);
+/*  box-shadow: 0 -0.2rem 1.5rem rgba(0, 166, 255, 0.15);*/
+  margin: 0 0.5rem 0.5rem 0.5rem;
+  border-radius: 0 0 0.8rem 0.8rem;
+}
+
+
+.input-container {
+  position: relative;
+  flex: 1;
+  margin-right: 0.8rem;
+}
+
+
+#chat-input { 
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: var(--argonaut-void);
+  border: 0.15rem solid var(--argonaut-shadow);
+  border-radius: 0.6rem;
+  color: var(--argonaut-steel);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  max-height: 10em;
+}
+
+
+#chat-input::placeholder {
+  color: var(--argonaut-shadow);
+  font-style: italic;
+  margin:-1em 0 0 0!important;
+  position: relative ;top:-0.3em;
+}
+
+
+#chat-input:focus {
+  border-color: var(--argonaut-azure);
+  box-shadow: 
+    0 0 0 0.2rem rgba(0, 166, 255, 0.2),
+    0 0.2rem 0.8rem rgba(0, 166, 255, 0.1);
+  background: rgba(0, 12, 22, 0.8);
+  color: var(--argonaut-steel);
+}
+
+
+/* Enhanced Send Button */
+#send-btn { 
+  padding: 0.8rem 1.2rem;
+  background: linear-gradient(135deg, var(--argonaut-cosmic) 0%, var(--argonaut-azure) 100%);
+  border: none;
+  border-radius: 0.6rem;
+  color: var(--argonaut-deep);
+  font-family: var(--sans);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0.2rem 0.4rem rgba(0, 166, 255, 0.2);
+}
+
+
+#send-btn:hover {
+  transform: translateY(-0.1rem);
+  box-shadow: 0 0.4rem 0.8rem rgba(0, 166, 255, 0.3);
+}
+
+
+.send-glyph {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 0 0.2rem rgba(0, 12, 22, 0.5));
+}
+
+/* Message Styling */
+
+.user {
+  background: linear-gradient(135deg, rgba(100, 151, 197, 0.15) 0%, rgba(160, 163, 249, 0.1) 100%);
+  border: 0.1rem solid rgba(100, 151, 197, 0.3);
+  border-radius: 1.2rem;
+  padding: 1.2rem 1.5rem;
+  margin: 1.5rem 0;
+  color: var(--argonaut-ethereal);
+  box-shadow: 
+    0 0.3rem 1rem rgba(100, 151, 197, 0.2),
+    inset 0 0.1rem 0.3rem rgba(160, 163, 249, 0.1);
+  backdrop-filter: blur(8px);
+  position: relative;
+  font-weight: 450;
+}
+
+
+/* Code styling in user messages */
+.user tt, .user code, .user kbd, .user samp, .user pre {
+  background: rgba(0, 12, 22, 0.6);
+  color: var(--argonaut-azure);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.9em;
+  border: 0.1rem solid rgba(0, 166, 255, 0.2);
+}
+
+
+.user pre {
+  padding: 0.8rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+
+.user::before {
+  content: '';
+  position: absolute;
+  top: -0.1rem;
+  left: -0.1rem;
+  right: -0.1rem;
+  bottom: -0.1rem;
+  background: linear-gradient(135deg, var(--argonaut-cosmic), var(--argonaut-ethereal));
+  border-radius: 1.2rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+
+.user:hover::before {
+  opacity: 0.1;
+}
+
+
+.ai {
+  color: var(--argonaut-amber);
+  margin: 1.5rem 0;
+  padding: 1rem 0;
+  font-weight: 400;
+}
+
+
+.user tt, .user code, .user kbd, .user samp, .user pre {
+  font-family: var(--mono);
+  font-feature-settings: "liga" 1, "calt" 1;
+  background: rgba(0, 12, 22, 0.6);
+  color: var(--argonaut-nexus);
+  border: 0.1rem solid rgba(100, 151, 197, 0.4);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.9rem;
+  box-shadow: inset 0 0.1rem 0.2rem rgba(0, 166, 255, 0.1);
+}
+
+
+tt, code, kbd, samp,pre {
+  font-family:var(--mono);
+  font-feature-settings:"liga" 1,"calt" 1;
+  font-size: 0.95em;
+  padding: 0 0.15em;
+}
+
+
+/* Enhanced Input Bar Styling */
+#input-bar {
+  position: relative;
+  background: linear-gradient(135deg, var(--argonaut-void) 0%, var(--argonaut-deep) 100%);
+  border-top: 0.1em solid var(--argonaut-cosmic);
+/*  box-shadow: 0 -0.2em 1em rgba(0, 166, 255, 0.1);*/
+}
+
+
+.input-container {
+  position: relative;
+  flex: 1;
+}
+
+
+#chat-input {
+  background: var(--argonaut-void);
+  border: 0.1em solid var(--argonaut-shadow);
+  color: var(--argonaut-steel);
+  border-radius: 0.5em;
+  transition: all 0.3s ease;
+  font-family: var(--sans);
+}
+
+
+#chat-input:focus {
+  border-color: var(--argonaut-azure);
+  box-shadow: 0 0 0 0.2em rgba(0, 166, 255, 0.2);
+  outline: none;
+}
+
+
+#send-btn {
+  background: linear-gradient(135deg, var(--argonaut-cosmic) 0%, var(--argonaut-azure) 100%);
+  border: none;
+  border-radius: 0.5em;
+  color: var(--argonaut-deep);
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+
+#send-btn:hover {
+  transform: translateY(-0.1em);
+  box-shadow: 0 0.3em 0.8em rgba(0, 166, 255, 0.3);
+}
+
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 0.5rem;
+  height:0.5rem;
+}
+
+
+::-webkit-scrollbar-track {
+  background: var(--argonaut-deep);
+  border-radius: 0.25rem;
+}
+
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--argonaut-cosmic), var(--argonaut-azure));
+  border-radius: 0.25rem;
+  transition: all 0.3s ease;
+}
+
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--argonaut-azure), var(--argonaut-nexus));
+}
+
+
+/* Typography Refinements */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--argonaut-azure);
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+  text-shadow: 0 0 0.5rem rgba(0, 166, 255, 0.3);
+}
+
+
+p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+
+
+/* Glow Effects */
+.input-accent {
+  position: absolute;
+  bottom: -0.1rem;
+  left: 0;
+  right: 0;
+  height: 0.1rem;
+  background: linear-gradient(90deg, transparent, var(--argonaut-azure), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+
+#chat-input:focus + .input-accent {
+  opacity: 1;
+}
+
+
+/* Cosmic glow animation */
+#send-btn .send-glyph {
+  animation: etherealGlow 3s ease-in-out infinite;
+}
+
+
+/* Enhanced AI & Status Styling */
+.ai tt, .ai code, .ai kbd, .ai samp, .ai pre {
+  font-family: var(--mono);
+  font-feature-settings: "liga" 1, "calt" 1;
+  color: var(--argonaut-amber);
+  padding: 0.2rem 0.4rem;
+  font-size: 0.9em;
+}
+
+
+pre {  
+  background: rgba(129, 93, 179, 0.15);
+  border-radius: 0.4rem;
+  border: 0.1rem solid rgba(255, 206, 0, 0.3);
+  box-shadow: inset 0 0.1rem 0.2rem rgba(255, 206, 0, 0.1);
+  overflow: auto;
+  text-align: left;
+}
+
+
+pre > code {  
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: block ;
+}
+
+
+/* Status Messages */
+.status {
+  color: var(--argonaut-cosmic);
+  font-style: italic;
+  opacity: 0.8;
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  background: rgba(100, 151, 197, 0.08);
+  border-left: 0.2rem solid var(--argonaut-cosmic);
+  border-radius: 0 0.4rem 0.4rem 0;
+  animation: fadeIn 0.3s ease-in;
+  font-size: 0.9rem;   
+  padding: 0 1rem;
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-0.5rem); }
+  to { opacity: 0.8; transform: translateY(0); }
+}
+
+
+/* Remove message borders, enhance spacing */
+.ai, .system, .error {
+  border: none;
+  margin: 0.5rem 0;
+  padding: 0.3rem 0;
+}
+
+
+.error {
+/*  margin: 0.5em 0;*/
+    color: var(--argonaut-crimson);
+}
+
+
+.system {
+/*  margin: 0.5em 0;*/
+    color: var(--argonaut-shadow);
+    text-align: center ;
+}
+
+
+strong {
+    color: var(--argonaut-aurora);
+}
+
+
+code {
+    color: var(--argonaut-aurora) !important;
+}
+
+
+summary::-webkit-details-marker {
+    float:right;
+    margin: 1.2em 0.3em 0;
+}
+
+
+summary::-webkit-details-marker {
+  margin: 0.5em 0 0 0 !important;
+}
+
+

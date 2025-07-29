@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>name</key><string>AetherCodex Shortcuts</string>
+  <key>settings</key>
+  <array>
+    <dict>
+      <key>scope</key><string>source</string>
+      <key>keyEquivalent</key><string>^~A</string>
+      <key>command</key><string>commune.tmCommand</string>
+    </dict>
+    <dict>
+      <key>scope</key><string>source</string>
+      <key>keyEquivalent</key><string>^~E</string>
+      <key>command</key><string>illuminate.tmCommand</string>
+    </dict>
+    <dict>
+      <key>scope</key><string>source</string>
+      <key>keyEquivalent</key><string>^~C</string>
+      <key>command</key><string>whisper.tmCommand</string>
+    </dict>
+    <dict>
+      <key>scope</key><string>source</string>
+      <key>keyEquivalent</key><string>^~T</string>
+      <key>command</key><string>ledger.tmCommand</string>
+    </dict>
+  </array>
+</dict>
+</plist>

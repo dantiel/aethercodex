@@ -1,0 +1,89 @@
+/* Rouge syntax highlighting styles using colors from argonaut-colors.txt and status-styles.css */
+
+/* Base styles for syntax highlighting */
+pre.highlight {
+  background: rgba(20, 20, 20, 0.7);
+  border-radius: 4px;
+/*  padding: 1em;*/
+  overflow: auto;
+/*  margin: 1em 0;*/
+  color: #FFFFFF;
+}
+
+/* Generic tokens */
+.highlight .c { color: #B2B2B2; } /* Comment */
+.highlight .err { color: #FF2200; } /* Error */
+.highlight .k { color: #00A6FF; } /* Keyword */
+.highlight .l { color: #A4ED2D; } /* Literal */
+.highlight .n { color: #FFFFFF; } /* Name */
+.highlight .o { color: #7A88F6; } /* Operator */
+.highlight .p { color: #FFFFFF; } /* Punctuation */
+.highlight .cm { color: #B2B2B2; } /* Comment.Multiline */
+.highlight .cp { color: #B2B2B2; } /* Comment.Preproc */
+.highlight .c1 { color: #B2B2B2; } /* Comment.Single */
+.highlight .cs { color: #B2B2B2; } /* Comment.Special */
+.highlight .gd { color: #FF2200; } /* Generic.Deleted */
+.highlight .ge { font-style: italic; } /* Generic.Emph */
+.highlight .gh { color: #FFFFFF; font-weight: bold; } /* Generic.Heading */
+.highlight .gi { color: #3FAF30; } /* Generic.Inserted */
+.highlight .gp { color: #B2B2B2; font-weight: bold; } /* Generic.Prompt */
+.highlight .gs { font-weight: bold; } /* Generic.Strong */
+.highlight .gu { color: #FFFFFF; font-weight: bold; } /* Generic.Subheading */
+.highlight .kc { color: #00A6FF; } /* Keyword.Constant */
+.highlight .kd { color: #00A6FF; } /* Keyword.Declaration */
+.highlight .kn { color: #7A88F6; } /* Keyword.Namespace */
+.highlight .kp { color: #00A6FF; } /* Keyword.Pseudo */
+.highlight .kr { color: #00A6FF; } /* Keyword.Reserved */
+.highlight .kt { color: #62A6FF; } /* Keyword.Type */
+.highlight .ld { color: #A4ED2D; } /* Literal.Date */
+.highlight .m { color: #A4ED2D; } /* Literal.Number */
+.highlight .s { color: #A4ED2D; } /* Literal.String */
+.highlight .na { color: #62A6FF; } /* Name.Attribute */
+.highlight .nb { color: #FFFFFF; } /* Name.Builtin */
+.highlight .nc { color: #62A6FF; } /* Name.Class */
+.highlight .no { color: #62A6FF; } /* Name.Constant */
+.highlight .nd { color: #7A88F6; } /* Name.Decorator */
+.highlight .ni { color: #FFFFFF; } /* Name.Entity */
+.highlight .ne { color: #FF2200; } /* Name.Exception */
+.highlight .nf { color: #62A6FF; } /* Name.Function */
+.highlight .nl { color: #FFFFFF; } /* Name.Label */
+.highlight .nn { color: #62A6FF; } /* Name.Namespace */
+.highlight .nx { color: #62A6FF; } /* Name.Other */
+.highlight .py { color: #FFFFFF; } /* Name.Property */
+.highlight .nt { color: #7A88F6; } /* Name.Tag */
+.highlight .nv { color: #FFFFFF; } /* Name.Variable */
+.highlight .ow { color: #7A88F6; } /* Operator.Word */
+.highlight .w { color: #FFFFFF; } /* Text.Whitespace */
+.highlight .mf { color: #A4ED2D; } /* Literal.Number.Float */
+.highlight .mh { color: #A4ED2D; } /* Literal.Number.Hex */
+.highlight .mi { color: #A4ED2D; } /* Literal.Number.Integer */
+.highlight .mo { color: #A4ED2D; } /* Literal.Number.Oct */
+.highlight .sb { color: #A4ED2D; } /* Literal.String.Backtick */
+.highlight .sc { color: #A4ED2D; } /* Literal.String.Char */
+.highlight .sd { color: #B2B2B2; } /* Literal.String.Doc */
+.highlight .s2 { color: #A4ED2D; } /* Literal.String.Double */
+.highlight .se { color: #FF2200; } /* Literal.String.Escape */
+.highlight .sh { color: #A4ED2D; } /* Literal.String.Heredoc */
+.highlight .si { color: #A4ED2D; } /* Literal.String.Interpol */
+.highlight .sx { color: #A4ED2D; } /* Literal.String.Other */
+.highlight .sr { color: #A4ED2D; } /* Literal.String.Regex */
+.highlight .s1 { color: #A4ED2D; } /* Literal.String.Single */
+.highlight .ss { color: #A4ED2D; } /* Literal.String.Symbol */
+.highlight .bp { color: #FFFFFF; } /* Name.Builtin.Pseudo */
+.highlight .vc { color: #FFFFFF; } /* Name.Variable.Class */
+.highlight .vg { color: #FFFFFF; } /* Name.Variable.Global */
+.highlight .vi { color: #FFFFFF; } /* Name.Variable.Instance */
+.highlight .il { color: #A4ED2D; } /* Literal.Number.Integer.Long */
+
+/* Line numbers for code blocks */
+.highlight .lineno {
+  color: #B2B2B2;
+  padding-right: 1em;
+  border-right: 1px solid #333333;
+  margin-right: 0.5em;
+}
+
+/* Highlighted line */
+.highlight .hll {
+  background-color: #002F53;
+}

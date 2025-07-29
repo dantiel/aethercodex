@@ -1,0 +1,132 @@
+/* Enhanced real-time status styling with subtle animations */
+
+.status {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(79, 70, 229, 0.1));
+  border-left: 3px solid #9333ea;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 0 8px 8px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9em;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+
+.status p {
+  margin: 0.5rem 0;
+}
+
+
+.status::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.3), transparent);
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+
+@keyframes statusPulse {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+
+.status small {
+  opacity: 0.6;
+  font-size: 0.8em;
+  float: right;
+}
+
+
+.status code {
+  transition: all 0.2s ease;
+  background: rgba(147, 51, 234, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #f3e8ff;
+  font-weight: bold;
+}
+
+.status code:hover {
+  background: rgba(147, 51, 234, 0.4);
+}
+
+
+.status pre {
+  display: inline;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5em 1em;
+  overflow: auto;
+  border-radius: 1em;
+  margin: 0;
+  font-size: 0.85em;
+  border: none;
+  font-family: var(--mono);
+  font-style: normal;
+  font-weight: 100;
+  box-shadow: none;
+  display: block;
+  background: rgba(20, 20, 20, 0.7);
+  position: relative;
+  margin-bottom: 1rem;
+  color: white;
+  max-height: 17em;
+  transition: all 0.3s ease;
+}
+
+
+/* Tool arguments display */
+.status .tool-args {
+  color: #c4b5fd;
+  font-style: italic;
+  transition: color 0.2s ease;
+  margin-left: 20px;
+}
+
+
+/* Thinking indicator with subtle animation */
+.status:has-text("🧠") {
+  animation: thinkingPulse 1.5s ease-in-out infinite alternate;
+  border-left-width: 4px;
+}
+
+
+@keyframes thinkingPulse {
+  0% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+
+/* Tool execution status colors */
+.status:has-text("⚡") {
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
+}
+
+
+
+.status:has-text("✅") {
+  border-left-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+}
+
+
+
+.status:has-text("❌") {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+}
+
+
+
+.status:has-text("🎯") {
+  border-left-color: #06b6d4;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(8, 145, 178, 0.1));
+  font-weight: bold;
+}

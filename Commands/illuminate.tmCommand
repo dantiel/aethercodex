@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>beforeRunningCommand</key><string>nop</string>
+  <key>command</key>
+  <string><![CDATA[#!/usr/bin/env bash
+set -e
+export BUNDLE_GEMFILE="$TM_BUNDLE_SUPPORT/Gemfile"
+export GEM_HOME="$TM_BUNDLE_SUPPORT/.vendor_bundle"
+export GEM_PATH="$GEM_HOME"
+if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
+  source "$HOME/.rvm/scripts/rvm"
+  rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
+fi
+
+HTML_OUT=$(bundle exec ruby "$TM_BUNDLE_SUPPORT/gatekeeper.rb" --method askAI --prompt "Illuminate the following code:" --file "$TM_FILEPATH" --selection "$TM_SELECTION_START:$TM_SELECTION_END" --record=true 2>&1) || true
+
+cat <<HTML
+<!doctype html><html><head><meta charset="utf-8"><style>pre.error{color:#f66}</style></head><body>
+<pre>${HTML_OUT}</pre>
+</body></html>
+HTML
+]]></string>
+  <key>input</key><string>selection</string>
+  <key>inputFormat</key><string>text</string>
+  <key>keyEquivalent</key><string>^~E</string>
+  <key>name</key><string>AetherCodex: Illuminate</string>
+  <key>outputFormat</key><string>html</string>
+  <key>outputLocation</key><string>showAsHTML</string>
+  <key>uuid</key><string>23456789-BCDE-2345-FABC-234567890BCA</string>
+  <key>version</key><integer>2</integer>
+</dict>
+</plist>

@@ -1,0 +1,19 @@
+# GitHub Pages Configuration for ÆtherCodex
+theme: null
+title: "ÆtherCodex"
+description: "Atlantean–Hermetic Reasoning Oracle for TextMate"
+
+# Custom domain (optional)
+# url: "https://your-username.github.io"
+# baseurl: "/aethercodex"
+
+# Exclude files from processing
+exclude:
+  - README.md
+  - .gitignore
+  - Gemfile
+  - Gemfile.lock
+
+# Include custom files
+include:
+  - styles.css
