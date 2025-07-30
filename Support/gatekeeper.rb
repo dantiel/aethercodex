@@ -68,7 +68,7 @@ get '/ws' do
   puts "[WS] try open"
   
   last_pong = Time.now
-  ws = Faye::WebSocket.new(request.env)
+  ws = Faye::WebSocket.new request.env
 
   ping_timer = EventMachine.add_periodic_timer(20) { 
     warn "💓->"
@@ -81,7 +81,7 @@ get '/ws' do
     warn "[WS] open"
     warn "[WS] open #{ENV['TM_PROJECT_DIRECTORY']}"
     last_pong = Time.now
-    LiveStatus.set_websocket(ws)
+    LiveStatus.set_websocket ws
   end
 
   ws.on :error do |event|
@@ -97,7 +97,7 @@ get '/ws' do
         warn "ping received"
         last_pong = Time.now
       else
-        req = JSON.parse(event.data)
+        req = JSON.parse event.data
         
         case req['method']
         when 'askAI'
@@ -146,7 +146,7 @@ end
 
 def stopThinkingThread(req)
   @ask_thread.kill if @ask_thread
-  @ask_thread = null
+  @ask_thread = nil
 end
 
 

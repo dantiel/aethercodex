@@ -231,6 +231,8 @@ handleMessage = (e) ->
     when 'status'
       showStatus data.result.type, data.result.data
     when 'answer'
+      isThinking = false
+      do updateSendButton
       if data.result.logs?
         data.result.logs.forEach (l) ->
           switch l.type
@@ -259,17 +261,26 @@ handleMessage = (e) ->
 
 onSendBtnClick = (e) ->
   if isThinking
-    isThinking = false
-    ws.send JSON.stringify method: 'stopThinking'
+    do stopThinking
   else
     do adjustHeight
-    text = document.getElementById('chat-input').value
-    return unless text?.length
-    isThinking = true
-    ws.send JSON.stringify method: 'askAI', params: { prompt: text, record: true }
-    log 'user', text
-    document.getElementById('chat-input').value = ''
+    do askAI
+
+
+askAI = ->
+  text = document.getElementById('chat-input').value
+  return unless text?.length
+  ws.send JSON.stringify method: 'askAI', params: { prompt: text, record: true }
+  log 'user', text
+  document.getElementById('chat-input').value = ''
+  isThinking = true
   do updateSendButton
+  
+stopThinking = ->
+  ws.send JSON.stringify method: 'stopThinking'
+  isThinking = false
+  do updateSendButton
+  
 
 
 updateSendButton = ->
@@ -290,7 +301,7 @@ sendBtn.onclick = onSendBtnClick
 document.getElementById('chat-input').addEventListener 'keydown', (e) ->
   if e.key == 'Enter' and not e.shiftKey
     e.preventDefault()
-    do send
+    do askAI
   else if e.key == 'Enter' and e.shiftKey
     # Allow new line
     return
