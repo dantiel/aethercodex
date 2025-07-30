@@ -8,13 +8,14 @@ projectDirectory      = "$CWD"
 
 includeFiles          = "{$includeFiles,.deepseekrc}"    
 includeDirectories    = "{$includeDirectories}"
-includeInFileChooser  = "{$includeInFileChooser,.gitignore}"
+includeInFileChooser  = "{$includeInFileChooser,.gitignore,*.orig,*.rej,*.js}"
 includeInFolderSearch = "{$includeInFolderSearch}"
 
 
 # Excludes
 
-excludeFiles          = "{$excludeFiles,destroy,tmtags,tmtagsHistory,tags,.htaccess,dump.rdb,*rid,*lock,*log,*.map,config.codekit,*.orig,*.rej,*.js}"
+excludeFiles          = "{$excludeFiles,destroy,tmtags,tmtagsHistory,tags,.htaccess,dump.rdb,*rid,*lock,*log,*.map,config.codekit}"
+excludeInBrowser      = "{$excludeInBrowser,*.orig,*.rej,*.js}"
 excludeDirectories    = "{$excludeDirectories,excludedDir1}"
 excludeInFileChooser  = "{$excludeInFileChooser}"
 excludeInFolderSearch = "{$excludeInFolderSearch}"
@@ -24,9 +25,12 @@ excludeInFolderSearch = "{$excludeInFolderSearch}"
 
 TM_ORGANIZATION_NAME  = 'darographix'
 
-IOSEVKA_CURLY_FONT      = 'Iosevka-Curly-Light'
+IOSEVKA_CURLY_FONT    = 'Iosevka-Curly-Light'
+INPUT_MONO_COMPRESSED = 'InputMonoCompressed-ExtraLight'
 
 fontName              = $IOSEVKA_CURLY_FONT
 
 [ source.ruby ]
+fontName              = $INPUT_MONO_COMPRESSED
 fontName              = $IOSEVKA_CURLY_FONT
+

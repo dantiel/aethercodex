@@ -19,7 +19,6 @@ GEM
       ruby2_keywords (~> 0.0.1)
     net-http (0.6.0)
       uri
-    pygments.rb (4.0.0)
     rack (2.2.17)
     rack-protection (3.2.0)
       base64 (>= 0.1.0)
@@ -51,7 +50,6 @@ PLATFORMS
 DEPENDENCIES
   faraday (~> 2.8)
   faye-websocket (~> 0.11.0)
-  pygments.rb (~> 4.0)
   redcarpet (~> 3.6)
   rouge (~> 4.6)
   sinatra (~> 3.0)

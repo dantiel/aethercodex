@@ -149,6 +149,10 @@ class AIClient
     ["<error> #{e.message}", { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
   end
 
+  def self.terminate_thread
+    Thread.current.kill if Thread.current.alive?
+  end
+
 
   def self.extract_tools_from_content(parsed)
     return [] unless parsed.is_a?(Hash) && parsed['tools'].is_a?(Array)
@@ -208,7 +212,7 @@ class AIClient
         { role: 'user',   content: prompt },
         { role: 'user',   content: "Context: #{ctx.to_json}" }
       ],
-      response_format: { type: 'json_object' },
+      #response_format: { type: 'json_object' },
       tools: TOOLS,
       max_tokens: 2048
     }
@@ -275,8 +279,6 @@ class AIClient
   rescue => e
     warn "log_json failed: #{e.message}"
   end
-
-
   def self.load_cfg
     path = File.expand_path('../.deepseekrc', __FILE__)
     File.exist?(path) ? YAML.load_file(path) : {}

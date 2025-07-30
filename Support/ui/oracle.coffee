@@ -1,4 +1,5 @@
 DEFAULT_PORT = 4567
+isThinking = false
 port = window.AETHER_PORT ? DEFAULT_PORT
 ws   = null
 reconnectAttempts = 0
@@ -37,19 +38,17 @@ setupWebSocketHandlers = ->
     
   # Check for missed pongs every 30 seconds and close stale connections
   setInterval ->
-    if lastPongTime and (Date.now() - lastPongTime) > 30000
+    if lastPongTime and (Date.now() - lastPongTime) > 42000
       console.log 'missing pong detected, closing stale connection'
       do ws.close
       do scheduleReconnect
-  , 30000
+  , 42000
   
   ws.onmessage = (e) ->
     console.log "onmessage", e.data
     if '💓' is e.data 
-
       console.log "onping"
       lastPongTime = Date.now()
-      
       ws.send '💓'
     else    
       handleMessage e
@@ -67,7 +66,6 @@ scheduleReconnect = (immediate = false) ->
   
   log 'system', "🔮 Attempting dimensional reconnection #{reconnectAttempts}/#{maxReconnectAttempts} in #{if immediate then 0 else delay}ms..."
   setTimeout connectWebSocket, delay
-  
 
 
 # Message persistence
@@ -259,16 +257,33 @@ handleMessage = (e) ->
       log 'system', "<pre>#{JSON.stringify(data,null,2)}</pre>"
 
 
-send = ->
-  text = document.getElementById('chat-input').value
-  return unless text?.length
-  ws.send JSON.stringify method: 'askAI', params: { prompt: text, record: true }
-  log 'user', text
-  document.getElementById('chat-input').value = ''
+onSendBtnClick = (e) ->
+  if isThinking
+    isThinking = false
+    ws.send JSON.stringify method: 'stopThinking'
+  else
+    do adjustHeight
+    text = document.getElementById('chat-input').value
+    return unless text?.length
+    isThinking = true
+    ws.send JSON.stringify method: 'askAI', params: { prompt: text, record: true }
+    log 'user', text
+    document.getElementById('chat-input').value = ''
+  do updateSendButton
 
 
+updateSendButton = ->
+  if isThinking
+    sendBtnGlyph.textContent = "⏹️"
+    sendBtn.classList.add 'thinking'
+  else
+    sendBtnGlyph.textContent = "⚡"
+    sendBtn.classList.remove 'thinking'
+    
 
-document.getElementById('send-btn').onclick = -> do send
+sendBtn = document.getElementById('send-btn')
+sendBtnGlyph = sendBtn.getElementsByClassName('send-glyph')[0]
+sendBtn.onclick = onSendBtnClick
 
 
 # Handle Enter and Shift+Enter for textarea
@@ -281,20 +296,17 @@ document.getElementById('chat-input').addEventListener 'keydown', (e) ->
     return
     
 
+textarea = null
 
-document.addEventListener('DOMContentLoaded', () => {
-  const textarea = document.getElementById('chat-input');
+adjustHeight = -> 
+  textarea.style.height = 'auto'
+  textarea.style.height = "#{textarea.scrollHeight}px"
+
+document.addEventListener 'DOMContentLoaded', ->
+  textarea = document.getElementById('chat-input')
   
-  const adjustHeight = () => {
-    textarea.style.height = 'auto';
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  };
-  
-  textarea.addEventListener('input', adjustHeight);
-  do ~adjustHeight
-
-
-
+  textarea.addEventListener('input', adjustHeight)
+  do adjustHeight
 
     
 # Load messages when page loads

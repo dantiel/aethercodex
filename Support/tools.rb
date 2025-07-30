@@ -18,7 +18,7 @@ TOOLS = [
     type: 'function',
     function: {
       name: 'patch_file',
-      description: 'Apply a unified diff to a file.',
+      description: 'Apply a unified diff (exactly 1 line of context) to a file.',
       parameters: {
         type: 'object',
         properties: {

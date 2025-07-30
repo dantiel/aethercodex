@@ -1,4 +1,11 @@
-/* Mystical Tool Result Styling with Hover Effects */
+/* Thinking State Styling */
+.thinking {
+  background: rgba(255, 0, 0, 0.1);
+  color: var(--argonaut-mystic);
+  cursor: not-allowed;
+}
+
+/* Hermetic Code Meditation Styling with Hover Effects */
 .tool-result {
   margin: 1rem 0;
   background: rgba(129, 93, 179, 0.08);
@@ -21,7 +28,7 @@
 .tool-header {
   background: linear-gradient(135deg, rgba(129, 93, 179, 0.15) 0%, rgba(129, 93, 179, 0.08) 100%);
   padding: 0.8rem 1rem;
-  border-bottom: 0.1rem solid rgba(129, 93, 179, 0.2);
+  border-bottom: 0.1rem solid var(--argonaut-hermetic);
   font-weight: 500;
   color: var(--argonaut-mystic);
   font-size: 0.9rem;
@@ -33,7 +40,7 @@
 
 
 .tool-name {
-  font-family: var(--mono);
+  font-family: var(--hermetic);
   color: var(--argonaut-amber);
   font-weight: 600;
   text-shadow: 0 0 0.3rem rgba(255, 206, 0, 0.3);
@@ -100,4 +107,12 @@ details summary:hover {
 
 details[open] summary {
   margin-bottom: 0.2rem;
+}
+
+/* Future Features Styling */
+.future-feature {
+  background: rgba(0, 191, 255, 0.08);
+  border: 0.1rem solid rgba(0, 191, 255, 0.25);
+  border-radius: 0.6rem;
+  padding: 1rem;
 }

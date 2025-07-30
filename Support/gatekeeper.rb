@@ -70,12 +70,12 @@ get '/ws' do
   last_pong = Time.now
   ws = Faye::WebSocket.new(request.env)
 
-  ping_timer = EventMachine.add_periodic_timer(15) { 
-    warn "💓"
+  ping_timer = EventMachine.add_periodic_timer(20) { 
+    warn "💓->"
     ws.send('💓') if ws
   } if defined? EventMachine
   last_pong = Time.now
-  timeout_timer = EventMachine.add_periodic_timer(5) { ws.close if ws && (Time.now - last_pong) > 30 }
+  timeout_timer = EventMachine.add_periodic_timer(5) { ws.close if ws && (Time.now - last_pong) > 42 }
 
   ws.on :open do |_e|
     warn "[WS] open"
@@ -98,22 +98,12 @@ get '/ws' do
         last_pong = Time.now
       else
         req = JSON.parse(event.data)
-      
-        if req['method'] == 'askAI'
-          Thread.new do
-            begin
-              warn "[WS] message: #{req['params'].inspect}"
-            
-              res = StreamingHandler.handle_askAI_streaming(req['params'], ws)
-              ws.send res.to_json
-            rescue => e
-              warn "[WS][THREAD][ERROR]#{e.inspect}"
-              ws.send({ method: 'error', result: { error: e.message, backtrace: e.backtrace } }.to_json)
-            end
-          end
-        else
-          res = handle_request req
-          ws.send res.to_json
+        
+        case req['method']
+        when 'askAI'
+          startThinkingThread ws, req
+        when 'stopThinking'
+          stopThinkingThread req
         end
       end
     rescue => e
@@ -133,6 +123,30 @@ get '/ws' do
   end
 
   ws.rack_response
+end
+
+
+
+def startThinkingThread(ws, req)
+  stopThinkingThread if @ask_thread
+  
+  @ask_thread = Thread.new do
+    begin
+      warn "[WS] message: #{req['params'].inspect}"
+    
+      res = StreamingHandler.handle_askAI_streaming req['params'], ws
+      ws.send res.to_json
+    rescue => e
+      warn "[WS][THREAD][ERROR]#{e.inspect}"
+      ws.send({ method: 'error', result: { error: e.message, backtrace: e.backtrace } }.to_json)
+    end
+  end
+end
+
+
+def stopThinkingThread(req)
+  @ask_thread.kill if @ask_thread
+  @ask_thread = null
 end
 
 

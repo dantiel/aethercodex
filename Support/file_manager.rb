@@ -2,7 +2,7 @@ require 'open3'
 require 'tempfile'
 
 
-class FileManager
+class FileManager  # Patched with 1-line context
   def self.read(path)
     base = project_root
     File.read(File.join(base, path))
@@ -34,10 +34,10 @@ class FileManager
   def self.patch(path, patch_text, dry:)
     base = project_root
     full = File.join(base, path)
-    Tempfile.create(['patch', '.diff']) do |f|
+    Tempfile.create(['patch', '.diff'], encoding: 'utf-8') do |f|
       f.write(patch_text)
       f.flush
-      stdout, stderr, status = Open3.capture3('patch', full, f.path)
+      stdout, stderr, status = Open3.capture3('patch', '-F 0', full, f.path)
       raise "patch failed: #{stderr}\n#{stdout}" unless status.success?
     end
   end
@@ -48,10 +48,10 @@ class FileManager
     if ENV['TM_DEBUG_PATHS']
       puts "🔮 Dimensional Diagnostics:"
       puts "TM_PROJECT_DIRECTORY: #{ENV['TM_PROJECT_DIRECTORY'].inspect}"
-      puts "TM_DIRECTORY: #{ENV['TM_DIRECTORY'].inspect}"
+      puts "TM_DIRECTORY: #{ENV['TM_DIRECTORY'].inspect}"      
       puts "TM_FILEPATH: #{ENV['TM_FILEPATH'].inspect}"
       puts "TM_SELECTED_FILE: #{ENV['TM_SELECTED_FILE'].inspect}"
-      puts "Dir.pwd: #{Dir.pwd}"
+      puts "Current directory: #{Dir.pwd}"
     end
     
     # Try multiple TextMate environment variables
@@ -65,14 +65,16 @@ class FileManager
     root
   end
 
+
   def self.includeFiles
     ["*", ".tm_properties", ".htaccess"] + 
-    `#{ENV['TM_QUERY']}`.scan(/includeFiles=\{(.*?)\}/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
+    `#{ENV['TM_QUERY']}`.scan(/includeInFileChooser=\{(.*?)\}/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
   end
+
 
   def self.excludeFiles
     ["*.{o", "pyc"] +
-    `#{ENV['TM_QUERY']}`.scan(/excludeFiles=\{(.*?)\}/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
+    `#{ENV['TM_QUERY']}`.scan(/excludeInFileChooser=\{(.*?)\}/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
   end
   
   

@@ -1,4 +1,4 @@
-# ÆtherCodex GitHub Pages
+# ÆtherCodex Documentation Hub
 
 This directory contains the GitHub Pages site for ÆtherCodex.
 
@@ -6,7 +6,7 @@ This directory contains the GitHub Pages site for ÆtherCodex.
 
 1. **Enable GitHub Pages** in your repository settings
 2. **Set source** to "Deploy from a branch" 
-3. **Select branch** as `main` or `master`
+3. **Select branch** as `main` (recommended)
 4. **Set folder** to `/docs`
 
 ## Files

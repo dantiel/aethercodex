@@ -7,6 +7,7 @@
 :root {
   --argonaut-deep: #000C16;     /* Deep space */
   --argonaut-void: #151515;     /* Primary dark */
+  --argonaut-hermetic: #A0A3F9; /* Hermetic meditation */
   --argonaut-steel: #B2B2B2;   /* Light grey */
   --argonaut-azure: #00A6FF;   /* Bright blue */
   --argonaut-cosmic: #6497C5;  /* Cosmic blue */
@@ -25,6 +26,7 @@
 :root{
   --mono: "Iosevka Curly","Fira Code",monospace;
   --sans: "Syne","General Sans","Plus Jakarta Sans","Inter",sans-serif;
+  --hermetic: "Fraunces Soft","Syne",serif;
   --sigil:"Fraunces Soft","Syne",serif;
 }
 /*
@@ -36,6 +38,16 @@
 }*/
 
 h1,h2,.sigil{ 
+  font-family:var(--sigil);
+  letter-spacing:.02em;
+}
+
+.hermetic {
+  font-family:var(--sigil);
+  letter-spacing:.02em;
+}
+
+.hermetic {
   font-family:var(--sigil);
   letter-spacing:.02em;
 }

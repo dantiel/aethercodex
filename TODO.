@@ -3,18 +3,15 @@ TODO:
     Established a secure connection to the AI reasoning oracle for task automation.
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
     Implemented core file operations like read, write, and patch.
-◯ replace pygments by rouge... its already added to gemfile
+✔︎ replace pygments by rouge... its already added to gemfile @done(29-07-2025 23:52)
 
 Website:
   ✔︎ Basic Website for GitHub.io @done(27-07-2025 19:18)
       Deployed a minimalistic website to showcase project updates.
   ◯ Research Typography & Colors
-      ◯ Divine Code Transmutation (3-color gradient)
-          Explore a gradient effect for code highlighting.
+      ✔︎ Divine Code Transmutation (3-color gradient) @done(29-07-2025 23:49)
       ◯ Alchemical Symbol Integration
           Incorporate symbols for visual hierarchy.
-  ✧ Add Interactive Demo
-      Allow users to test features directly on the website.
   ✧ Include Testimonials
       Gather feedback from early adopters.
 
@@ -31,6 +28,7 @@ Commands:
 AI Features:
   ✔︎ Add Reasoning Content @done(27-07-2025 19:11)
       Integrated AI-generated explanations for tasks.
+  ◯ mnemosyne: add ai notes that are stored in .tm-ai and can always be updated by the ai and are sent always as part of context.
   ✧ Symbolic Code Analysis
       Analyze code for symbolic patterns and meanings.
   ✧ Hermetic Refactoring Tools
@@ -45,6 +43,8 @@ AI Features:
       Predict and prevent code vulnerabilities.
   ✧ Alchemical Transmutation
       Transform code paradigms magically.
+  ✧ Reasoning-Model Tool Integration
+      Add reasoning-model as a tool call for enhanced task automation.
   ✧ Divination Mode (Symbolic Predictions)
       Forecast code behavior based on symbols.
   ✧ Elemental Bindings (Code Paradigm Shifts)
