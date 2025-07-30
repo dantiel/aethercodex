@@ -1,7 +1,7 @@
 require 'open3'
 require 'timeout'
 
-class CommandExecutor
+class Verbum
   def self.run(cmd)
     stdout, stderr, status = Open3.capture3(cmd)
     (stdout + stderr + "\n(exit #{status.exitstatus})").strip

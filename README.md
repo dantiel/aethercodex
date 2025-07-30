@@ -14,7 +14,7 @@ AetherCodex transforms TextMate into a living interface with advanced AI reasoni
 - Multi-tool orchestration for complex operations
 - Live status updates during long-running tasks
 
-### 🛠️ **Hermetic Toolbox**
+### 🛠️ **Hermetic Prima Materia**
 - **File Operations**: Read, create, patch, rename with surgical precision
 - **Code Analysis**: Context-aware inspection and modification
 - **Memory Systems**: Persistent knowledge storage via Mnemosyne
@@ -103,11 +103,11 @@ Remember this pattern as "user-auth-flow" for future reference
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | **Oracle Chamber** | Interactive AI interface | `ui/chamber.html` |
-| **Streaming Handler** | Real-time response processing | `streaming_handler.rb` |
-| **Toolbox** | Function execution engine | `toolbox.rb` |
+| **Streaming Handler** | Real-time response processing | `aetherflux.rb` |
+| **Prima Materia** | Function execution engine | `prima_materia.rb` |
 | **Mnemosyne** | Memory management system | `mnemosyne.rb` |
-| **Gatekeeper** | Security and validation | `gatekeeper.rb` |
-| **Live Status** | Real-time user communication | `live_status.rb` |
+| **Limen** | Security and validation | `limen.rb` |
+| **Horologium Aeternum** | Real-time user communication | `horologium_aeternum.rb` |
 
 ### **Data Flow**
 1. **Invocation** → Context gathering → API request
@@ -133,7 +133,7 @@ Location: `.tm-ai/memory.db` (auto-created)
 
 ## 🛡️ Security
 
-- **Gatekeeper validation** for all operations
+- **Limen validation** for all operations
 - **No secret file access** (.env, .deepseekrc, keys)
 - **Sandboxed command execution** with allowlisting
 - **Local-only operations** - no external data transmission beyond API calls

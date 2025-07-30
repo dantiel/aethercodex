@@ -1,4 +1,4 @@
-TOOLS = [
+INSTRUMENTA = [
   {
     type: 'function',
     function: {

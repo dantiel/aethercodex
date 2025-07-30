@@ -1,9 +1,9 @@
 require_relative 'mnemosyne'
-require_relative 'file_manager'
+require_relative 'argonaut'
 
 
 
-class ContextBuilder
+class Arcanum
   MAX_CONTEXT_LINES = 120
 
 
@@ -16,7 +16,7 @@ class ContextBuilder
     file = params['file']
     selection = params['selection']
     ctx = {
-      history: fetch_history(10),
+      history: fetch_history(7),
       project_files: list_project_files,
       file: file,
       selection: selection,
@@ -34,14 +34,14 @@ class ContextBuilder
 
 
   def self.list_project_files  
-    FileManager.list_project_files
+    Argonaut.list_project_files
   end
 
 
   def self.snippet_for(file, selection)
     return nil unless file && selection
     start_line, end_line = selection.split(':').map(&:to_i)
-    content = FileManager.read(file).lines
+    content = Argonaut.read(file).lines
     first = [start_line - 20, 0].max
     last  = [end_line + 20, content.length - 1].min
     content[first..last].join
@@ -49,3 +49,4 @@ class ContextBuilder
     nil
   end
 end
+

@@ -2,7 +2,7 @@ require 'open3'
 require 'tempfile'
 
 
-class FileManager  # Patched with 1-line context
+class Argonaut  # Patched with 1-line context
   def self.read(path)
     base = project_root
     File.read(File.join(base, path))
@@ -102,4 +102,4 @@ class FileManager  # Patched with 1-line context
   end
 end
 
-# FileManager.project_list_files
+# Argonaut.project_list_files

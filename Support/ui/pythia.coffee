@@ -196,13 +196,10 @@ showStatus = (type, data) ->
     when 'tool_completed'
       if data.result?.error
         log 'status', "❌ Tool <code>#{data.tool}</code> failed: #{data.result.error} <small>#{timestamp || ''}</small>"
-        # Show error details if available
         if data.result.error
           log 'system', "<details><summary>❌ Error details</summary><pre>#{data.result.error}</pre></details>"
       else
         log 'status', "✅ Tool <code>#{data.tool}</code> completed <small>#{timestamp || ''}</small>"
-      
-      # Show tool results if available (only for successful tools)
       if data.result and Object.keys(data.result).length > 0 and not data.result?.error
         resultJson = JSON.stringify(data.result, null, 2)
         if resultJson.length > 200
@@ -222,6 +219,8 @@ showStatus = (type, data) ->
       log 'status', "#{data.summary || 'Completed'} <small>#{timestamp || ''}</small>"
     when 'server_error'
       log 'error', "#{data.error} <small>#{timestamp || ''}</small>"
+    when 'system_message'
+      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
 
 
 handleMessage = (e) ->
@@ -302,6 +301,7 @@ document.getElementById('chat-input').addEventListener 'keydown', (e) ->
   if e.key == 'Enter' and not e.shiftKey
     e.preventDefault()
     do askAI
+    do adjustHeight
   else if e.key == 'Enter' and e.shiftKey
     # Allow new line
     return

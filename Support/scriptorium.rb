@@ -26,7 +26,7 @@ end
 
 
 
-module MarkdownRenderer
+module Scriptorium
   # Renderer with Rouge syntax highlighting
   @rouge_renderer ||= Redcarpet::Markdown.new(
     RougeRenderer.new(hard_wrap: true, safe_links_only: true),

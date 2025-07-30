@@ -1,4 +1,6 @@
-TODO:
+TODO: 
+Hermetic Coding Paradigm & File Naming
+
 ✔︎ AI Connection @done(27-07-2025 19:14)
     Established a secure connection to the AI reasoning oracle for task automation.
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
@@ -6,6 +8,18 @@ TODO:
 ✔︎ replace pygments by rouge... its already added to gemfile @done(29-07-2025 23:52)
 
 Website:
+  ✧ Hermetic Symbolism
+      Integrate alchemical symbols into UI and docs.
+  ✧ Elemental Themes
+      Assign colors to elements (fire, water, air, earth) for visual harmony.
+
+Hermetic Coding Paradigm:
+  ✧ Poetry of Names
+      Rename tools symbolically (e.g., `argonaut.rb` → `argonaut.rb`).
+  ✧ Dualities in Code
+      Balance creation (`forge.sh`) and dissolution (`trash_manager.rb`).
+
+Files:
   ✔︎ Basic Website for GitHub.io @done(27-07-2025 19:18)
       Deployed a minimalistic website to showcase project updates.
   ◯ Research Typography & Colors
@@ -13,6 +27,8 @@ Website:
       ◯ Alchemical Symbol Integration
           Incorporate symbols for visual hierarchy.
   ✧ Include Testimonials
+
+Commands:
       Gather feedback from early adopters.
 
 Commands:
@@ -20,15 +36,34 @@ Commands:
       Enabled execution of predefined safe commands.
   ◯ Document Safe Commands API
       Create comprehensive documentation for safe command usage.
-  ◯ Show Command Output in LiveStatus
+  ◯ Show Command Output in HorologiumAeternum
       Display command results in real-time.
   ◯ Allow Unsafe Commands with User Confirmation
       Implement a confirmation prompt for risky operations.
 
+Tool Naming & Concepts:
+  ✧ Argonaut (Navigation)
+      Rename `argonaut.rb` to `argonaut.rb` for symbolic resonance.
+  ✧ Mnemosyne (Memory)
+      Extend `mnemosyne.rb` with Hermetic memory operations.
+  ✧ Oracle (Logic)
+      Enhance `oracle.coffee` with divinatory methods.
+
+Mnemosyne:
+  ◯ General AI Notes (ai-notes.txt)
+      Create `ai-notes.txt` in `Support` with max length (1000 lines).
+  ◯ File-Specific Memory
+      Design JSON schema for metadata (line length, last update, AI notes).
+  ◯ Tool Integration (file_overview)
+      Add tool to fetch metadata and AI notes per file. An extra tool is needed to save metadata.
+  ◯ Testing
+
+Hermetic Enhancements:
+      Verify patch updates and metadata queries.
+
 AI Features:
   ✔︎ Add Reasoning Content @done(27-07-2025 19:11)
       Integrated AI-generated explanations for tasks.
-  ◯ mnemosyne: add ai notes that are stored in .tm-ai and can always be updated by the ai and are sent always as part of context.
   ✧ Symbolic Code Analysis
       Analyze code for symbolic patterns and meanings.
   ✧ Hermetic Refactoring Tools

@@ -14,7 +14,7 @@ if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
   rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
 fi
 
-HTML_OUT=$(bundle exec ruby "$TM_BUNDLE_SUPPORT/gatekeeper.rb" --method askAI --prompt "Illuminate the following code:" --file "$TM_FILEPATH" --selection "$TM_SELECTION_START:$TM_SELECTION_END" --record=true 2>&1) || true
+HTML_OUT=$(bundle exec ruby "$TM_BUNDLE_SUPPORT/limen.rb" --method askAI --prompt "Illuminate the following code:" --file "$TM_FILEPATH" --selection "$TM_SELECTION_START:$TM_SELECTION_END" --record=true 2>&1) || true
 
 cat <<HTML
 <!doctype html><html><head><meta charset="utf-8"><style>pre.error{color:#f66}</style></head><body>

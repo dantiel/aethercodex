@@ -457,3 +457,8 @@ summary::-webkit-details-marker {
 }
 
 
+hr {
+    border: none;
+    border-bottom: 0.2em solid var(--argonaut-void);
+}
+

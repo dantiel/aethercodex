@@ -1,4 +1,4 @@
-# Support/ai_client.rb
+# Support/oracle.rb
 require 'faraday'
 require 'json'
 require 'time'
@@ -9,19 +9,19 @@ require 'json'
 require 'time'
 require 'fileutils'
 require_relative 'mnemosyne'
-require_relative 'tools'
-require_relative 'live_status'
-require_relative 'markdown_renderer'
+require_relative 'instrumenta'
+require_relative 'horologium_aeternum'
+require_relative 'scriptorium'
 
 
 
-# Enhanced AI Client with Hermetic Debugging
+# Enhanced Oracle with Hermetic Debugging
 # This module provides advanced debugging capabilities for the Atlantean Oracle
 # Includes patch expansion, error tracking, and astral plane monitoring
 # Version: 2.1.0-hermetic
 
 
-class AIClient
+class Oracle
   ENDPOINT = 'https://api.deepseek.com/v1/chat/completions'
   SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions"
   
@@ -48,7 +48,7 @@ class AIClient
   
   
   def self.ask(prompt, ctx)
-    a, arts, _ = ask_with_tools(prompt, ctx){|name,args| Toolbox.handle({'tool'=>name,'args'=>args})}
+    a, arts, _ = ask_with_tools(prompt, ctx){|name,args| PrimaMateria.handle({'tool'=>name,'args'=>args})}
     [a, arts]
   end
 
@@ -63,9 +63,9 @@ class AIClient
     depth = 0
 
     # Stream initial status
-    if defined?(LiveStatus)
+    if defined?(HorologiumAeternum)
       sleep(0.1) # Brief pause for UI responsiveness
-      LiveStatus.thinking("Consulting the hermetic oracle...")
+      HorologiumAeternum.thinking("Consulting the hermetic oracle...")
     end
 
     loop do
@@ -91,13 +91,13 @@ class AIClient
       
       # Hermetic debugging: Track patch operations for expandable display
       #if tcalls.any? && tcalls.any? { |tc| tc.dig('function', 'name') == 'patch_file' }
-      #  LiveStatus.thinking("🔮 Applying ethereal patches to the code plane...")
+      #  HorologiumAeternum.thinking("🔮 Applying ethereal patches to the code plane...")
       #end
-      LiveStatus.thinking(arts[:reasoning_content]) if arts[:reasoning_content]
+      HorologiumAeternum.thinking(arts[:reasoning_content]) if arts[:reasoning_content]
       
       if tcalls.any?
-        if defined?(LiveStatus) && !content.strip.empty?
-          LiveStatus.ai_response(content)
+        if defined?(HorologiumAeternum) && !content.strip.empty?
+          HorologiumAeternum.ai_response(content)
         end
         
         tcalls.each do |tc|
@@ -105,7 +105,7 @@ class AIClient
           args = deep_symbolize(safe_parse(tc.dig('function', 'arguments')))
           
           res  = exec.call(name, args)
-          sleep(0.05) if defined?(LiveStatus)
+          sleep(0.05) if defined?(HorologiumAeternum)
           tool_results << { id: tc['id'], name: name, result: res }
           msgs << { role: 'tool', tool_call_id: tc['id'], content: res.to_json }          
         end
@@ -124,8 +124,8 @@ class AIClient
         answer           = parsed['answer'] || ''
 
         # Stream plan if available
-        if defined?(LiveStatus) && arts[:plan]
-          LiveStatus.thinking("Plan: #{arts[:plan].join(' → ')}")
+        if defined?(HorologiumAeternum) && arts[:plan]
+          HorologiumAeternum.thinking("Plan: #{arts[:plan].join(' → ')}")
         end
         tools_from_content.each do |call|
           res = exec.call(call['tool'], deep_symbolize(call['args'] || {}))
@@ -145,7 +145,7 @@ class AIClient
     [answer || '<<empty>>', arts, tool_results]
   rescue => e
     log_json(error: e.message, backtrace: e.backtrace)
-    LiveStatus.server_error e.message
+    HorologiumAeternum.server_error e.message
     ["<error> #{e.message}", { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
   end
 
@@ -180,7 +180,7 @@ class AIClient
       max_tokens: 2048
     }
     unless want_json
-      body[:tools] = TOOLS
+      body[:tools] = INSTRUMENTA
     else
       # body[:response_format] = { type: 'json_object' }
       body[:response_format] = { type: 'text' }
@@ -213,7 +213,7 @@ class AIClient
         { role: 'user',   content: "Context: #{ctx.to_json}" }
       ],
       #response_format: { type: 'json_object' },
-      tools: TOOLS,
+      tools: INSTRUMENTA,
       max_tokens: 2048
     }
   end
@@ -273,7 +273,7 @@ class AIClient
 
 
   def self.log_json(obj)
-    logf = File.expand_path('../../.tm-ai/gatekeeper.log', __FILE__)
+    logf = File.expand_path('../../.tm-ai/limen.log', __FILE__)
     FileUtils.mkdir_p(File.dirname(logf))
     File.open(logf, 'a') { |f| f.puts("#{Time.now.iso8601} #{obj.to_json}") }
   rescue => e

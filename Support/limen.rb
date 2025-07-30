@@ -16,14 +16,14 @@ require 'sinatra'
 require 'faye/websocket'
 require 'thin'
 require_relative 'mnemosyne'
-require_relative 'file_manager'
-require_relative 'live_status'
-require_relative 'context_builder'
-require_relative 'ai_client'
-require_relative 'command_executor'
-require_relative 'toolbox'
-require_relative 'markdown_renderer'
-require_relative 'streaming_handler'
+require_relative 'argonaut'
+require_relative 'horologium_aeternum'
+require_relative 'arcanum'
+require_relative 'oracle'
+require_relative 'verbum'
+require_relative 'prima_materia'
+require_relative 'scriptorium'
+require_relative 'aetherflux'
 
 
 CFG_PATH = File.expand_path('../.deepseekrc', __FILE__)
@@ -81,11 +81,11 @@ get '/ws' do
     warn "[WS] open"
     warn "[WS] open #{ENV['TM_PROJECT_DIRECTORY']}"
     last_pong = Time.now
-    LiveStatus.set_websocket ws
+    HorologiumAeternum.set_websocket ws
   end
 
   ws.on :error do |event|
-    LiveStatus.server_error event.message
+    HorologiumAeternum.server_error event.message
     warn "[WS] error #{event.message}"
     ws.close if ws
     ws = nil
@@ -103,7 +103,7 @@ get '/ws' do
         when 'askAI'
           startThinkingThread ws, req
         when 'stopThinking'
-          stopThinkingThread req
+          stopThinkingThread
         end
       end
     rescue => e
@@ -118,7 +118,7 @@ get '/ws' do
     warn "[WS] closed code=#{event.code} reason=#{event.reason}"
     EventMachine.cancel_timer(ping_timer) if ping_timer
     EventMachine.cancel_timer(timeout_timer) if timeout_timer
-    LiveStatus.set_websocket nil
+    HorologiumAeternum.set_websocket nil
     ws = nil
   end
 
@@ -134,7 +134,7 @@ def startThinkingThread(ws, req)
     begin
       warn "[WS] message: #{req['params'].inspect}"
     
-      res = StreamingHandler.handle_askAI_streaming req['params'], ws
+      res = Aetherflux.handle_askAI_streaming req['params'], ws
       ws.send res.to_json
     rescue => e
       warn "[WS][THREAD][ERROR]#{e.inspect}"
@@ -144,7 +144,9 @@ def startThinkingThread(ws, req)
 end
 
 
-def stopThinkingThread(req)
+def stopThinkingThread
+  warn "Thinking cancelled."
+  HorologiumAeternum.system_message("Thinking cancelled.")
   @ask_thread.kill if @ask_thread
   @ask_thread = nil
 end
@@ -167,37 +169,37 @@ end
 
 
 def do_ask(p)
-  LiveStatus.thinking('Initializing astral connection...')
-  ctx = ContextBuilder.build p
+  HorologiumAeternum.thinking 'Initializing astral connection...'
+  ctx = Arcanum.build p
     
   # Enhanced streaming callback for real-time tool feedback
   answer, arts, tool_results = 
-    AIClient.ask_with_tools(p['prompt'], ctx) { |name, args| 
-      # LiveStatus.tool_starting(name, args)
-      # LiveStatus.processing("Executing #{name}...")
-      result = Toolbox.handle({ 'tool' => name, 'args' => args })
-      # LiveStatus.tool_completed(name, result)
+    Oracle.ask_with_tools(p['prompt'], ctx) { |name, args| 
+      # HorologiumAeternum.tool_starting(name, args)
+      # HorologiumAeternum.processing("Executing #{name}...")
+      result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
+      # HorologiumAeternum.tool_completed(name, result)
       
       # Brief pause to ensure UI updates are processed
       sleep 0.05
       result }
 
-  LiveStatus.ai_response("Processing response artifacts...")
+  HorologiumAeternum.ai_response("Processing response artifacts...")
   
   logs = []
   (arts[:prelude] || []).each { |t| 
-    logs << { type: 'prelude', data: MarkdownRenderer.html_with_syntax_highlight(t.to_s) } }
+    logs << { type: 'prelude', data: Scriptorium.html_with_syntax_highlight(t.to_s) } }
   tool_results.each do |r|
     if r[:result].is_a?(Hash) && r[:result][:say]
       logs << { type: 'say', data: r[:result][:say] }
     end
   end
   
-  html = MarkdownRenderer.html_with_syntax_highlight(answer.to_s)
+  html = Scriptorium.html_with_syntax_highlight(answer.to_s)
   Mnemosyne.record(p, answer) if p['record']
 
   tool_count = tool_results.length
-  LiveStatus.completed("Response ready with #{tool_count} tools executed")
+  HorologiumAeternum.completed("Response ready with #{tool_count} tools executed")
 
   { method: 'answer',
     result: { answer: answer, 
@@ -212,14 +214,14 @@ end
 
 
 def do_tool(p)
-  result = Toolbox.handle(p)
+  result = PrimaMateria.handle(p)
   { method: 'toolResult', result: result }
 end
 
 
 def do_complete(p)
-  ctx = ContextBuilder.build p
-  snippet = AIClient.complete(ctx)
+  ctx = Arcanum.build p
+  snippet = Oracle.complete(ctx)
   { method: 'completion', result: { snippet: snippet } }
 end
 
@@ -230,18 +232,19 @@ end
 
 
 def do_read(p)
-  result = FileManager.read(p['path'], p['range'] || [])
+  result = Argonaut.read(p['path'], p['range'] || [])
   { method: 'fileContent', result: result }
 end
 
 
 def do_patch(p)
-  result = FileManager.apply_patch(p['path'], p['diff'])
+  result = Argonaut.apply_patch(p['path'], p['diff'])
   { method: 'patchResult', result: result }
 end
 
 
 def do_run(p)
-  result = CommandExecutor.run(p['cmd'])
+  result = Verbum.run(p['cmd'])
   { method: 'commandResult', result: result }
 end
+

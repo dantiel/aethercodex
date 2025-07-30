@@ -10,7 +10,7 @@ CFG = begin
 rescue; {}; end
 
 DEFAULT_PORT = (CFG['port'] || 4567).to_i
-PIDFILE  = File.expand_path('../../.tm-ai/gatekeeper.pid', __dir__)
+PIDFILE  = File.expand_path('../../.tm-ai/limen.pid', __dir__)
 FileUtils.mkdir_p(File.dirname(PIDFILE))
 
 
@@ -45,7 +45,7 @@ unless port_open?(port)
   }
   # Merge TextMate environment into server environment
   env.merge!(tm_env)
-  cmd = ['bundle', 'exec', 'ruby', File.join(SUPPORT, 'gatekeeper.rb')]
+  cmd = ['bundle', 'exec', 'ruby', File.join(SUPPORT, 'limen.rb')]
   pid = spawn(env, *cmd, out: File::NULL, err: File::NULL, pgroup: true)
   File.write(PIDFILE, pid)
   # wait ready
