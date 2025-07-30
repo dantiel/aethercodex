@@ -85,4 +85,12 @@ class Mnemosyne
     db.execute('SELECT prompt, answer FROM entries ORDER BY id DESC LIMIT ?', [limit])
   end
   
+  # Recall entries by tags or prompt
+  def self.recall(query, limit: 3)
+    db.execute(
+      'SELECT prompt, answer FROM entries WHERE tags LIKE ? OR prompt LIKE ? ORDER BY id DESC LIMIT ?',
+      ["%#{query}%", "%#{query}%", limit]
+    )
+  end
+  
 end
