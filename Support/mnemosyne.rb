@@ -11,6 +11,11 @@ class Mnemosyne
     cfg = File.exist?(cfg_path) ? YAML.load_file(cfg_path) : {}
     path = cfg['memory_db'] || '.tm-ai/memory.db'
     project_root = ENV['TM_PROJECT_DIRECTORY'] || Dir.pwd
+    if ENV['TM_DEBUG_PATHS']
+      puts "cfg_path=#{cfg_path}"
+      puts "path=#{path}"
+      puts "project_root=#{project_root}"
+    end
     File.join(project_root, path)
   end
   
@@ -51,6 +56,15 @@ class Mnemosyne
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     SQL
+    db.execute <<~SQL
+      CREATE TABLE IF NOT EXISTS project_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        links TEXT,
+        content TEXT,
+        tags TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    SQL
   end
   
 
@@ -61,8 +75,38 @@ class Mnemosyne
       'INSERT INTO entries (prompt, answer, tags, file, selection) VALUES (?,?,?,?,?)',
       [params['prompt'], answer, Array(params['tags']).join(','), params['file'], params['selection']]
     )
+    puts "record DONE"
   end
   
+
+  # Create a note (id auto-generated, links optional)
+  def self.create_note(content, links: nil, tags: nil)
+    db.execute(
+      'INSERT INTO project_notes (content, links, tags) VALUES (?, ?, ?)',
+      [content, links&.join(','), tags&.join(',')]
+    )
+    db.last_insert_row_id
+  end
+
+
+  # Fetch notes by links (for Argonaut file overview)
+  def self.fetch_notes_by_links(links)
+    links = Array(links).join(',')
+    db.execute('SELECT * FROM project_notes WHERE links LIKE ?', ["%#{links}%"])
+  end
+
+
+  # Update note by id
+  def self.update_note(id, content: nil, links: nil, tags: nil)
+    db.execute('UPDATE project_notes SET content = ?, links = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [content, links&.join(','), tags&.join(','), id])
+  end
+
+
+  # Remove note by id
+  def self.remove_note(id)
+    db.execute('DELETE FROM project_notes WHERE id = ?', [id])
+  end
+
 
   # Simple task ledger
   def self.manage_tasks(params)
@@ -81,16 +125,11 @@ class Mnemosyne
   end
   
   
-  def self.search(query, limit: 5)
-    db.execute('SELECT prompt, answer FROM entries ORDER BY id DESC LIMIT ?', [limit])
-  end
-  
   # Recall entries by tags or prompt
-  def self.recall(query, limit: 3)
+  def self.search(query, limit: 5)
     db.execute(
-      'SELECT prompt, answer FROM entries WHERE tags LIKE ? OR prompt LIKE ? ORDER BY id DESC LIMIT ?',
-      ["%#{query}%", "%#{query}%", limit]
+      'SELECT prompt, answer FROM entries WHERE tags LIKE ? OR prompt LIKE ? OR file LIKE ? ORDER BY id DESC LIMIT ?', 
+      ["%#{query}%", "%#{query}%", "%#{query}%", limit]
     )
   end
-  
 end

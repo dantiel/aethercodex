@@ -87,12 +87,15 @@ class Argonaut  # Patched with 1-line context
     root = project_root
     includes = includeFiles
     excludes = excludeFiles
-    puts "list_project_files"
-    puts `#{ENV['TM_QUERY']}`
-    puts root
-    puts includes
-    puts excludes
 
+    if ENV['TM_DEBUG_PATHS']
+      puts "list_project_files"
+      puts `#{ENV['TM_QUERY']}`
+      puts root
+      puts includes
+      puts excludes
+    end
+    
     Dir.chdir(root) { 
       Dir.glob(if includes.empty? 
         then '**/*.{rb,js,ts,coffee,css,html,md}' 

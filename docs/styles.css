@@ -92,6 +92,11 @@ body {
     padding: 2rem;
 }
 
+.enhanced-description {
+  color: var(--ethereal-white);
+  font-size: 1.2em;
+}
+
 .description {
     text-align: center;
     margin-bottom: 4rem;
@@ -164,27 +169,49 @@ body {
 .feature-card:hover {
     box-shadow: 0 15px 40px rgba(74, 144, 226, 0.4);
 }
-/*
---argonaut-cosmic: #4a90e2;
---argonaut-mystic: #8e44ad;
---void-black: #0a0a0a;
---astral-gray: #1a1a1a;
---ethereal-white: #f8f9fa;
---hermetic-gold: #f39c12;
---dimensional-purple: #6c5ce7;
---arcane-teal: #17a2b8;
---mystic-rose: #e74c3c;
---ethereal-green: #27ae60;
---divine-crimson: #dc2626;
---astral-amber: #f59e0b;
---void-violet: #7c3aed;*/
 
-/* Future Features Styling */
-.future-feature {
-    border-left: 4px solid var(--dimensional-purple);
+
+
+.future-features li strong {
+    color: var(--ethereal-white);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-shadow: 0 0 10px currentColor;
+    display: block;
+}
+
+.future-features li span {
+  display: none;
 }
 
 .future-features {
+    margin-bottom: 4rem;
+}
+
+.future-features .feature-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.future-features li {
+    background: rgba(26, 26, 26, 0.8);
+    padding: 2rem;
+    border-radius: 10px;
+    border: 1px solid rgba(142, 68, 173, 0.3);
+    transition: all 0.3s ease;
+    display: block;
+}
+
+.future-features li:hover {
+    transform: translateY(-5px);
+    border-color: var(--argonaut-mystic);
+    box-shadow: 0 10px 30px rgba(142, 68, 173, 0.2);
+}
+
+.future-features li {
     border-left: 4px solid var(--dimensional-purple);
     background: rgba(26, 26, 26, 0.8);
     padding: 1.5rem;
@@ -250,8 +277,6 @@ body {
     color: var(--ethereal-green);
 }
 
-
-
 .card-shell {
     border-left-color: var(--divine-crimson);
     color: color-mix(in srgb, var(--divine-crimson) 50%, var(--ethereal-white));
@@ -275,8 +300,14 @@ body {
     text-shadow: 0 0 15px var(--arcane-teal);
 }
 
+.future-features h2 {
+    color: var(--ethereal-green);
+    text-shadow: 0 0 15px var(--ethereal-green);
+}
+
 .installation,
-.usage {
+.usage, 
+.future-features {
     background: rgba(26, 26, 26, 0.6);
     padding: 2rem;
     border-radius: 10px;
@@ -289,16 +320,19 @@ body {
     var(--astral-amber), 
     var(--hermetic-gold));
 }
+
 .code {
   background: linear-gradient(45deg, 
     var(--arcane-teal), 
     var(--ethereal-green));
 }
+
 .transmutation {
   background: linear-gradient(45deg,
     var(--argonaut-cosmic), 
     var(--divine-crimson));
 }
+
 .divine, .transmutation, .code  {
   -webkit-background-clip: text;
   background-size: 300% 300%;

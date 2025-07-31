@@ -19,8 +19,9 @@ module Aetherflux
         # These status updates now flow immediately to WebSocket
         # HorologiumAeternum.tool_starting(name, args)
         # HorologiumAeternum.processing("⚙️ Executing #{name}...")
-        
+        puts "try handle tool=#{name}, args=#{args.inspect}"
         result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
+        puts "result=#{result}"
         
         # HorologiumAeternum.tool_completed(name, result)
         

@@ -126,7 +126,6 @@ get '/ws' do
 end
 
 
-
 def startThinkingThread(ws, req)
   stopThinkingThread if @ask_thread
   
@@ -145,10 +144,12 @@ end
 
 
 def stopThinkingThread
-  warn "Thinking cancelled."
-  HorologiumAeternum.system_message("Thinking cancelled.")
-  @ask_thread.kill if @ask_thread
-  @ask_thread = nil
+  unless @ask_thread.nil?
+    warn "Thinking cancelled."
+    HorologiumAeternum.system_message("Thinking cancelled.")
+    @ask_thread.kill 
+    @ask_thread = nil
+  end
 end
 
 

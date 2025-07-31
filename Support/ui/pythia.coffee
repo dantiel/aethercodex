@@ -45,22 +45,21 @@ setupWebSocketHandlers = ->
   , 42000
   
   ws.onmessage = (e) ->
-    console.log "onmessage", e.data
     if '💓' is e.data 
       console.log "onping"
       lastPongTime = Date.now()
-      ws.send '💓'
+      # ws.send '💓'
     else    
       handleMessage e
   
 
 scheduleReconnect = (immediate = false) ->
   return if reconnectAttempts >= maxReconnectAttempts
-
+  
   if reconnectAttempts >= maxReconnectAttempts
-    log 'error', "🔮 Maximum reconnection attempts reached. Gateway sealed."
+    log 'error', '🔮 Maximum reconnection attempts reached. Gateway sealed.'
     return
-    
+  
   delay = baseReconnectDelay * Math.pow(2, Math.min(reconnectAttempts, 5))
   reconnectAttempts++
   
@@ -221,9 +220,15 @@ showStatus = (type, data) ->
       log 'error', "#{data.error} <small>#{timestamp || ''}</small>"
     when 'system_message'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+    when 'hermetic_note_stored'
+      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+    when 'hermetic_notes_recalled'
+      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
 
 
 handleMessage = (e) ->
+  console.log "handleMessage", e.data
+  
   data = JSON.parse e.data
 
   switch data.method
@@ -284,10 +289,10 @@ stopThinking = ->
 
 updateSendButton = ->
   if isThinking
-    sendBtnGlyph.textContent = "⏹️"
+    sendBtnGlyph.textContent = '⏹'
     sendBtn.classList.add 'thinking'
   else
-    sendBtnGlyph.textContent = "⚡"
+    sendBtnGlyph.textContent = '⚡'
     sendBtn.classList.remove 'thinking'
     
 

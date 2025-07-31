@@ -12,22 +12,28 @@ require 'cgi'
 
 
 module PrimaMateria
-  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/]
+  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/]
   DENY_PATHS   = [/\.deepseekrc$/, /\.env$/, /\.git\//]
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
   
   SCHEMA = {
-    'create_file' => { req: %i[path content], forbid: %i[diff] },
-    'patch_file'  => { req: %i[path diff],    forbid: %i[content] },
-    'read_file'   => { req: %i[path],         forbid: [] },
-    'rename_file' => { req: %i[from to],      forbid: [] },
-    'run_command' => { req: %i[cmd],          forbid: [] },
-    'tell_user'   => { req: %i[message],      forbid: [] }
-  }
+    'create_file'           => { req: %i[path content], forbid: %i[diff] },
+    'patch_file'            => { req: %i[path diff],    forbid: %i[content] },
+    'read_file'             => { req: %i[path],         forbid: [] },
+    'rename_file'           => { req: %i[from to],      forbid: [] },
+    'run_command'           => { req: %i[cmd],          forbid: [] },
+    'tell_user'             => { req: %i[message],      forbid: [] },
+    'recall'                => { req: %i[],             forbid: [] },
+    'remember'              => { req: %i[],             forbid: [] },
+    'store_hermetic_note'   => { req: %i[],             forbid: [] },
+    'recall_hermetic_notes' => { req: %i[],             forbid: [] }
+  },
+  'update_note' => { req: %i[id], forbid: [] },
+  'remove_note' => { req: %i[id], forbid: [] }
 
 
-  def self.validate!(tool, args)    
+  def self.validate!(tool, args)
     spec = SCHEMA[tool] or raise "Unknown tool #{tool}"
     miss = spec[:req]   - args.keys
     bad  = spec[:forbid] & args.keys
@@ -49,14 +55,10 @@ module PrimaMateria
     'readfile'   => 'read_file',
     'patchfile'  => 'patch_file',
     'createfile' => 'create_file',
-    'runcommand' => 'run_command'
-  }
-  
-  
-  TOOL_ALIASES.merge!(
+    'runcommand' => 'run_command',
     'renamefile' => 'rename_file',
     'telluser'   => 'tell_user'
-  )
+  }
   
   
   def self.handle(call)
@@ -79,6 +81,10 @@ module PrimaMateria
     when 'remember'     then remember(**args)
     when 'recall'       then recall(**args)
     when 'tell_user'    then tell_user(**args)
+    when 'store_hermetic_note' then store_hermetic_note(**args)
+    when 'update_note' then update_note(**args)
+    when 'remove_note' then remove_note(**args)
+    when 'recall_hermetic_notes' then recall_hermetic_notes(**args)
     else { error: "Unknown tool #{tool}" }
     end
   rescue ArgumentError => e
@@ -202,6 +208,20 @@ module PrimaMateria
     { ok: true }
   end
 
+  def self.store_hermetic_note(key:, body:, tags: [])
+    HorologiumAeternum.hermetic_note_stored(key)
+    Mnemosyne.create_note(key, body, tags)
+    { ok: true }
+  end
+
+  def self.recall_hermetic_notes(query:, limit: 3)
+    HorologiumAeternum.hermetic_notes_recalled(query, limit)
+    result = { notes: Mnemosyne.search_project_notes(query, limit: limit) }
+    result
+  rescue => e
+    { error: e.message }
+  end
+
 
   def self.recall(query:, limit: 3)
     HorologiumAeternum.memory_searching(query, limit)
@@ -209,6 +229,7 @@ module PrimaMateria
     HorologiumAeternum.memory_found(query, result[:notes]&.length || 0)
     result
   rescue e
+    puts "[PrimaMateria][ERROR]: #{e.inspect}"
     { error: e }
   end
 end

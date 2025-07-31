@@ -38,6 +38,8 @@ class Oracle
                    'patchfile'  => 'patch_file',
                    'createfile' => 'create_file',
                    'runcommand' => 'run_command',
+                   'storehermeticnote' => 'store_hermetic_note',
+                   'recallhermeticnotes' => 'recall_hermetic_notes',
                    'renamefile' => 'rename_file',
                    'telluser'   => 'tell_user' }
 
@@ -148,6 +150,7 @@ class Oracle
     HorologiumAeternum.server_error e.message
     ["<error> #{e.message}", { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
   end
+
 
   def self.terminate_thread
     Thread.current.kill if Thread.current.alive?
@@ -279,6 +282,8 @@ class Oracle
   rescue => e
     warn "log_json failed: #{e.message}"
   end
+  
+  
   def self.load_cfg
     path = File.expand_path('../.deepseekrc', __FILE__)
     File.exist?(path) ? YAML.load_file(path) : {}

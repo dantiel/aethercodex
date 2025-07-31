@@ -223,6 +223,16 @@ module HorologiumAeternum
   end
   
   
+  def self.hermetic_note_stored(key)
+    send_status('hermetic_note_stored', { key: key, message: "🔒 Hermetic note stored: #{key}" })
+  end
+
+
+  def self.hermetic_notes_recalled(query, count)
+    send_status('hermetic_notes_recalled', { query: query, count: count, message: "🔍 Recalled #{count} Hermetic notes for: #{query}" })
+  end
+
+  
   def self.info_message(message)
     send_status('info', { message: Scriptorium.html("💬 #{message}") })
   end

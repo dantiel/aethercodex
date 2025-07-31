@@ -25,6 +25,14 @@ class Arcanum
     ctx
   end
 
+  def self.store_hermetic_note(key, body, tags = [])
+    Mnemosyne.record(key, body, tags)
+  end
+
+  def self.recall_hermetic_notes(query, limit = 3)
+    Mnemosyne.recall(query, limit)
+  end
+
 
   def self.fetch_history(limit)
     Mnemosyne.db.execute(

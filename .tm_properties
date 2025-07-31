@@ -6,7 +6,7 @@ projectDirectory      = "$CWD"
 
 # Includes
 
-includeFiles          = "{$includeFiles,.deepseekrc}"    
+includeFiles          = "{$includeFiles,.deepseekrc}"
 includeInBrowser      = "{$includeInBrowser}"
 includeDirectories    = "{$includeDirectories}"
 includeInFileChooser  = "{$includeInFileChooser,.gitignore,*.orig,*.rej,*.js}"
@@ -19,7 +19,7 @@ excludeFiles          = "{$excludeFiles,destroy,tmtags,tmtagsHistory,tags,.htacc
 excludeInBrowser      = "{$excludeInBrowser,*.orig,*.rej,*.js}"
 excludeDirectories    = "{$excludeDirectories,excludedDir1}"
 excludeInFileChooser  = "{$excludeInFileChooser}"
-excludeInFolderSearch = "{$excludeInFolderSearch}"
+excludeInFolderSearch = "{$excludeInFolderSearch,.bundle,.vendor_bundle}"
 
 
 # Variables

@@ -180,6 +180,7 @@ body {
   backdrop-filter: blur(8px);
   position: relative;
   font-weight: 450;
+  white-space: pre-wrap;
 }
 
 
@@ -364,6 +365,20 @@ p {
 }
 
 
+@keyframes thinkingPulse2 {
+  0% { opacity: 1.0;  }
+  50% { opacity: 0.5; }
+  100% { opacity: 1.0; }
+}
+#send-btn.thinking {
+  background: var(--argonaut-shadow);
+}
+#send-btn.thinking .send-glyph {
+  color: var(--argonaut-steel);
+  animation: thinkingPulse2 2s ease-in-out infinite;
+  font-size: 1.8em;
+}
+
 /* Enhanced AI & Status Styling */
 .ai tt, .ai code, .ai kbd, .ai samp, .ai pre {
   font-family: var(--mono);
@@ -460,5 +475,10 @@ summary::-webkit-details-marker {
 hr {
     border: none;
     border-bottom: 0.2em solid var(--argonaut-void);
+}
+
+ul, ol {
+    margin: 0 ;
+    padding:0 0 0 1.6em;
 }
 

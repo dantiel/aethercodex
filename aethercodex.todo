@@ -50,10 +50,10 @@ Tool Naming & Concepts:
       Enhance `oracle.coffee` with divinatory methods.
 
 Mnemosyne:
-  ◯ General AI Notes (ai-notes.txt)
-      Create `ai-notes.txt` in `Support` with max length (1000 lines).
+  ◯ General AI Notes 
+      Create project notes table.
   ◯ File-Specific Memory
-      Design JSON schema for metadata (line length, last update, AI notes).
+      Design table for file and folder metadata (path, AI notes).
   ◯ Tool Integration (file_overview)
       Add tool to fetch metadata and AI notes per file. An extra tool is needed to save metadata.
   ◯ Testing
