@@ -154,7 +154,7 @@ INSTRUMENTA = [
     type: 'function',
     function: {
       name: 'file_overview',
-      description: 'Fetch notes associated with specific file paths for Argonaut.',
+      description: 'Fetch all information associated with a file (e.g., ai notes metadata and related file metadata, size, number of line, last modified).',
       parameters: {
         type: 'object',
         properties: {

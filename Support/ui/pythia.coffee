@@ -6,7 +6,7 @@ reconnectAttempts = 0
 maxReconnectAttempts = 10
 baseReconnectDelay = 1000  # 1 second
 lastPongTime = null
-
+console.log = ->
 
 connectWebSocket = ->
   try

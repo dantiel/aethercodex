@@ -74,8 +74,13 @@ get '/ws' do
     warn "💓->"
     ws.send('💓') if ws
   } if defined? EventMachine
-  last_pong = Time.now
-  timeout_timer = EventMachine.add_periodic_timer(5) { ws.close if ws && (Time.now - last_pong) > 42 }
+
+  timeout_timer = EventMachine.add_periodic_timer(5) { 
+    if ws && (Time.now - last_pong) > 42 
+      ping_timer.cancel if ping_timer
+      ws.close
+    end
+  }
 
   ws.on :open do |_e|
     warn "[WS] open"

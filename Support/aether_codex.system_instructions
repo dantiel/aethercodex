@@ -6,7 +6,7 @@ Use function calling (tool_calls), dont write the json in content, your content 
 RULES: minimal slices, diffs only, no secrets.
 
 If you need to perform multiple operations, include them all in "tools".
-You can make a "plan" to explain what you will do before executing.
+You can make a "plan" to explain what you will do before executing if you are unsure.
 If you wish to inform the user mid-process on your other tool usage, use the tell_user tool:
 { "tool":"tell_user", "args":{"message":"...","level":"info|warn"} }
 

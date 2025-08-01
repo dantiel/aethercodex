@@ -17,20 +17,21 @@ module PrimaMateria
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
   
+  
   SCHEMA = {
-    'create_file'           => { req: %i[path content], forbid: %i[diff] },
-    'patch_file'            => { req: %i[path diff],    forbid: %i[content] },
-    'read_file'             => { req: %i[path],         forbid: [] },
-    'rename_file'           => { req: %i[from to],      forbid: [] },
-    'run_command'           => { req: %i[cmd],          forbid: [] },
-    'tell_user'             => { req: %i[message],      forbid: [] },
-    'recall'                => { req: %i[],             forbid: [] },
-    'remember'              => { req: %i[],             forbid: [] },
-    'store_hermetic_note'   => { req: %i[],             forbid: [] },
-    'recall_hermetic_notes' => { req: %i[],             forbid: [] }
-  },
-  'update_note' => { req: %i[id], forbid: [] },
-  'remove_note' => { req: %i[id], forbid: [] }
+    'create_file'    => { req: %i[path content], forbid: %i[diff] },
+    'patch_file'     => { req: %i[path diff],    forbid: %i[content] },
+    'read_file'      => { req: %i[path],         forbid: [] },
+    'rename_file'    => { req: %i[from to],      forbid: [] },
+    'run_command'    => { req: %i[cmd],          forbid: [] },
+    'tell_user'      => { req: %i[message],      forbid: [] },
+    'recall_history' => { req: %i[],             forbid: [] },
+    'remember'       => { req: %i[],             forbid: [] },
+    'add_note'       => { req: %i[],             forbid: [] },
+    'recall_notes'   => { req: %i[],             forbid: [] },
+    'update_note'    => { req: %i[id],           forbid: [] },
+    'remove_note'    => { req: %i[id],           forbid: [] }
+  }
 
 
   def self.validate!(tool, args)
@@ -73,18 +74,19 @@ module PrimaMateria
       return { error: "invalid_args: #{e.message}", got: call }
     end
     case tool
-    when 'read_file'    then read_file(**args)
-    when 'patch_file'   then patch_file(**args)
-    when 'create_file'  then create_file(**args)
-    when 'rename_file'  then rename_file(**args)
-    when 'run_command'  then run_command(**args)
-    when 'remember'     then remember(**args)
-    when 'recall'       then recall(**args)
-    when 'tell_user'    then tell_user(**args)
-    when 'store_hermetic_note' then store_hermetic_note(**args)
-    when 'update_note' then update_note(**args)
-    when 'remove_note' then remove_note(**args)
-    when 'recall_hermetic_notes' then recall_hermetic_notes(**args)
+    when 'read_file'      then read_file(**args)
+    when 'patch_file'     then patch_file(**args)
+    when 'create_file'    then create_file(**args)
+    when 'rename_file'    then rename_file(**args)
+    when 'run_command'    then run_command(**args)
+    when 'remember'       then remember(**args)
+    when 'recall_history' then recall_history(**args)
+    when 'tell_user'      then tell_user(**args)
+    when 'add_note'       then add_note(**args)
+    when 'recall_notes'   then recall_notes(**args)
+    when 'update_note'    then update_note(**args)
+    when 'remove_note'    then remove_note(**args)
+    when 'file_overview'  then file_overview(**args)
     else { error: "Unknown tool #{tool}" }
     end
   rescue ArgumentError => e
@@ -207,23 +209,16 @@ module PrimaMateria
     HorologiumAeternum.memory_stored(key)
     { ok: true }
   end
+  
 
-  def self.store_hermetic_note(key:, body:, tags: [])
+  def self.add_note(key:, body:, tags: [])
     HorologiumAeternum.hermetic_note_stored(key)
     Mnemosyne.create_note(key, body, tags)
     { ok: true }
   end
 
-  def self.recall_hermetic_notes(query:, limit: 3)
-    HorologiumAeternum.hermetic_notes_recalled(query, limit)
-    result = { notes: Mnemosyne.search_project_notes(query, limit: limit) }
-    result
-  rescue => e
-    { error: e.message }
-  end
 
-
-  def self.recall(query:, limit: 3)
+  def self.recall_history(query:, limit: 3)
     HorologiumAeternum.memory_searching(query, limit)
     result = { notes: Mnemosyne.search(query, limit: limit) }
     HorologiumAeternum.memory_found(query, result[:notes]&.length || 0)
@@ -231,5 +226,36 @@ module PrimaMateria
   rescue e
     puts "[PrimaMateria][ERROR]: #{e.inspect}"
     { error: e }
+  end
+  
+  
+  def self.recall_notes(query:, limit: 3)
+    HorologiumAeternum.note_recalled(query, limit)
+    result = { notes: Mnemosyne.search_notes(query, limit: limit) }
+    result
+  rescue => e
+    { error: e.message }
+  end
+  
+  
+  def self.update_note(id:, content: nil, links: nil, tags: nil)
+    Mnemosyne.update_note(id, content: content, links: links, tags: tags)
+    { ok: true }
+  end
+  
+  
+  def self.remove_note(id:)
+    Mnemosyne.remove_note(id)
+    { ok: true }
+  end
+  
+  
+  def self.file_overview(path:)
+    notes = Mnemosyne.search_notes_by_path(path)
+    file_info = {
+      size: File.size(path),
+      last_modified: File.mtime(path)
+    }
+    { notes: notes, file_info: file_info }
   end
 end
