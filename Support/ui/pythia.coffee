@@ -6,25 +6,26 @@ reconnectAttempts = 0
 maxReconnectAttempts = 10
 baseReconnectDelay = 1000  # 1 second
 lastPongTime = null
-console.log = ->
+# console.log = ->
+  
 
 connectWebSocket = ->
   try
     if ws?.readyState == WebSocket.OPEN or ws?.readyState == WebSocket.CONNECTING
-      ws.close()
+      do ws.close
       ws = null
 
     log 'system', "🔮 Initiating connection ritual to ws://127.0.0.1:#{port}/ws..."
     ws = new WebSocket "ws://127.0.0.1:#{port}/ws"
-    setupWebSocketHandlers()
+    do setupWebSocketHandlers
   catch e
     log 'error', "🔮 Connection ritual failed: #{e.message}"
-    scheduleReconnect()
+    do scheduleReconnect
 
 
 setupWebSocketHandlers = ->
   ws.onopen = ->
-    lastPongTime = Date.now()
+    lastPongTime = do Date.now
     log 'system', '🗝️ Gate opened.'
     reconnectAttempts = 0  # Reset on successful connection
     
@@ -38,7 +39,7 @@ setupWebSocketHandlers = ->
     
   # Check for missed pongs every 30 seconds and close stale connections
   setInterval ->
-    if lastPongTime and (Date.now() - lastPongTime) > 42000
+    if lastPongTime and (do Date.now - lastPongTime) > 42000
       console.log 'missing pong detected, closing stale connection'
       do ws.close
       do scheduleReconnect
@@ -47,8 +48,8 @@ setupWebSocketHandlers = ->
   ws.onmessage = (e) ->
     if '💓' is e.data 
       console.log "onping"
-      lastPongTime = Date.now()
-      # ws.send '💓'
+      lastPongTime = do Date.now
+      ws.send '💓'
     else    
       handleMessage e
   
@@ -200,7 +201,7 @@ showStatus = (type, data) ->
       else
         log 'status', "✅ Tool <code>#{data.tool}</code> completed <small>#{timestamp || ''}</small>"
       if data.result and Object.keys(data.result).length > 0 and not data.result?.error
-        resultJson = JSON.stringify(data.result, null, 2)
+        resultJson = JSON.stringify data.result, null, 2
         if resultJson.length > 200
           log 'system', "<details><summary>📋 #{data.tool} result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
         else
@@ -211,7 +212,7 @@ showStatus = (type, data) ->
       else
         log 'status', "💭 AI responding... <small>#{timestamp || ''}</small>"
     when 'plan_announced'
-      log 'status', "📋Plan: #{data.steps?.join(' → ')} <small>#{timestamp || ''}</small>"
+      log 'status', "📋Plan: #{data.steps?.join ' → '} <small>#{timestamp || ''}</small>"
     when 'processing'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
     when 'completed'
@@ -220,10 +221,16 @@ showStatus = (type, data) ->
       log 'error', "#{data.error} <small>#{timestamp || ''}</small>"
     when 'system_message'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
-    when 'hermetic_note_stored'
+    when 'note_added'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
-    when 'hermetic_notes_recalled'
+    when 'note_updated'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+    when 'notes_recalled'
+      log 'system', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <pre>#{data.notes}</pre>
+        </details>"""
 
 
 handleMessage = (e) ->
@@ -250,7 +257,7 @@ handleMessage = (e) ->
           log 'system', "<pre>#{toolsJson}</pre>"        
         renderTools data.result.tools
     when 'toolResult'
-      resultJson = JSON.stringify(data.result, null, 2)
+      resultJson = JSON.stringify data.result, null, 2
       if resultJson.length > 300
         log 'system', "<details><summary>🔧 Tool Result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
       else
@@ -258,9 +265,9 @@ handleMessage = (e) ->
     when 'completion'
       log 'ai', "<pre>#{data.result.snippet}</pre>"
     when 'error'
-      log 'error', "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join('\\n')}</pre>"
+      log 'error', "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
     else
-      log 'system', "<pre>#{JSON.stringify(data,null,2)}</pre>"
+      log 'system', "<pre>#{JSON.stringify data, null, 2}</pre>"
 
 
 onSendBtnClick = (e) ->
@@ -280,6 +287,7 @@ askAI = ->
   isThinking = true
   do updateSendButton
   
+  
 stopThinking = ->
   ws.send JSON.stringify method: 'stopThinking'
   isThinking = false
@@ -296,7 +304,7 @@ updateSendButton = ->
     sendBtn.classList.remove 'thinking'
     
 
-sendBtn = document.getElementById('send-btn')
+sendBtn = document.getElementById 'send-btn'
 sendBtnGlyph = sendBtn.getElementsByClassName('send-glyph')[0]
 sendBtn.onclick = onSendBtnClick
 
@@ -304,24 +312,25 @@ sendBtn.onclick = onSendBtnClick
 # Handle Enter and Shift+Enter for textarea
 document.getElementById('chat-input').addEventListener 'keydown', (e) ->
   if e.key == 'Enter' and not e.shiftKey
-    e.preventDefault()
+    do e.preventDefault
     do askAI
     do adjustHeight
   else if e.key == 'Enter' and e.shiftKey
-    # Allow new line
-    return
-    
+    null
+
 
 textarea = null
+                                      
 
 adjustHeight = -> 
   textarea.style.height = 'auto'
   textarea.style.height = "#{textarea.scrollHeight}px"
 
+
 document.addEventListener 'DOMContentLoaded', ->
-  textarea = document.getElementById('chat-input')
+  textarea = document.getElementById 'chat-input'
   
-  textarea.addEventListener('input', adjustHeight)
+  textarea.addEventListener 'input', adjustHeight
   do adjustHeight
 
     

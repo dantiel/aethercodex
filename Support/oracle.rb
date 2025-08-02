@@ -1,9 +1,9 @@
+# frozen_string_literal: true
 # Support/oracle.rb
 require 'faraday'
 require 'json'
 require 'time'
 require 'fileutils'
-# frozen_string_literal: true
 require 'faraday'
 require 'json'
 require 'time'
@@ -23,7 +23,7 @@ require_relative 'scriptorium'
 
 class Oracle
   ENDPOINT = 'https://api.deepseek.com/v1/chat/completions'
-  SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions"
+  SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions.md"
   
 
   def self.deep_symbolize(obj)

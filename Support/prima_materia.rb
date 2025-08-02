@@ -12,12 +12,11 @@ require 'cgi'
 
 
 module PrimaMateria
-  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/]
+  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/, /^cd\b/]
   DENY_PATHS   = [/\.deepseekrc$/, /\.env$/, /\.git\//]
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
-  
-  
+    
   SCHEMA = {
     'create_file'    => { req: %i[path content], forbid: %i[diff] },
     'patch_file'     => { req: %i[path diff],    forbid: %i[content] },
@@ -26,11 +25,12 @@ module PrimaMateria
     'run_command'    => { req: %i[cmd],          forbid: [] },
     'tell_user'      => { req: %i[message],      forbid: [] },
     'recall_history' => { req: %i[],             forbid: [] },
-    'remember'       => { req: %i[],             forbid: [] },
-    'add_note'       => { req: %i[],             forbid: [] },
+    'remember'       => { req: %i[content],      forbid: [] },
+    # 'add_note'       => { req: %i[],             forbid: [] },
     'recall_notes'   => { req: %i[],             forbid: [] },
-    'update_note'    => { req: %i[id],           forbid: [] },
-    'remove_note'    => { req: %i[id],           forbid: [] }
+    # 'update_note'    => { req: %i[id],           forbid: [] },
+    'remove_note'    => { req: %i[id],           forbid: [] },
+    'file_overview'  => { req: %i[path],         forbid: [] }
   }
 
 
@@ -76,22 +76,23 @@ module PrimaMateria
     case tool
     when 'read_file'      then read_file(**args)
     when 'patch_file'     then patch_file(**args)
-    when 'create_file'    then create_file(**args)
+    when 'create_filte'    then create_file(**args)
     when 'rename_file'    then rename_file(**args)
     when 'run_command'    then run_command(**args)
     when 'remember'       then remember(**args)
     when 'recall_history' then recall_history(**args)
     when 'tell_user'      then tell_user(**args)
-    when 'add_note'       then add_note(**args)
+    # when 'add_note'       then add_note(**args)
     when 'recall_notes'   then recall_notes(**args)
-    when 'update_note'    then update_note(**args)
+    # when 'update_note'    then update_note(**args)
     when 'remove_note'    then remove_note(**args)
     when 'file_overview'  then file_overview(**args)
     else { error: "Unknown tool #{tool}" }
     end
   rescue ArgumentError => e
     { error: "Bad args for #{tool}: #{e.message}", got: call }
-  rescue e
+  rescue => e
+    puts "[RESCUE] #{e.inspect}"
     {}
   end
 
@@ -137,14 +138,14 @@ module PrimaMateria
   end
 
 
-  def self.patch_file(path: nil, diff: nil, dry: false, **_)
+  def self.patch_file(path: nil, diff: nil, **_)
     return { error: 'missing :path or :diff' } unless path && diff
     
     diff_lines = diff.lines.count
     HorologiumAeternum.file_patching(path, diff_lines)
     
     return { error: 'Diff too big' } if diff.lines.count > MAX_DIFF
-    Argonaut.patch(path, diff, dry: dry)
+    Argonaut.patch(path, diff)
     
     HorologiumAeternum.file_patched(path, diff)
     { ok: true }
@@ -190,11 +191,11 @@ module PrimaMateria
     HorologiumAeternum.command_executing(cmd)
     
     begin
-      stdout, stderr, status = Open3.capture3(cmdOpen3.capture3, chdir: Argonaut.project_root)
+      stdout, stderr, status = Open3.capture3(cmd, chdir: Argonaut.project_root)
       out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
       HorologiumAeternum.command_completed(cmd, out.length, out)
       
-      return { error: "Command failed (exit #{status.exitstatus}): #{stderr}" } unless status.exitstatus == 0
+      return { error: "Command output: #{out}" }
     rescue => e
       return { error: "Command error: #{e.message}" }
     end
@@ -202,45 +203,40 @@ module PrimaMateria
     { output: out }
   end
 
-
-  def self.remember(key:, body:, tags: [])
-    HorologiumAeternum.memory_storing(key, body.bytesize)
-    Mnemosyne.record_note(key, body, tags)
-    HorologiumAeternum.memory_stored(key)
-    { ok: true }
-  end
   
-
-  def self.add_note(key:, body:, tags: [])
-    HorologiumAeternum.hermetic_note_stored(key)
-    Mnemosyne.create_note(key, body, tags)
+  def self.remember(id: nil, content: nil, links: nil, tags: nil)
+    # HorologiumAeternum.memory_storing(key, content.bytesize)
+    if id.nil?
+      Mnemosyne.create_note(content, links: links, tags: tags)
+      HorologiumAeternum.note_added(content, links, tags)
+    else
+      Mnemosyne.update_note(id, content: content, links: links, tags: tags)
+      HorologiumAeternum.note_updated(content, links, tags)
+    end
+    
+    # Mnemosyne.record_note(key, body, tags)
+    # HorologiumAeternum.memory_stored(key)
     { ok: true }
   end
 
 
-  def self.recall_history(query:, limit: 3)
+  def self.recall_history(query: '', limit: 3)
     HorologiumAeternum.memory_searching(query, limit)
     result = { notes: Mnemosyne.search(query, limit: limit) }
     HorologiumAeternum.memory_found(query, result[:notes]&.length || 0)
     result
-  rescue e
+  rescue => e
     puts "[PrimaMateria][ERROR]: #{e.inspect}"
     { error: e }
   end
   
   
-  def self.recall_notes(query:, limit: 3)
-    HorologiumAeternum.note_recalled(query, limit)
+  def self.recall_notes(query: '', limit: 3)
     result = { notes: Mnemosyne.search_notes(query, limit: limit) }
+    HorologiumAeternum.notes_recalled(query, result[:notes])
     result
   rescue => e
     { error: e.message }
-  end
-  
-  
-  def self.update_note(id:, content: nil, links: nil, tags: nil)
-    Mnemosyne.update_note(id, content: content, links: links, tags: tags)
-    { ok: true }
   end
   
   
@@ -251,11 +247,10 @@ module PrimaMateria
   
   
   def self.file_overview(path:)
-    notes = Mnemosyne.search_notes_by_path(path)
-    file_info = {
-      size: File.size(path),
-      last_modified: File.mtime(path)
-    }
-    { notes: notes, file_info: file_info }
+    puts "[PRIMA MATERIA]: file_overview(path:#{path})"
+    results = Argonaut.file_overview path: path
+    HorologiumAeternum.file_overview(results)
+    puts "[PRIMA MATERIA]: results=#{results}"
+    results
   end
 end

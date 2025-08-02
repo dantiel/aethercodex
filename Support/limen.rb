@@ -77,7 +77,6 @@ get '/ws' do
 
   timeout_timer = EventMachine.add_periodic_timer(5) { 
     if ws && (Time.now - last_pong) > 42 
-      ping_timer.cancel if ping_timer
       ws.close
     end
   }
@@ -108,7 +107,8 @@ get '/ws' do
         when 'askAI'
           startThinkingThread ws, req
         when 'stopThinking'
-          stopThinkingThread
+          warn "stopThinking"
+          stopThinkingThread true
         end
       end
     rescue => e
@@ -148,10 +148,10 @@ def startThinkingThread(ws, req)
 end
 
 
-def stopThinkingThread
-  unless @ask_thread.nil?
+def stopThinkingThread(send_msg = false)
+  unless @ask_thread.nil? 
     warn "Thinking cancelled."
-    HorologiumAeternum.system_message("Thinking cancelled.")
+    HorologiumAeternum.system_message("Thinking cancelled.") if send_msg
     @ask_thread.kill 
     @ask_thread = nil
   end

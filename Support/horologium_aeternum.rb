@@ -221,20 +221,36 @@ module HorologiumAeternum
       query: query, count: count 
     })
   end
+    
+  
+  def self.note_added(content, links, tags)
+    send_status('note_added', { 
+      message: "🔒 Note stored: #{content} (#{tags.join ', '}) links: #{links.join ', '}" })
+  end
   
   
-  def self.hermetic_note_stored(key)
-    send_status('hermetic_note_stored', { key: key, message: "🔒 Hermetic note stored: #{key}" })
+  def self.note_updated(content, links, tags)
+    send_status('note_updated', { 
+      message: "🔒 Note stored: #{content} (#{tags.join ', '}) links: #{links.join ', '}" })
   end
 
 
-  def self.hermetic_notes_recalled(query, count)
-    send_status('hermetic_notes_recalled', { query: query, count: count, message: "🔍 Recalled #{count} Hermetic notes for: #{query}" })
+  def self.notes_recalled(query, notes)
+    send_status('notes_recalled', { 
+      query: query, count: notes.count, 
+      message: "🔍 Recalled #{notes.count} Hermetic notes for: #{query}",
+      notes: notes.inspect
+    })
   end
 
   
   def self.info_message(message)
-    send_status('info', { message: Scriptorium.html("💬 #{message}") })
+    send_status('info', { message: Scriptorium.html_with_syntax_highlight("💬 #{message}") })
+  end
+  
+  
+  def self.file_overview(message)
+    send_status('info', { message: Scriptorium.html("💬 #{message.inspect}") })
   end
   
   

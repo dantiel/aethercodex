@@ -1,7 +1,11 @@
 require_relative 'mnemosyne'
 require_relative 'argonaut'
 
-
+# Arcane algorithms for symbolic computation and transformation.
+# Nested indentation test:
+#   - Level 1
+#     - Level 2
+#       - Level 3
 
 class Arcanum
   MAX_CONTEXT_LINES = 120
@@ -57,4 +61,3 @@ class Arcanum
     nil
   end
 end
-

@@ -6,6 +6,7 @@ Hermetic Coding Paradigm & File Naming
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
     Implemented core file operations like read, write, and patch.
 ✔︎ replace pygments by rouge... its already added to gemfile @done(29-07-2025 23:52)
+◯ make a textmate command that shows the fileoverview content (ai notes) to the user as a txtmate info
 
 Website:
   ✧ Hermetic Symbolism
@@ -78,7 +79,7 @@ AI Features:
       Predict and prevent code vulnerabilities.
   ✧ Alchemical Transmutation
       Transform code paradigms magically.
-  ✧ Reasoning-Model Tool Integration
+  ◯  Reasoning-Model Tool Integration
       Add reasoning-model as a tool call for enhanced task automation.
   ✧ Divination Mode (Symbolic Predictions)
       Forecast code behavior based on symbols.

@@ -28,6 +28,25 @@ class Mnemosyne
       migrate(db)
       db
     end
+  
+  end
+
+  # Search notes with scoring based on content, tags, and links
+  def self.search_notes(query, limit: 5)
+    notes = db.execute(
+      'SELECT id, content, tags, links FROM project_notes'
+    )
+
+    notes.map do |note|
+      score = 0
+      score += 3 if note['content']&.include?(query)
+      score += 2 if note['tags']&.include?(query)
+      score += 1 if note['links']&.include?(query)
+      { **note, score: score }
+    end
+      .select { |note| note[:score] > 0 }
+      .sort_by { |note| -note[:score] }
+      .take(limit)
   end
   
 
@@ -81,10 +100,10 @@ class Mnemosyne
 
   # Create a note (id auto-generated, links optional)
   def self.create_note(content, links: nil, tags: nil)
-    db.execute(
-      'INSERT INTO project_notes (content, links, tags) VALUES (?, ?, ?)',
+    db.execute '''
+      INSERT INTO project_notes (content, links, tags, created_at) 
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)''',
       [content, links&.join(','), tags&.join(',')]
-    )
     db.last_insert_row_id
   end
 
@@ -97,8 +116,9 @@ class Mnemosyne
 
 
   # Update note by id
-  def self.update_note(id, content: nil, links: nil, tags: nil)
-    db.execute('UPDATE project_notes SET content = ?, links = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [content, links&.join(','), tags&.join(','), id])
+  def self.update_note(id, content: nil, links: nil, tags: nil) 
+    # TODO change created_at to updated_at
+    db.execute('UPDATE project_notes SET content = ?, links = ?, tags = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?', [content, links&.join(','), tags&.join(','), id])
   end
 
 

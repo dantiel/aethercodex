@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
   <key>beforeRunningCommand</key><string>nop</string>
-    <key>command</key>
-    <string><![CDATA[#!/usr/bin/env bash
+  <key>command</key>
+  <string><![CDATA[#!/usr/bin/env bash
 set -e
 SUP="$TM_BUNDLE_SUPPORT"
 SUP2=$(echo "file://$SUP/ui" | perl -pe 's/\//\\\//g')

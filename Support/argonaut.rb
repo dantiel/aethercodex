@@ -1,8 +1,10 @@
+require 'json'
 require 'open3'
 require 'tempfile'
+require_relative 'diff_crepusculum'
 
 
-class Argonaut  # Patched with 1-line context
+class Argonaut
   def self.read(path)
     base = project_root
     File.read(File.join(base, path))
@@ -31,20 +33,24 @@ class Argonaut  # Patched with 1-line context
 
 
   # patch as unified diff string
-  def self.patch(path, patch_text, dry:)
+  def self.patch(path, patch_text)
     base = project_root
     full = File.join(base, path)
-    Tempfile.create(['patch', '.diff'], encoding: 'utf-8') do |f|
-      f.write(patch_text)
-      f.flush
-      stdout, stderr, status = Open3.capture3('patch', '-F 0', full, f.path)
-      raise "patch failed: #{stderr}\n#{stdout}" unless status.success?
-    end
+    strategy = DiffCrepusculum::ChrysopoeiaDiff.new
+    
+    # Read the original content
+    original_content = File.read full
+    
+    # Apply the converted diff
+    puts "TRY PATCH======="
+    result = strategy.apply_diff original_content, patch_text
+    puts "PATCH======="
+    puts result.inspect
+    raise "Patch failed: #{result[:fail_parts].to_json}" unless result[:success]
+    File.write(full, result[:content])
   end
-  
 
   def self.project_root
-    # Debug environment variables for cosmic alignment
     if ENV['TM_DEBUG_PATHS']
       puts "🔮 Dimensional Diagnostics:"
       puts "TM_PROJECT_DIRECTORY: #{ENV['TM_PROJECT_DIRECTORY'].inspect}"
@@ -54,10 +60,8 @@ class Argonaut  # Patched with 1-line context
       puts "Current directory: #{Dir.pwd}"
     end
     
-    # Try multiple TextMate environment variables
     root = ENV['TM_PROJECT_DIRECTORY'] || ENV['TM_DIRECTORY'] || Dir.pwd
     
-    # If we get a file path instead of directory, extract directory
     if root && File.file?(root)
       root = File.dirname(root)
     end
@@ -103,6 +107,22 @@ class Argonaut  # Patched with 1-line context
       ).reject { |f| excludes.any? { |ex| 
         File.fnmatch(ex, File.basename(f)) } } }
   end
+  
+  
+  def self.file_overview(path:)
+    puts "[ARGONAUT]: file_overview(path: #{path})"
+    notes = Mnemosyne.fetch_notes_by_links(path)
+    puts "[ARGONAUT]: notes=#{notes}"
+
+    fullpath = File.join project_root, path 
+    file_info = {
+      size: File.size(fullpath),
+      last_modified: File.mtime(fullpath) 
+    }
+    puts "[ARGONAUT]: file_info=#{file_info}"
+    { notes: notes, file_info: file_info }
+  rescue => e
+    { error: e.inspect }
+  end
 end
 
-# Argonaut.project_list_files

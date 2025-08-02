@@ -18,3 +18,7 @@ gem 'yaml'
 gem 'redcarpet', '~> 3.6'
 
 gem "rouge", "~> 4.6"
+
+gem "ruby-enum", "~> 1.0"
+
+gem "rspec", "~> 3.13"

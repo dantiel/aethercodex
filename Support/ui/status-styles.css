@@ -19,7 +19,7 @@
 }
 
 
-.status::before {
+body.fancy-animations .status::before {
   content: '';
   position: absolute;
   top: 0;
