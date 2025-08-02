@@ -5,6 +5,9 @@ require_relative 'diff_crepusculum'
 
 
 class Argonaut
+  @diff_crepusculum ||= DiffCrepusculum::ChrysopoeiaDiff.new
+  
+  
   def self.read(path)
     base = project_root
     File.read(File.join(base, path))
@@ -36,14 +39,13 @@ class Argonaut
   def self.patch(path, patch_text)
     base = project_root
     full = File.join(base, path)
-    strategy = DiffCrepusculum::ChrysopoeiaDiff.new
     
     # Read the original content
     original_content = File.read full
     
     # Apply the converted diff
     puts "TRY PATCH======="
-    result = strategy.apply_diff original_content, patch_text
+    result = @diff_crepusculum.apply_diff original_content, patch_text
     puts "PATCH======="
     puts result.inspect
     raise "Patch failed: #{result[:fail_parts].to_json}" unless result[:success]

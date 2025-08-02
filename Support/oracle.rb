@@ -217,7 +217,8 @@ class Oracle
       ],
       #response_format: { type: 'json_object' },
       tools: INSTRUMENTA,
-      max_tokens: 2048
+      max_tokens: 2048,
+      temperature: 1.0
     }
   end
 

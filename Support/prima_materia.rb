@@ -30,7 +30,8 @@ module PrimaMateria
     'recall_notes'   => { req: %i[],             forbid: [] },
     # 'update_note'    => { req: %i[id],           forbid: [] },
     'remove_note'    => { req: %i[id],           forbid: [] },
-    'file_overview'  => { req: %i[path],         forbid: [] }
+    'file_overview'  => { req: %i[path],         forbid: [] },
+    'new_tool'       => { req: %i[param1 param2], forbid: %i[param3] }
   }
 
 
