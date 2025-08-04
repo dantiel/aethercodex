@@ -9,6 +9,7 @@ require 'json'
 require 'timeout'
 require 'open3'
 require 'cgi'
+require 'pathname'
 
 
 
@@ -224,7 +225,7 @@ module PrimaMateria
   def self.recall_history(query: '', limit: 3)
     HorologiumAeternum.memory_searching(query, limit)
     result = { notes: Mnemosyne.search(query, limit: limit) }
-    HorologiumAeternum.memory_found(query, result[:notes]&.length || 0)
+    HorologiumAeternum.memory_found(query, result[:notes]&.length || 0, result[:notes].inspect)
     result
   rescue => e
     puts "[PrimaMateria][ERROR]: #{e.inspect}"
@@ -248,11 +249,25 @@ module PrimaMateria
   
   
   def self.file_overview(path:)
+    path = if path.start_with? '/' 
+      puts "FILE TEST=#{Argonaut.project_root}"
+      absolute_path = Pathname.new path
+      relative_path = absolute_path.relative_path_from Argonaut.project_root
+      puts "relative_path=#{relative_path}"
+      relative_path.to_s
+    else
+      path
+    end
+      
     # puts "[PRIMA MATERIA]: file_overview(path:#{path})"
     results = Argonaut.file_overview path: path
+    puts "[PRIMA MATERIA]: results=#{results.inspect}"
+    raise results[:error] unless results[:error].nil?
     HorologiumAeternum.file_overview path, results
-    # puts "[PRIMA MATERIA]: results=#{results}"
     results
+  rescue => e
+    puts "[PRIMA MATERIA][ERROR]: #{e.inspect}"
+    { error: "File overview for #{path} failed: #{e.message || e.error}" }
   end
 
   def self.oracle_conjuration(prompt:, context: nil)

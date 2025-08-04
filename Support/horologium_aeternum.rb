@@ -228,10 +228,10 @@ module HorologiumAeternum
   end
   
   
-  def self.memory_found(query, count)
+  def self.memory_found(query, count, notes)
     send_status('memory_found', { 
       message: Scriptorium.html("✅ Found **#{count}** memories for: *\"#{query}\"*"),
-      query: query, count: count 
+      query: query, count: count, content: notes
     })
   end
     
@@ -239,14 +239,14 @@ module HorologiumAeternum
   def self.note_added(note)
     send_status('note_added', { 
       message: "🔒 Note stored",
-      content: render_note(note) })
+      content: Scriptorium.html_with_syntax_highlight(render_note note) })
   end
   
   
   def self.note_updated(note)
     send_status('note_updated', { 
       message: "🔒 Note stored.",
-      content: render_note(note)
+      content: Scriptorium.html_with_syntax_highlight(render_note note)
     })
   end
 
@@ -255,7 +255,7 @@ module HorologiumAeternum
     send_status('notes_recalled', { 
       query: query, count: notes.count, 
       message: Scriptorium.html("🔍 Recalled **#{notes.count}** Hermetic notes for: *#{query}*"),
-      notes: render_notes(notes)
+      notes: Scriptorium.html_with_syntax_highlight(render_notes notes)
     })
   end
 
@@ -266,12 +266,16 @@ module HorologiumAeternum
   
   
   def self.render_note(note)
-    links = note[:links].map { |link| "- `#{link}`" }.join "\n" 
-    tags note[:tags].map { |tag| "**#{tag}**" }.join ", " 
+    links = if note[:links].nil? || note[:links].empty?
+      'None.'
+    else 
+      note[:links].map { |link| "- `#{link}`" }.join "\n" 
+    end
+    tags = note[:tags].map { |tag| "**#{tag}**" }.join ", " 
     """
-      ID: #{note.id}, updated: #{note.created_at}
+      ID: #{note[:id]}, updated: #{note[:created_at]}
 
-      #{note.content}
+      #{note[:content]}
 
       Tags: #{tags}
 
@@ -290,13 +294,12 @@ module HorologiumAeternum
     send_status('file_overview', {
       message: Scriptorium.html("💬 Overview: `#{path}`"),
       content: Scriptorium.html_with_syntax_highlight("""
-        File Size: #{result[:file_info][:size]}
-        Number of Lines: #{result[:file_info][:lines]}
-        Last Modified: #{result[:file_info][:last_modified]}
-        
-        Notes:
-        #{render_notes result[:notes]}
-      """)
+      File Size: #{result[:file_info][:size]}
+      Number of Lines: #{result[:file_info][:lines]}
+      Last Modified: #{result[:file_info][:last_modified]}
+      
+      Notes:
+      #{render_notes result[:notes]}""")
     })
   end
   

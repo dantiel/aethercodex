@@ -51,7 +51,6 @@ end
 
 
 # Simple HTTP API endpoint for command-line usage
-# TODO not in use
 post '/api' do
   content_type :json
   begin
@@ -160,6 +159,7 @@ end
 
 # ---- Core dispatcher ----
 def handle_request(req)
+  puts "handle_request #{req.inspect}"
   case req['method']
   when 'askAI'      then do_ask req['params']
   when 'tool'       then do_tool req['params']
@@ -253,4 +253,3 @@ def do_run(p)
   result = Verbum.run(p['cmd'])
   { method: 'commandResult', result: result }
 end
-

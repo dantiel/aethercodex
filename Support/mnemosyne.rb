@@ -3,6 +3,8 @@ require 'fileutils'
 require 'yaml'
 require 'set'
 
+
+
 class Mnemosyne
   DB_VERSION = 1
   STOP_WORDS = Set.new(%w[
@@ -45,7 +47,8 @@ class Mnemosyne
 
   # Search notes with scoring based on content, tags, and links
   def self.search_notes(query, limit: 5)
-    query_tokens = tokenize(query)
+    puts "SEARCH NOTES #{query}"
+    query_tokens = tokenize query
     
     notes = db.execute(
       'SELECT id, content, tags, links FROM project_notes'
@@ -54,13 +57,16 @@ class Mnemosyne
     notes.map do |note|
       score = 0
       
-      content_tokens = tokenize note['content']
-      score += 3 * (query_tokens & content_tokens).size
-      content_tokens = tokenize note['tags']
-      score += 2 * (query_tokens & content_tokens).size
-      content_tokens = tokenize note['links']
-      score += 1 * (query_tokens & content_tokens).size
-      
+      if query_tokens.empty?
+        score = 1
+      else
+        content_tokens = tokenize note['content']
+        score += 3 * (query_tokens & content_tokens).size
+        content_tokens = tokenize note['tags']
+        score += 2 * (query_tokens & content_tokens).size
+        content_tokens = tokenize note['links']
+        score += 1 * (query_tokens & content_tokens).size
+      end
       # score += 3 if note['content']&.include?(query)
       # score += 2 if note['tags']&.include?(query)
       # score += 1 if note['links']&.include?(query)
@@ -132,8 +138,13 @@ class Mnemosyne
 
   # Fetch notes by links (for Argonaut file overview)
   def self.fetch_notes_by_links(links)
-    db.execute("SELECT * FROM project_notes WHERE #{(["links LIKE '?'"] * links.count).join 'OR'}", 
-      ["%#{links}%"] * links.count)
+    links = [links] unless links.is_a? Array
+    
+    puts "SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join 'OR'}"
+    
+    puts  ["#{links}"] * links.count
+    db.execute("SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join 'OR'}", 
+      (["%#{links}%"] * links.count))
   end
 
 

@@ -197,7 +197,11 @@ showStatus = (type, data) ->
     when 'memory_searching'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
     when 'memory_found'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"        
+      log 'status', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <pre>#{data.content}</pre>
+        </details>"""
     when 'info'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"    
     when 'tool_completed'
