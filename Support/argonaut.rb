@@ -44,10 +44,8 @@ class Argonaut
     original_content = File.read full
     
     # Apply the converted diff
-    puts "TRY PATCH======="
     result = @diff_crepusculum.apply_diff original_content, patch_text
-    puts "PATCH======="
-    puts result.inspect
+
     raise "Patch failed: #{result[:fail_parts].to_json}" unless result[:success]
     File.write(full, result[:content])
   end
@@ -112,16 +110,18 @@ class Argonaut
   
   
   def self.file_overview(path:)
-    puts "[ARGONAUT]: file_overview(path: #{path})"
     notes = Mnemosyne.fetch_notes_by_links(path)
-    puts "[ARGONAUT]: notes=#{notes}"
 
     fullpath = File.join project_root, path 
+    line_count = 0
+    File.foreach(fullpath) { |line| line_count += 1 }
+    
     file_info = {
+      lines: line_count,
       size: File.size(fullpath),
       last_modified: File.mtime(fullpath) 
     }
-    puts "[ARGONAUT]: file_info=#{file_info}"
+
     { notes: notes, file_info: file_info }
   rescue => e
     { error: e.inspect }

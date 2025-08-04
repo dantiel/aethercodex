@@ -38,12 +38,12 @@ cp -R AetherCodex.tmbundle ~/Library/Application\ Support/Avian/Bundles/
 ```
 
 ### 2. API Configuration
-Create `.deepseekrc` in your project root:
+Create `.aethercodex` in your project root:
 ```yaml
 api_key: YOUR_DEEPSEEK_KEY
 port: 4567
 model: reasoning-1
-memory_db: .tm-ai/memory.db
+memory-db: .tm-ai/memory.db
 ```
 
 ### 3. Dependencies
@@ -119,7 +119,7 @@ Remember this pattern as "user-auth-flow" for future reference
 ## 🔧 Configuration
 
 ### **Environment Variables**
-- `DEEPSEEK_API_KEY` - Alternative to `.deepseekrc`
+- `DEEPSEEK_API_KEY` - Alternative to `.aethercodex`
 - `TM_AI_DEBUG=1` - Enable debug logging
 - `TM_AI_PORT=4567` - Custom server port
 
@@ -134,7 +134,7 @@ Location: `.tm-ai/memory.db` (auto-created)
 ## 🛡️ Security
 
 - **Limen validation** for all operations
-- **No secret file access** (.env, .deepseekrc, keys)
+- **No secret file access** (.env, .aethercodex, keys)
 - **Sandboxed command execution** with allowlisting
 - **Local-only operations** - no external data transmission beyond API calls
 

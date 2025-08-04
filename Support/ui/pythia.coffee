@@ -132,7 +132,14 @@ showStatus = (type, data) ->
   
   switch type
     when 'thinking'
-      log 'status', "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
+      if data.content
+        log 'system', """
+          <details>
+            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            #{data.content}
+          </details>"""
+      else
+        log 'status', "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
     when 'file_reading'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"    
     when 'divination'
@@ -206,11 +213,23 @@ showStatus = (type, data) ->
           log 'system', "<details><summary>📋 #{data.tool} result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
         else
           log 'system', "&nbsp;&nbsp;↳ Result: <pre style='display:inline; background:none;'>#{resultJson}</pre>"
-    when 'ai_response'
+    when 'oracle_revelation'
       if data.content
         log 'ai', data.content
       else
         log 'status', "💭 AI responding... <small>#{timestamp || ''}</small>"
+    when 'oracle_conjuration_revelation'
+      log 'system', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          #{data.content}
+        </details>"""
+    when 'oracle_conjuration'
+      log 'status', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          #{data.content}
+        </details>"""
     when 'plan_announced'
       log 'status', "📋Plan: #{data.steps?.join ' → '} <small>#{timestamp || ''}</small>"
     when 'processing'
@@ -222,14 +241,28 @@ showStatus = (type, data) ->
     when 'system_message'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
     when 'note_added'
-      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          #{data.content}
+        </details>"""
     when 'note_updated'
-      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          #{data.content}
+        </details>"""
     when 'notes_recalled'
       log 'system', """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-          <pre>#{data.notes}</pre>
+          #{data.notes}
+        </details>"""
+    when 'file_overview'
+      log 'system', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          #{data.content}
         </details>"""
 
 

@@ -37,10 +37,23 @@ module HorologiumAeternum
   def self.tool_starting(tool_name, args = {})
     send_status('tool_starting', { tool: tool_name, args: args })
   end
+
+  
+  def self.oracle_revelation(content)
+    send_status('oracle_revelation', { content: Scriptorium.html_with_syntax_highlight(content.to_s) })
+  end
   
   
-  def self.ai_response(content)
-    send_status('ai_response', { content: Scriptorium.html_with_syntax_highlight(content.to_s), is_partial: false })
+  def self.oracle_conjuration_revelation(message, content)
+    send_status('oracle_conjuration_revelation', { 
+      message: Scriptorium.html("🏛️ #{message}"), 
+      content: Scriptorium.html_with_syntax_highlight(content.to_s) })
+  end
+    
+    
+  def self.oracle_conjuration(prompt)
+    send_status('oracle_conjuration', { message: Scriptorium.html('🏛️ Oracle Conjuration'), 
+      content: Scriptorium.html_with_syntax_highlight("#{prompt}") })
   end
   
   
@@ -162,7 +175,7 @@ module HorologiumAeternum
   
   
   def self.completed(summary)
-    send_status('completed', { summary: summary })
+    send_status('completed', { summary: Scriptorium.html(summary) })
   end
   
   
@@ -209,7 +222,7 @@ module HorologiumAeternum
   
   def self.memory_searching(query, limit)
     send_status('memory_searching', { 
-      message: Scriptorium.html("🔍 Searching memories for: \"#{query}\" (limit: #{limit})"),
+      message: Scriptorium.html("🔍 Searching memories for: *#{query}* (limit: #{limit})"),
       query: query, limit: limit 
     })
   end
@@ -217,29 +230,32 @@ module HorologiumAeternum
   
   def self.memory_found(query, count)
     send_status('memory_found', { 
-      message: Scriptorium.html("✅ Found **#{count}** memories for: \"#{query}\""),
+      message: Scriptorium.html("✅ Found **#{count}** memories for: *\"#{query}\"*"),
       query: query, count: count 
     })
   end
     
   
-  def self.note_added(content, links, tags)
+  def self.note_added(note)
     send_status('note_added', { 
-      message: "🔒 Note stored: #{content} (#{tags.join ', '}) links: #{links.join ', '}" })
+      message: "🔒 Note stored",
+      content: render_note(note) })
   end
   
   
-  def self.note_updated(content, links, tags)
+  def self.note_updated(note)
     send_status('note_updated', { 
-      message: "🔒 Note stored: #{content} (#{tags.join ', '}) links: #{links.join ', '}" })
+      message: "🔒 Note stored.",
+      content: render_note(note)
+    })
   end
 
 
   def self.notes_recalled(query, notes)
     send_status('notes_recalled', { 
       query: query, count: notes.count, 
-      message: "🔍 Recalled #{notes.count} Hermetic notes for: #{query}",
-      notes: notes.inspect
+      message: Scriptorium.html("🔍 Recalled **#{notes.count}** Hermetic notes for: *#{query}*"),
+      notes: render_notes(notes)
     })
   end
 
@@ -249,13 +265,46 @@ module HorologiumAeternum
   end
   
   
-  def self.file_overview(message)
-    send_status('info', { message: Scriptorium.html("💬 #{message.inspect}") })
+  def self.render_note(note)
+    links = note[:links].map { |link| "- `#{link}`" }.join "\n" 
+    tags note[:tags].map { |tag| "**#{tag}**" }.join ", " 
+    """
+      ID: #{note.id}, updated: #{note.created_at}
+
+      #{note.content}
+
+      Tags: #{tags}
+
+      Links: 
+      #{links}
+    """
   end
   
   
-  def self.thinking(message = "🔮 Consulting the astral codex...")
-    send_status('thinking', { message: Scriptorium.html("🧠 #{message}") })
+  def self.render_notes(notes)
+    notes.map { |note| render_note note }.join "\n\n"
+  end
+  
+  
+  def self.file_overview(path, result)
+    send_status('file_overview', {
+      message: Scriptorium.html("💬 Overview: `#{path}`"),
+      content: Scriptorium.html_with_syntax_highlight("""
+        File Size: #{result[:file_info][:size]}
+        Number of Lines: #{result[:file_info][:lines]}
+        Last Modified: #{result[:file_info][:last_modified]}
+        
+        Notes:
+        #{render_notes result[:notes]}
+      """)
+    })
+  end
+  
+  
+  def self.thinking(message = "🔮 Consulting the astral codex...", content = "")
+    send_status('thinking', { 
+      message: Scriptorium.html_with_syntax_highlight("🧠 #{message}"),
+      content: Scriptorium.html_with_syntax_highlight("#{content}") })
   end
   
   
@@ -266,7 +315,14 @@ module HorologiumAeternum
   
   def self.server_error(error)
     send_status('server_error', {
-      message: Scriptorium.html("❌ Server Error: #{error}")
+      error: Scriptorium.html("❌ Server Error: `#{error}`")
+    })
+  end
+  
+  
+  def self.system_error(message, error)
+    send_status('server_error', {
+      message: Scriptorium.html("❌ #{message}: `#{error}`")
     })
   end
   

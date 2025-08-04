@@ -1,15 +1,27 @@
 require 'sqlite3'
 require 'fileutils'
 require 'yaml'
+require 'set'
 
 class Mnemosyne
   DB_VERSION = 1
-
+  STOP_WORDS = Set.new(%w[
+    the a an and of in to with on for is are am be was were it this that
+    at by from as if or but so not into out about then
+  ])
+  
+  
+  def self.tokenize(text)
+    return Set.new unless text.is_a?(String)
+    tokens = text.downcase.scan(/\w+/)
+    Set.new(tokens) - STOP_WORDS
+  end
+  
 
   def self.db_path
-    cfg_path = File.expand_path('../.deepseekrc', __FILE__)
+    cfg_path = File.expand_path('../.aethercodex', __FILE__)
     cfg = File.exist?(cfg_path) ? YAML.load_file(cfg_path) : {}
-    path = cfg['memory_db'] || '.tm-ai/memory.db'
+    path = cfg['memory-db'] || '.tm-ai/memory.db'
     project_root = ENV['TM_PROJECT_DIRECTORY'] || Dir.pwd
     if ENV['TM_DEBUG_PATHS']
       puts "cfg_path=#{cfg_path}"
@@ -33,15 +45,25 @@ class Mnemosyne
 
   # Search notes with scoring based on content, tags, and links
   def self.search_notes(query, limit: 5)
+    query_tokens = tokenize(query)
+    
     notes = db.execute(
       'SELECT id, content, tags, links FROM project_notes'
     )
 
     notes.map do |note|
       score = 0
-      score += 3 if note['content']&.include?(query)
-      score += 2 if note['tags']&.include?(query)
-      score += 1 if note['links']&.include?(query)
+      
+      content_tokens = tokenize note['content']
+      score += 3 * (query_tokens & content_tokens).size
+      content_tokens = tokenize note['tags']
+      score += 2 * (query_tokens & content_tokens).size
+      content_tokens = tokenize note['links']
+      score += 1 * (query_tokens & content_tokens).size
+      
+      # score += 3 if note['content']&.include?(query)
+      # score += 2 if note['tags']&.include?(query)
+      # score += 1 if note['links']&.include?(query)
       { **note, score: score }
     end
       .select { |note| note[:score] > 0 }
@@ -99,7 +121,7 @@ class Mnemosyne
   
 
   # Create a note (id auto-generated, links optional)
-  def self.create_note(content, links: nil, tags: nil)
+  def self.create_note(content:, links: nil, tags: nil)
     db.execute '''
       INSERT INTO project_notes (content, links, tags, created_at) 
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)''',
@@ -110,8 +132,8 @@ class Mnemosyne
 
   # Fetch notes by links (for Argonaut file overview)
   def self.fetch_notes_by_links(links)
-    links = Array(links).join(',')
-    db.execute('SELECT * FROM project_notes WHERE links LIKE ?', ["%#{links}%"])
+    db.execute("SELECT * FROM project_notes WHERE #{(["links LIKE '?'"] * links.count).join 'OR'}", 
+      ["%#{links}%"] * links.count)
   end
 
 

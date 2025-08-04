@@ -52,11 +52,9 @@ h1,h2,.sigil{
   letter-spacing:.02em;
 }
 
-
 /* Typography Enhancements */
 * { box-sizing: border-box; }
 html { font-size: 16px; line-height: 1.6; }
-
 
 body { 
   font-family: var(--sans);
@@ -71,7 +69,6 @@ body {
   cursor: default;
 }
 
-
 /* Messages Container */
 #messages { 
   flex: 1; 
@@ -84,7 +81,6 @@ body {
   /*box-shadow: inset 0 0.1rem 0.3rem rgba(0, 166, 255, 0.1);*/
 }
 
-
 /* Enhanced Input Bar */
 #input-bar { 
   display: flex; 
@@ -96,13 +92,11 @@ body {
   border-radius: 0 0 0.8rem 0.8rem;
 }
 
-
 .input-container {
   position: relative;
   flex: 1;
   margin-right: 0.8rem;
 }
-
 
 #chat-input { 
   width: 100%;
@@ -120,14 +114,12 @@ body {
   max-height: 10em;
 }
 
-
 #chat-input::placeholder {
   color: var(--argonaut-shadow);
   font-style: italic;
   margin:-1em 0 0 0!important;
   position: relative ;top:-0.3em;
 }
-
 
 #chat-input:focus {
   border-color: var(--argonaut-azure);
@@ -137,7 +129,6 @@ body {
   background: rgba(0, 12, 22, 0.8);
   color: var(--argonaut-steel);
 }
-
 
 /* Enhanced Send Button */
 #send-btn { 
@@ -153,12 +144,10 @@ body {
   box-shadow: 0 0.2rem 0.4rem rgba(0, 166, 255, 0.2);
 }
 
-
 #send-btn:hover {
   transform: translateY(-0.1rem);
   box-shadow: 0 0.4rem 0.8rem rgba(0, 166, 255, 0.3);
 }
-
 
 .send-glyph {
   font-size: 1.1rem;
@@ -183,7 +172,6 @@ body {
   white-space: pre-wrap;
 }
 
-
 /* Code styling in user messages */
 .user tt, .user code, .user kbd, .user samp, .user pre {
   background: rgba(0, 12, 22, 0.6);
@@ -191,10 +179,9 @@ body {
   border-radius: 0.4rem;
   padding: 0.2rem 0.4rem;
   font-family: var(--mono);
-  font-size: 0.9em;
+  font-size: 0.95em;
   border: 0.1rem solid rgba(0, 166, 255, 0.2);
 }
-
 
 .user pre {
   padding: 0.8rem;
@@ -202,7 +189,6 @@ body {
   overflow-x: auto;
   white-space: pre-wrap;
 }
-
 
 .user::before {
   content: '';
@@ -218,11 +204,9 @@ body {
   z-index: -1;
 }
 
-
 .user:hover::before {
   opacity: 0.1;
 }
-
 
 .ai {
   color: var(--argonaut-amber);
@@ -230,7 +214,6 @@ body {
   padding: 1rem 0;
   font-weight: 400;
 }
-
 
 .user tt, .user code, .user kbd, .user samp, .user pre {
   font-family: var(--mono);
@@ -244,14 +227,12 @@ body {
   box-shadow: inset 0 0.1rem 0.2rem rgba(0, 166, 255, 0.1);
 }
 
-
 tt, code, kbd, samp,pre {
   font-family:var(--mono);
   font-feature-settings:"liga" 1,"calt" 1;
   font-size: 0.95em;
   padding: 0 0.15em;
 }
-
 
 /* Enhanced Input Bar Styling */
 #input-bar {
@@ -261,12 +242,10 @@ tt, code, kbd, samp,pre {
 /*  box-shadow: 0 -0.2em 1em rgba(0, 166, 255, 0.1);*/
 }
 
-
 .input-container {
   position: relative;
   flex: 1;
 }
-
 
 #chat-input {
   background: var(--argonaut-void);
@@ -277,13 +256,11 @@ tt, code, kbd, samp,pre {
   font-family: var(--sans);
 }
 
-
 #chat-input:focus {
   border-color: var(--argonaut-azure);
   box-shadow: 0 0 0 0.2em rgba(0, 166, 255, 0.2);
   outline: none;
 }
-
 
 #send-btn {
   background: linear-gradient(135deg, var(--argonaut-cosmic) 0%, var(--argonaut-azure) 100%);
@@ -294,12 +271,10 @@ tt, code, kbd, samp,pre {
   font-weight: 600;
 }
 
-
 #send-btn:hover {
   transform: translateY(-0.1em);
   box-shadow: 0 0.3em 0.8em rgba(0, 166, 255, 0.3);
 }
-
 
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
@@ -307,12 +282,10 @@ tt, code, kbd, samp,pre {
   height:0.5rem;
 }
 
-
 ::-webkit-scrollbar-track {
   background: var(--argonaut-deep);
   border-radius: 0.25rem;
 }
-
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, var(--argonaut-cosmic), var(--argonaut-azure));
@@ -320,11 +293,9 @@ tt, code, kbd, samp,pre {
   transition: all 0.3s ease;
 }
 
-
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, var(--argonaut-azure), var(--argonaut-nexus));
 }
-
 
 /* Typography Refinements */
 h1, h2, h3, h4, h5, h6 {
@@ -334,12 +305,10 @@ h1, h2, h3, h4, h5, h6 {
   text-shadow: 0 0 0.5rem rgba(0, 166, 255, 0.3);
 }
 
-
 p {
   margin-bottom: 1rem;
   line-height: 1.7;
 }
-
 
 /* Glow Effects */
 .input-accent {
@@ -353,26 +322,25 @@ p {
   transition: opacity 0.3s ease;
 }
 
-
 #chat-input:focus + .input-accent {
   opacity: 1;
 }
-
 
 /* Cosmic glow animation */
 #send-btn .send-glyph {
   animation: etherealGlow 3s ease-in-out infinite;
 }
 
-
 @keyframes thinkingPulse2 {
   0% { opacity: 1.0;  }
   50% { opacity: 0.5; }
   100% { opacity: 1.0; }
 }
+
 #send-btn.thinking {
   background: var(--argonaut-shadow);
 }
+
 #send-btn.thinking .send-glyph {
   color: var(--argonaut-steel);
   animation: thinkingPulse2 2s ease-in-out infinite;
@@ -388,7 +356,6 @@ p {
   font-size: 0.9em;
 }
 
-
 pre {  
   background: rgba(129, 93, 179, 0.15);
   border-radius: 0.4rem;
@@ -398,7 +365,6 @@ pre {
   text-align: left;
 }
 
-
 pre > code {  
   background: none !important;
   border: none !important;
@@ -406,7 +372,6 @@ pre > code {
   margin: 0 !important;
   display: block ;
 }
-
 
 /* Status Messages */
 .status {
@@ -423,12 +388,10 @@ pre > code {
   padding: 0 1rem;
 }
 
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-0.5rem); }
   to { opacity: 0.8; transform: translateY(0); }
 }
-
 
 /* Remove message borders, enhance spacing */
 .ai, .system, .error {
@@ -437,40 +400,37 @@ pre > code {
   padding: 0.3rem 0;
 }
 
-
 .error {
 /*  margin: 0.5em 0;*/
     color: var(--argonaut-crimson);
 }
 
-
-.system {
+.system, .system summary {
 /*  margin: 0.5em 0;*/
     color: var(--argonaut-shadow);
     text-align: center ;
 }
 
+.system details {
+        text-align: left ;
+}
 
 strong {
     color: var(--argonaut-aurora);
 }
 
-
 code {
     color: var(--argonaut-aurora) !important;
 }
-
 
 summary::-webkit-details-marker {
     float:right;
     margin: 1.2em 0.3em 0;
 }
 
-
 summary::-webkit-details-marker {
   margin: 0.5em 0 0 0 !important;
 }
-
 
 hr {
     border: none;

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-LOG = File.open(File.expand_path('../../.tm-ai/gatekeeper.log', __FILE__), 'a')
+LOG = File.open(File.expand_path('../../.tm-ai/limen.log', __FILE__), 'a')
 LOG.sync = true
 $stdout = $stderr = LOG
 
@@ -26,7 +26,7 @@ require_relative 'scriptorium'
 require_relative 'aetherflux'
 
 
-CFG_PATH = File.expand_path('../.deepseekrc', __FILE__)
+CFG_PATH = File.expand_path('../.aethercodex', __FILE__)
 CFG = File.exist?(CFG_PATH) ? YAML.load_file(CFG_PATH) : {}
 PORT = (ENV['AETHER_PORT'] || CFG['port'] || 4567).to_i
 
@@ -38,7 +38,7 @@ set :port, PORT
 # Daemon persistence protocol
 if ARGV.include?('--daemon') || ENV['AETHER_DAEMON']
   Process.daemon(true, false)
-  at_exit { File.delete(File.expand_path('../../.tm-ai/gatekeeper.pid', __FILE__)) rescue nil }
+  at_exit { File.delete(File.expand_path('../../.tm-ai/limen.pid', __FILE__)) rescue nil }
 end
 
 trap('TERM') { exit }
@@ -138,7 +138,7 @@ def startThinkingThread(ws, req)
     begin
       warn "[WS] message: #{req['params'].inspect}"
     
-      res = Aetherflux.handle_askAI_streaming req['params'], ws
+      res = Aetherflux.channel_oracle_divination req['params'], ws
       ws.send res.to_json
     rescue => e
       warn "[WS][THREAD][ERROR]#{e.inspect}"
@@ -180,7 +180,7 @@ def do_ask(p)
     
   # Enhanced streaming callback for real-time tool feedback
   answer, arts, tool_results = 
-    Oracle.ask_with_tools(p['prompt'], ctx) { |name, args| 
+    Oracle.divination(p['prompt'], ctx) { |name, args| 
       # HorologiumAeternum.tool_starting(name, args)
       # HorologiumAeternum.processing("Executing #{name}...")
       result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
@@ -190,7 +190,7 @@ def do_ask(p)
       sleep 0.05
       result }
 
-  HorologiumAeternum.ai_response("Processing response artifacts...")
+  HorologiumAeternum.oracle_revelation("Processing response artifacts...")
   
   logs = []
   (arts[:prelude] || []).each { |t| 

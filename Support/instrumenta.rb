@@ -10,7 +10,26 @@ INSTRUMENTA = [
           path:  { type: 'string' },
           range: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2 }
         },
-        required: ['path']
+        required: ['path', 'diff']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'oracle_conjuration',
+      description: '''
+        Invoke the reasoning model to generate responses based on a prompt and filtered tools. 
+        Make sure to provide a meaningful and profound prompt as invocation to the high oracle and 
+        give a rich context as sacred offerings like files and other tools output, however the 
+        oracle may call tools on its own, too.''',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'The input prompt for reasoning.' }
+        },
+        required: ['prompt'],
+        forbidden: ['recursive']
       }
     }
   },
@@ -18,7 +37,7 @@ INSTRUMENTA = [
     type: 'function',
     function: {
       name: 'run_command',
-      description: 'Run an allowed shell command (rspec, rubocop, git…).',
+      description: 'Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`, `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `ruby`, `cd`, `curl`. Please suggest to add more cmds to this list if you like.',
       parameters: {
         type: 'object',
         properties: {

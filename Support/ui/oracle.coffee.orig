@@ -209,7 +209,7 @@ showStatus = (type, data) ->
           log 'system', "<details><summary>📋 #{data.tool} result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
         else
           log 'system', "&nbsp;&nbsp;↳ Result: <pre style='display:inline; background:none;'>#{resultJson}</pre>"
-    when 'ai_response'
+    when 'oracle_revelation'
       if data.content
         log 'ai', data.content
       else

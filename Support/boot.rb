@@ -6,7 +6,7 @@ require 'fileutils'
 
 SUPPORT = File.expand_path(__dir__)
 CFG = begin
-  require 'yaml'; YAML.load_file(File.join(SUPPORT, '.deepseekrc'))
+  require 'yaml'; YAML.load_file(File.join(SUPPORT, '.aethercodex'))
 rescue; {}; end
 
 DEFAULT_PORT = (CFG['port'] || 4567).to_i

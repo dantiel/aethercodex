@@ -22,7 +22,6 @@ require_relative 'scriptorium'
 
 
 class Oracle
-  ENDPOINT = 'https://api.deepseek.com/v1/chat/completions'
   SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions.md"
   
 
@@ -34,14 +33,14 @@ class Oracle
   end
 
 
-  TOOL_ALIASES = { 'readfile'   => 'read_file',
-                   'patchfile'  => 'patch_file',
-                   'createfile' => 'create_file',
-                   'runcommand' => 'run_command',
-                   'storehermeticnote' => 'store_hermetic_note',
-                   'recallhermeticnotes' => 'recall_hermetic_notes',
-                   'renamefile' => 'rename_file',
-                   'telluser'   => 'tell_user' }
+  TOOL_ALIASES = { 'readfile'     => 'read_file',
+                   'patchfile'    => 'patch_file',
+                   'createfile'   => 'create_file',
+                   'runcommand'   => 'run_command',
+                   'recallnotes'  => 'recall_notes',
+                   'renamefile'   => 'rename_file',
+                   'fileoverview' => 'file_overview',
+                   'telluser'     => 'tell_user' }
 
 
   def self.normalize_tool_name(n)
@@ -50,40 +49,39 @@ class Oracle
   
   
   def self.ask(prompt, ctx)
-    a, arts, _ = ask_with_tools(prompt, ctx){|name,args| PrimaMateria.handle({'tool'=>name,'args'=>args})}
+    a, arts, _ = divination(prompt, ctx) { |name, args| 
+      PrimaMateria.handle({ 'tool'=>name, 'args'=>args }) }
     [a, arts]
   end
 
 
-  def self.ask_with_tools(prompt, ctx, max_depth: 50, &exec)
-    puts "=========================================="
-    # puts "Ask AI with Context=#{ctx.inspect}"
-    msgs = base_messages(prompt, ctx)
+  def self.divination(prompt, ctx, max_depth: 50, reasoning: false, &exec)
+    msgs = base_messages prompt, ctx
     tool_results = []
     arts   = { prelude: [] }
     answer = nil
     depth = 0
 
     # Stream initial status
-    if defined?(HorologiumAeternum)
-      sleep(0.1) # Brief pause for UI responsiveness
-      HorologiumAeternum.thinking("Consulting the hermetic oracle...")
+    if defined? HorologiumAeternum
+      sleep 0.1 # Brief pause for UI responsiveness
+      HorologiumAeternum.thinking "Consulting the hermetic oracle..."
     end
 
     loop do
       depth += 1
       
-      body = build_body_from_messages(msgs, want_json: false)
-      raw  = post(body)
-      json = ensure_json(raw)
-      log_json(json: json)#, project_dir: ENV['TM_PROJECT_DIRECTORY'])
+      body = build_body_with_messages_and_tools(msgs, want_json: false, reasoning: reasoning)
+      raw  = post body
+      raise raw[:error] unless raw.is_a? String || raw[:error].nil?
+      json = ensure_json raw
+      log_json json: json
 
       choice = json.dig('choices', 0) || {}
       msg    = choice['message'] || {}
       content = msg['content'].to_s
       tcalls = msg['tool_calls'] || []
       arts[:reasoning_content] = msg['reasoning_content'].to_s if msg['reasoning_content']
-      # arts[:next_step] = msg['reasoning_content'].to_s if msg['reasoning_content']
 
       assistant_msg = { role: 'assistant', content: content }
       assistant_msg[:tool_calls] = tcalls if tcalls.any?
@@ -91,23 +89,20 @@ class Oracle
       
       arts[:prelude] << content unless content.strip.empty?
       
-      # Hermetic debugging: Track patch operations for expandable display
-      #if tcalls.any? && tcalls.any? { |tc| tc.dig('function', 'name') == 'patch_file' }
-      #  HorologiumAeternum.thinking("🔮 Applying ethereal patches to the code plane...")
-      #end
-      HorologiumAeternum.thinking(arts[:reasoning_content]) if arts[:reasoning_content]
+      HorologiumAeternum.thinking 'Oracle Reasoning', arts[:reasoning_content] if arts[:reasoning_content]
+      sleep 0.1 if defined? HorologiumAeternum
       
       if tcalls.any?
         if defined?(HorologiumAeternum) && !content.strip.empty?
-          HorologiumAeternum.ai_response(content)
+          HorologiumAeternum.oracle_revelation content
         end
         
         tcalls.each do |tc|
-          name = normalize_tool_name(tc.dig('function', 'name'))
-          args = deep_symbolize(safe_parse(tc.dig('function', 'arguments')))
+          name = normalize_tool_name(tc.dig 'function', 'name')
+          args = deep_symbolize safe_parse(tc.dig 'function', 'arguments')
           
-          res  = exec.call(name, args)
-          sleep(0.05) if defined?(HorologiumAeternum)
+          res  = exec.call name, args
+          sleep 0.05 if defined? HorologiumAeternum
           tool_results << { id: tc['id'], name: name, result: res }
           msgs << { role: 'tool', tool_call_id: tc['id'], content: res.to_json }          
         end
@@ -116,8 +111,8 @@ class Oracle
       end
 
       # Fallback: JSON in content
-      parsed  = safe_parse(msg['content'])
-      tools_from_content = extract_tools_from_content(parsed)
+      parsed  = safe_parse msg['content']
+      tools_from_content = extract_tools_from_content parsed
       arts[:plan] = parsed['plan'] if parsed.is_a?(Hash) && parsed['plan']
 
       if tools_from_content.any?
@@ -129,6 +124,7 @@ class Oracle
         if defined?(HorologiumAeternum) && arts[:plan]
           HorologiumAeternum.thinking("Plan: #{arts[:plan].join(' → ')}")
         end
+        
         tools_from_content.each do |call|
           res = exec.call(call['tool'], deep_symbolize(call['args'] || {}))
           tool_results << { name: call['tool'], result: res }
@@ -139,16 +135,35 @@ class Oracle
         next
       else
         answer = content
-        arts.merge!(extract_artifacts(answer.to_s))
+        arts.merge! extract_artifacts(answer.to_s)
         break
       end
     end
 
     [answer || '<<empty>>', arts, tool_results]
   rescue => e
-    log_json(error: e.message, backtrace: e.backtrace)
-    HorologiumAeternum.server_error e.message
-    ["<error> #{e.message}", { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
+    log_json(error: (e.message || e), backtrace: e.backtrace)
+    HorologiumAeternum.server_error (e.message || e)
+    ["", { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
+  end
+  
+
+  def self.conjuration(prompt, context, &exec)
+    # Log the invocation
+    # HorologiumAeternum.divination("Conjuring knowledge for prompt: #{prompt}")
+
+    # Delegate tool calls to Oracle.reason with the provided block
+    answer, arts, tool_results = divination(prompt, context, reasoning: true, &exec)
+    # reasoning_output = ['<<empty>>', { reasoning: "blabla" }, []]
+
+    # Log the completion
+    # HorologiumAeternum.completed("Conjuration completed successfully.")
+
+    # Return the structured output
+    [answer, arts, tool_results]
+  rescue => e
+    HorologiumAeternum.system_error('Conjuration failed', e.message)
+    { error: "Conjuration failed: #{e.message}" }
   end
 
 
@@ -169,26 +184,30 @@ class Oracle
   def self.base_messages(prompt, ctx)
     [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user',   content: "Context: #{ctx.to_json}" },
+      { role: 'user',   content: "Context:\n#{ctx.to_json}" },
       { role: 'user',   content: prompt },
     ]
   end
   
   
-  def self.build_body_from_messages(messages, want_json: false)
+  def self.build_body_with_messages_and_tools(messages, want_json: false, reasoning: false)
     cfg = load_cfg
-    body = {
-      model: cfg['model'] || 'deepseek-chat',
-      messages: messages,
-      max_tokens: 2048
-    }
-    unless want_json
-      body[:tools] = INSTRUMENTA
+
+    model, max_tokens, instrumenta = if reasoning
+      filtered_instrumenta = INSTRUMENTA.reject { |tool| 
+        tool[:name] == "oracle_conjuration" }
+      
+      [cfg['reasoning-model'] || 'deepseek-reasoner', 64000, filtered_instrumenta]
     else
-      # body[:response_format] = { type: 'json_object' }
-      body[:response_format] = { type: 'text' }
+      [cfg['model'] || 'deepseek-chat', 8192, INSTRUMENTA]
     end
-    body
+    
+    {
+      model: model,
+      messages: messages,
+      max_tokens: max_tokens,
+      tools: instrumenta
+    }
   end
 
 
@@ -218,14 +237,16 @@ class Oracle
       #response_format: { type: 'json_object' },
       tools: INSTRUMENTA,
       max_tokens: 2048,
-      temperature: 1.0
+      temperature: 0.7
     }
   end
 
 
   def self.post(body)
     cfg = load_cfg
-    key = cfg['api_key'] || ENV['DEEPSEEK_API_KEY']
+    
+    key = cfg['api-key'] || ENV['DEEPSEEK_API_KEY']
+    endpoint = cfg['api-url'] || ENV['DEEPSEEK_API_URL']
     raise 'Missing DeepSeek API key' if key.to_s.strip.empty?
 
     conn = Faraday.new do |f|
@@ -234,18 +255,20 @@ class Oracle
       f.adapter Faraday.default_adapter
     end
 
-    resp = conn.post(ENDPOINT) do |req|
+    resp = conn.post(endpoint) do |req|
       req.headers['Authorization'] = "Bearer #{key}"
       req.headers['Content-Type']  = 'application/json'
-      # req.headers['Content-Type']  = 'application/json'
       req.body = body.to_json
       req.options.timeout = 120
-      
-      # log_json(post: req)
     end
+    
     resp.body
+  rescue Faraday::ConnectionFailed => e
+    { type: "Connection Failed", error: "#{e.wrapped_exception}" }
+  rescue Faraday::UnprocessableEntityError => e
+    { type: "Unprocessable Entity Error", error: e.response && e.response[:body] }
   rescue Faraday::Error => e
-    (e.response && e.response[:body]) || e.message
+    { error: (e.response && e.response[:body]) || e.message }
   end
 
 
@@ -286,7 +309,9 @@ class Oracle
   
   
   def self.load_cfg
-    path = File.expand_path('../.deepseekrc', __FILE__)
+    # TODO search for .aethercodex also in ~/ and merge files
+    path = File.expand_path('../.aethercodex', __FILE__)
     File.exist?(path) ? YAML.load_file(path) : {}
   end
+  
 end

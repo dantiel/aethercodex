@@ -7,6 +7,12 @@ Hermetic Coding Paradigm & File Naming
     Implemented core file operations like read, write, and patch.
 ✔︎ replace pygments by rouge... its already added to gemfile @done(29-07-2025 23:52)
 ◯ make a textmate command that shows the fileoverview content (ai notes) to the user as a txtmate info
+◯ selected a chunk of code in textmate and include it into the prompt... (how to solve this by ui/workflow?)
+◯ use textmate marks from ai, for example as a tool for annotations or alike (investigate)
+◯ use textmate links a la txmt://open/?url=file://~/.profile&line=11&column=2 e.g. when clicking on a filename, maybe we need a tag that the ai can use like <file>path/to/file</file> or <file url="path/to/file">text</file>
+◯ add ai actions to filebrowser actions: callback.file-browser.action-menu
+◯ add button for proceeed
+
 
 Website:
   ✧ Hermetic Symbolism
@@ -16,7 +22,7 @@ Website:
 
 Hermetic Coding Paradigm:
   ✧ Poetry of Names
-      Rename tools symbolically (e.g., `argonaut.rb` → `argonaut.rb`).
+      Rename tools symbolically (e.g., `file_manager.rb` → `argonaut.rb`).
   ✧ Dualities in Code
       Balance creation (`forge.sh`) and dissolution (`trash_manager.rb`).
 

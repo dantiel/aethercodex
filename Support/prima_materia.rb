@@ -4,6 +4,7 @@ require_relative 'verbum'
 require_relative 'scriptorium'
 require_relative 'mnemosyne'
 require_relative 'horologium_aeternum'
+require_relative 'aetherflux'
 require 'json'
 require 'timeout'
 require 'open3'
@@ -12,26 +13,23 @@ require 'cgi'
 
 
 module PrimaMateria
-  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/, /^cd\b/]
-  DENY_PATHS   = [/\.deepseekrc$/, /\.env$/, /\.git\//]
+  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/, /^cd\b/, /^curl\b/]
+  DENY_PATHS   = [/\.aethercodex$/, /\.env$/, /\.git\//]
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
-    
   SCHEMA = {
-    'create_file'    => { req: %i[path content], forbid: %i[diff] },
-    'patch_file'     => { req: %i[path diff],    forbid: %i[content] },
-    'read_file'      => { req: %i[path],         forbid: [] },
-    'rename_file'    => { req: %i[from to],      forbid: [] },
-    'run_command'    => { req: %i[cmd],          forbid: [] },
-    'tell_user'      => { req: %i[message],      forbid: [] },
-    'recall_history' => { req: %i[],             forbid: [] },
-    'remember'       => { req: %i[content],      forbid: [] },
-    # 'add_note'       => { req: %i[],             forbid: [] },
-    'recall_notes'   => { req: %i[],             forbid: [] },
-    # 'update_note'    => { req: %i[id],           forbid: [] },
-    'remove_note'    => { req: %i[id],           forbid: [] },
-    'file_overview'  => { req: %i[path],         forbid: [] },
-    'new_tool'       => { req: %i[param1 param2], forbid: %i[param3] }
+    'create_file'        => { req: %i[path content], forbid: %i[diff] },
+    'patch_file'         => { req: %i[path diff],    forbid: %i[content] },
+    'read_file'          => { req: %i[path],         forbid: [] },
+    'rename_file'        => { req: %i[from to],      forbid: [] },
+    'run_command'        => { req: %i[cmd],          forbid: [] },
+    'tell_user'          => { req: %i[message],      forbid: [] },
+    'recall_history'     => { req: %i[],             forbid: [] },
+    'remember'           => { req: %i[content],      forbid: [] },
+    'recall_notes'       => { req: %i[],             forbid: [] },
+    'remove_note'        => { req: %i[id],           forbid: [] },
+    'file_overview'      => { req: %i[path],         forbid: [] },
+    'oracle_conjuration' => { req: %i[prompt],       forbid: %i[recursive] }
   }
 
 
@@ -54,17 +52,17 @@ module PrimaMateria
   
   
   TOOL_ALIASES = {
-    'readfile'   => 'read_file',
-    'patchfile'  => 'patch_file',
-    'createfile' => 'create_file',
-    'runcommand' => 'run_command',
-    'renamefile' => 'rename_file',
-    'telluser'   => 'tell_user'
+    'readfile'          => 'read_file',
+    'patchfile'         => 'patch_file',
+    'createfile'        => 'create_file',
+    'runcommand'        => 'run_command',
+    'renamefile'        => 'rename_file',
+    'telluser'          => 'tell_user',
+    'oracleconjuration' => 'oracle_conjuration'
   }
   
   
   def self.handle(call)
-    
     tool = (call['tool'] || call[:tool]).to_s
     tool = TOOL_ALIASES[tool] || tool
     args = symbolize(call['args'] || {})
@@ -75,19 +73,20 @@ module PrimaMateria
       return { error: "invalid_args: #{e.message}", got: call }
     end
     case tool
-    when 'read_file'      then read_file(**args)
-    when 'patch_file'     then patch_file(**args)
-    when 'create_filte'    then create_file(**args)
-    when 'rename_file'    then rename_file(**args)
-    when 'run_command'    then run_command(**args)
-    when 'remember'       then remember(**args)
-    when 'recall_history' then recall_history(**args)
-    when 'tell_user'      then tell_user(**args)
-    # when 'add_note'       then add_note(**args)
-    when 'recall_notes'   then recall_notes(**args)
-    # when 'update_note'    then update_note(**args)
-    when 'remove_note'    then remove_note(**args)
-    when 'file_overview'  then file_overview(**args)
+    when 'read_file'          then read_file(**args)
+    when 'patch_file'         then patch_file(**args)
+    when 'create_file'        then create_file(**args)
+    when 'rename_file'        then rename_file(**args)
+    when 'run_command'        then run_command(**args)
+    when 'remember'           then remember(**args)
+    when 'recall_history'     then recall_history(**args)
+    when 'tell_user'          then tell_user(**args)
+    # when 'add_note'           then add_note(**args)
+    when 'recall_notes'       then recall_notes(**args)
+    # when 'update_note'        then update_note(**args)
+    when 'remove_note'        then remove_note(**args)
+    when 'file_overview'      then file_overview(**args)
+    when 'oracle_conjuration' then oracle_conjuration(**args)
     else { error: "Unknown tool #{tool}" }
     end
   rescue ArgumentError => e
@@ -207,12 +206,13 @@ module PrimaMateria
   
   def self.remember(id: nil, content: nil, links: nil, tags: nil)
     # HorologiumAeternum.memory_storing(key, content.bytesize)
+    note = { content: content, links: links, tags: tags }
     if id.nil?
-      Mnemosyne.create_note(content, links: links, tags: tags)
-      HorologiumAeternum.note_added(content, links, tags)
+      Mnemosyne.create_note(**note)
+      HorologiumAeternum.note_added(**note)
     else
-      Mnemosyne.update_note(id, content: content, links: links, tags: tags)
-      HorologiumAeternum.note_updated(content, links, tags)
+      Mnemosyne.update_note(id, **note)
+      HorologiumAeternum.note_updated(**note)
     end
     
     # Mnemosyne.record_note(key, body, tags)
@@ -248,10 +248,34 @@ module PrimaMateria
   
   
   def self.file_overview(path:)
-    puts "[PRIMA MATERIA]: file_overview(path:#{path})"
+    # puts "[PRIMA MATERIA]: file_overview(path:#{path})"
     results = Argonaut.file_overview path: path
-    HorologiumAeternum.file_overview(results)
-    puts "[PRIMA MATERIA]: results=#{results}"
+    HorologiumAeternum.file_overview path, results
+    # puts "[PRIMA MATERIA]: results=#{results}"
     results
+  end
+
+  def self.oracle_conjuration(prompt:, context: nil)
+    params = {
+      'prompt' => prompt,
+      'context' => context
+    }
+    HorologiumAeternum.oracle_conjuration prompt
+    
+    result = Aetherflux.channel_oracle_conjuration params
+    
+    raise result[:error] if result[:error]
+    
+    if result[:result]
+      reasoning = result[:result][:reasoning]
+      content =  result[:result][:answer]
+      
+      HorologiumAeternum.oracle_conjuration_revelation 'Oracle Reasoning', reasoning unless reasoning.to_s.empty?
+      HorologiumAeternum.oracle_conjuration_revelation 'Oracle Answer', content unless content.to_s.empty?
+    end
+    
+    { reasoning: reasoning, content: content, context: context }
+  rescue => e
+    { error: "Reasoning failed: #{e.message}" }
   end
 end

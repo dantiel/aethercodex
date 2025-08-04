@@ -6,8 +6,8 @@ projectDirectory      = "$CWD"
 
 # Includes
 
-includeFiles          = "{$includeFiles,.deepseekrc}"
-includeInBrowser      = "{$includeInBrowser}"
+includeFiles          = "{$includeFiles,.aethercodex}"
+includeInBrowser      = "{$includeInBrowser,.tm-ai}"
 includeDirectories    = "{$includeDirectories}"
 includeInFileChooser  = "{$includeInFileChooser,.gitignore,*.orig,*.rej,*.js}"
 includeInFolderSearch = "{$includeInFolderSearch}"
