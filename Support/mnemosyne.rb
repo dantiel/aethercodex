@@ -55,6 +55,7 @@ class Mnemosyne
     )
 
     notes.map do |note|
+      note.transform_keys!(&:to_sym)
       score = 0
       
       if query_tokens.empty?
@@ -140,11 +141,11 @@ class Mnemosyne
   def self.fetch_notes_by_links(links)
     links = [links] unless links.is_a? Array
     
-    puts "SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join 'OR'}"
+    puts "SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join ' OR '}"
     
-    puts  ["#{links}"] * links.count
-    db.execute("SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join 'OR'}", 
-      (["%#{links}%"] * links.count))
+    puts links.map { |link| "%#{link}%" }
+    db.execute("SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join ' OR '}", 
+      links.map { |link| "%#{link}%" }).each {|note| note.transform_keys!(&:to_sym)}
   end
 
 

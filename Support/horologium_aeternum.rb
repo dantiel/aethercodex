@@ -251,10 +251,10 @@ module HorologiumAeternum
   end
 
 
-  def self.notes_recalled(query, notes)
+  def self.notes_recalled(query, limit, notes)
     send_status('notes_recalled', { 
       query: query, count: notes.count, 
-      message: Scriptorium.html("🔍 Recalled **#{notes.count}** Hermetic notes for: *#{query}*"),
+      message: Scriptorium.html("🔍 Recalled **#{notes.count}** (limit: **#{limit}**) Hermetic notes for: *#{query}*"),
       notes: Scriptorium.html_with_syntax_highlight(render_notes notes)
     })
   end
@@ -267,40 +267,50 @@ module HorologiumAeternum
   
   def self.render_note(note)
     links = if note[:links].nil? || note[:links].empty?
-      'None.'
+      ''
     else 
-      note[:links].map { |link| "- `#{link}`" }.join "\n" 
+      note[:links].split(',').map { |link| "- `#{link}`" }.join "\n" 
     end
-    tags = note[:tags].map { |tag| "**#{tag}**" }.join ", " 
-    """
-      ID: #{note[:id]}, updated: #{note[:created_at]}
+    tags = if note[:tags].nil? || note[:tags].empty?
+      ''
+    else
+      note[:tags].split(',').map { |tag| "\\\##{tag}" }.join ", " 
+    end
+    <<~MARKDOWN
+    **ID:** #{note[:id]}, **updated:** #{note[:created_at]}
 
-      #{note[:content]}
+    #{note[:content]}
 
-      Tags: #{tags}
-
-      Links: 
-      #{links}
-    """
+    #{tags}
+    
+    #{links}
+    MARKDOWN
   end
   
   
   def self.render_notes(notes)
-    notes.map { |note| render_note note }.join "\n\n"
+    if notes.empty?
+      'None.'
+    else
+      notes.map { |note| render_note note }.join "\n\n---\n\n"
+    end
   end
   
   
   def self.file_overview(path, result)
-    send_status('file_overview', {
+    content = <<~MARKDOWN
+    **File Size:** #{result[:file_info][:size]} bytes
+    **Number of Lines:** #{result[:file_info][:lines]}
+    **Last Modified:** #{result[:file_info][:last_modified]}
+
+    ### Notes:
+    #{render_notes result[:notes]}
+    MARKDOWN
+    
+    send_status 'file_overview', {
       message: Scriptorium.html("💬 Overview: `#{path}`"),
-      content: Scriptorium.html_with_syntax_highlight("""
-      File Size: #{result[:file_info][:size]}
-      Number of Lines: #{result[:file_info][:lines]}
-      Last Modified: #{result[:file_info][:last_modified]}
-      
-      Notes:
-      #{render_notes result[:notes]}""")
-    })
+      content: Scriptorium.html_with_syntax_highlight(content)
+    }
   end
   
   

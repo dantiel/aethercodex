@@ -222,7 +222,7 @@ module PrimaMateria
   end
 
 
-  def self.recall_history(query: '', limit: 3)
+  def self.recall_history(query: '', limit: 7)
     HorologiumAeternum.memory_searching(query, limit)
     result = { notes: Mnemosyne.search(query, limit: limit) }
     HorologiumAeternum.memory_found(query, result[:notes]&.length || 0, result[:notes].inspect)
@@ -233,9 +233,9 @@ module PrimaMateria
   end
   
   
-  def self.recall_notes(query: '', limit: 3)
+  def self.recall_notes(query: '', limit: 7)
     result = { notes: Mnemosyne.search_notes(query, limit: limit) }
-    HorologiumAeternum.notes_recalled(query, result[:notes])
+    HorologiumAeternum.notes_recalled(query, limit, result[:notes])
     result
   rescue => e
     { error: e.message }
