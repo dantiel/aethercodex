@@ -202,13 +202,13 @@ INSTRUMENTA = [
         When applying the diffs, be extra careful to remember to change any closing brackets or 
         other syntax that may be affected by the diff farther down in the file.
 
-        ALWAYS make as many changes in a single 'apply_diff' request as possible using multiple 
+        ALWAYS make as many changes in a single 'patch_file' request as possible using multiple 
         SEARCH/REPLACE blocks.
 
         ### Diff Format:
         ```
         <<<<<<< SEARCH
-        :start_line: (optional) The line number of original content where the search block starts.
+        :start_line: (required ) The line number of original content where the search block starts.
         -------
         [exact content to find including whitespace]
         =======

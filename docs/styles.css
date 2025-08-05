@@ -44,19 +44,25 @@ body {
     line-height: 1.6;
     position: relative;
 }
+
+
 #eyes-container {
   overflow: hidden;
   position: fixed;
   width: 100%;
   top: 0;
   height: 100%;
-  z-index: -1;
+/*  z-index: -1;*/
   bottom: 0;
+  pointer-events: none;
 }
+
 .cosmic-void {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    z-index: 1;
+/*    background: rgba(0,0,0,0.5);*/
 }
 
 .oracle-header {
@@ -113,6 +119,7 @@ body {
     background: rgba(26, 26, 26, 0.7);
     border-radius: 10px;
     border: 1px solid rgba(74, 144, 226, 0.3);
+    -webkit-backdrop-filter: blur(0.1rem);
 }
 
 .description h2 {
@@ -152,12 +159,15 @@ body {
     border-radius: 10px;
     border: 1px solid rgba(142, 68, 173, 0.3);
     transition: all 0.3s ease;
+    -webkit-backdrop-filter: blur(0.1rem);
+    
 }
 
 .feature-card:hover {
     transform: translateY(-5px);
     border-color: var(--argonaut-mystic);
     box-shadow: 0 10px 30px rgba(142, 68, 173, 0.2);
+    -webkit-backdrop-filter: blur(0.3rem);
 }
 
 
@@ -180,14 +190,9 @@ body {
 }
 
 
-
-.future-features li strong {
-    color: var(--ethereal-white);
-    margin-bottom: 1rem;
-    font-size: 1.3rem;
-    font-weight: 600;
-    text-shadow: 0 0 10px currentColor;
-    display: block;
+.future-features h2 {
+    color: var(--argonaut-cosmic);
+    text-shadow: 0 0 15px currentColor;
 }
 
 .future-features li span {
@@ -205,27 +210,37 @@ body {
     margin-top: 2rem;
 }
 
+.future-features li strong {
+  color: var(--ethereal-white);
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-shadow: 0 0 10px currentColor;
+  display: block;
+  color: color-mix(in srgb, var(--argonaut-cosmic) 70%, var(--ethereal-white));
+}
 .future-features li {
-    background: rgba(26, 26, 26, 0.8);
     padding: 2rem;
     border-radius: 10px;
     border: 1px solid rgba(142, 68, 173, 0.3);
     transition: all 0.3s ease;
     display: block;
+    -webkit-backdrop-filter: blur(0.1rem);
+    border-left: 4px solid var(--argonaut-cosmic);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--argonaut-mystic) 10%, transparent), color-mix(in srgb, var(--argonaut-cosmic) 10%, transparent));
+    color: color-mix(in srgb, var(--argonaut-cosmic) 90%, var(--ethereal-white));
+    
+/*    background: color-mix(in srgb, var(--argonaut-mystic) 10%, transparent);*/
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin: 1rem 0;
 }
 
 .future-features li:hover {
     transform: translateY(-5px);
-    border-color: var(--argonaut-mystic);
-    box-shadow: 0 10px 30px rgba(142, 68, 173, 0.2);
-}
-
-.future-features li {
-    border-left: 4px solid var(--dimensional-purple);
-    background: rgba(26, 26, 26, 0.8);
-    padding: 1.5rem;
-    border-radius: 10px;
-    margin: 1rem 0;
+    border-color: var(--ethereal-white);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--ethereal-white) 15%, transparent);
+    -webkit-backdrop-filter: blur(0.3rem);
 }
 
 .card-transformations {
@@ -307,11 +322,6 @@ body {
 .installation h2 {
     color: var(--arcane-teal);
     text-shadow: 0 0 15px var(--arcane-teal);
-}
-
-.future-features h2 {
-    color: var(--ethereal-green);
-    text-shadow: 0 0 15px var(--ethereal-green);
 }
 
 .installation,
@@ -462,79 +472,29 @@ li strong {
 
 
 
-/*
+
 html {
-  height: 100%;
   background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
-  overflow: hidden;
+/*  overflow: hidden;*/
 }
-*/
+
 
 
 body {
   /* Hermetic Eye Styles */
-    margin: 0;
-    background-color: #000;
+/*    margin: 0;*/
+/*    background-color: #000;*/
+/*    background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);*/
+    
 }
 
 .eye {
   pointer-events: none;
   user-select: none;
   z-index: -1;
-  transition: opacity 1s ease, font-size 1s ease, left 2s ease, right 2s ease;
+  transition: opacity 1s ease, transform 1s ease, text-shadow 1s ease;
   position: absolute;
   font-size: 4rem;
   opacity: 0.1;
-  animation: float 15s infinite ease-in-out;
-}
-
-
-.eye.mirror {
-    animation: float-mirror 15s infinite ease-in-out;
-}
-
-@keyframes float {
-    0%, 100% { transform: translate(0, 0) rotate(0deg) scaleX(1.0); }
-    25% { transform: translate(20vw, 10vh) rotate(50deg) scaleX(1.0); }
-    50% { transform: translate(-10vw, 20vh) rotate(-50deg) scaleX(1.0); }
-    75% { transform: translate(10vw, -10vh) rotate(30deg) scaleX(1.0); }
-}
-
-@keyframes float-mirror {
-    0%, 100% { transform: translate(0, 0) rotate(0deg) scaleX(-1.0); }
-    25% { transform: translate(20vw, 10vh) rotate(-50deg) scaleX(-1.0); }
-    50% { transform: translate(-10vw, 20vh) rotate(50deg) scaleX(-1.0); }
-    75% { transform: translate(10vw, -10vh) rotate(-30deg) scaleX(-1.0); }
-}
-
-/*
-@keyframes float {
-    0% {
-        transform: translate(0, 0);
-    }
-    25% {
-        transform: translate(50vw, 50vh);
-    }
-    50% {
-        transform: translate(100vw, 0);
-    }
-    75% {
-        transform: translate(50vw, -50vh);
-    }
-    100% {
-        transform: translate(0, 0);
-    }
-}*/
-
-/* Parallax layers */
-.layer-1 {
-    animation-duration: 20s;
-}
-
-.layer-2 {
-    animation-duration: 15s;
-}
-
-.layer-3 {
-    animation-duration: 10s;
+  transform-origin: 50% 50%:
 }
