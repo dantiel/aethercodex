@@ -45,10 +45,10 @@ This correspondence ensures the physical storage (Below) perfectly reflects the 
 ### 3. Vibration: Nothing Rests
 > "Nothing rests; everything moves; everything vibrates." - The Kybalion
 
-The `search_notes` method embodies vibration through its scoring resonance:
+The `recall_notes` method embodies vibration through its scoring resonance:
 
 ```ruby
-def self.search_notes(query, limit: 5)
+def self.recall_notes(query, limit: 5)
   notes.map do |note|
     score = 0
     score += 3 if note['content']&.include?(query)

@@ -1,11 +1,7 @@
 require_relative 'mnemosyne'
 require_relative 'argonaut'
 
-# Arcane algorithms for symbolic computation and transformation.
-# Nested indentation test:
-#   - Level 1
-#     - Level 2
-#       - Level 3
+
 
 class Arcanum
   MAX_CONTEXT_LINES = 120
@@ -19,22 +15,17 @@ class Arcanum
     
     file = params['file']
     selection = params['selection']
+
     ctx = {
       history: fetch_history(7),
-      project_files: list_project_files,
+      project_files: Argonaut.list_project_files,
       file: file,
       selection: selection,
-      snippet: snippet_for(file, selection)
+      snippet: snippet_for(file, selection),
+      aegis_orientation: Mnemosyne.aegis,
+      aegis_notes: Mnemosyne.recall_aegis_notes,
     }
     ctx
-  end
-
-  def self.store_hermetic_note(key, body, tags = [])
-    Mnemosyne.record(key, body, tags)
-  end
-
-  def self.recall_hermetic_notes(query, limit = 3)
-    Mnemosyne.recall(query, limit)
   end
 
 
@@ -42,11 +33,6 @@ class Arcanum
     Mnemosyne.db.execute(
       'SELECT prompt, answer FROM entries ORDER BY id DESC LIMIT ?', [limit]
     ).reverse
-  end
-
-
-  def self.list_project_files  
-    Argonaut.list_project_files
   end
 
 

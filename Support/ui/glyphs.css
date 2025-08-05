@@ -167,6 +167,7 @@ body {
     0 0.3rem 1rem rgba(100, 151, 197, 0.2),
     inset 0 0.1rem 0.3rem rgba(160, 163, 249, 0.1);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);  
   position: relative;
   font-weight: 450;
   white-space: pre-wrap;
@@ -202,6 +203,10 @@ body {
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: -1;
+}
+
+.user:hover {
+  opacity: 0.9;
 }
 
 .user:hover::before {

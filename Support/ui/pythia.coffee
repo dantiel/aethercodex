@@ -268,6 +268,8 @@ showStatus = (type, data) ->
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{data.content}
         </details>"""
+    when 'aegis_unveiled'
+      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
 
 
 handleMessage = (e) ->

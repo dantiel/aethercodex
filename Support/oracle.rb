@@ -19,8 +19,6 @@ require_relative 'scriptorium'
 # This module provides advanced debugging capabilities for the Atlantean Oracle
 # Includes patch expansion, error tracking, and astral plane monitoring
 # Version: 2.1.0-hermetic
-
-
 class Oracle
   SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions.md"
   

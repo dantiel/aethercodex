@@ -30,7 +30,8 @@ module PrimaMateria
     'recall_notes'       => { req: %i[],             forbid: [] },
     'remove_note'        => { req: %i[id],           forbid: [] },
     'file_overview'      => { req: %i[path],         forbid: [] },
-    'oracle_conjuration' => { req: %i[prompt],       forbid: %i[recursive] }
+    'oracle_conjuration' => { req: %i[prompt],       forbid: %i[recursive] },
+    'aegis'              => { req: %i[],             forbid: %i[] }
   }
 
 
@@ -88,6 +89,7 @@ module PrimaMateria
     when 'remove_note'        then remove_note(**args)
     when 'file_overview'      then file_overview(**args)
     when 'oracle_conjuration' then oracle_conjuration(**args)
+    when 'aegis'              then aegis(**args)
     else { error: "Unknown tool #{tool}" }
     end
   rescue ArgumentError => e
@@ -132,7 +134,7 @@ module PrimaMateria
     { error: e.message }
   end
   
-
+  
   def self.tell_user(message:, level: 'info', **_)
     HorologiumAeternum.info_message(message)
     { say: { level: level, message: message } }
@@ -209,16 +211,19 @@ module PrimaMateria
     # HorologiumAeternum.memory_storing(key, content.bytesize)
     note = { content: content, links: links, tags: tags }
     if id.nil?
-      Mnemosyne.create_note(**note)
-      HorologiumAeternum.note_added(**note)
+      Mnemosyne.create_note **note
+      HorologiumAeternum.note_added **note
     else
-      Mnemosyne.update_note(id, **note)
-      HorologiumAeternum.note_updated(**note)
+      Mnemosyne.update_note id, **note
+      HorologiumAeternum.note_updated **note
     end
     
     # Mnemosyne.record_note(key, body, tags)
     # HorologiumAeternum.memory_stored(key)
     { ok: true }
+  rescue => e
+    puts "[PrimaMateria][ERROR]: #{e.inspect}"
+    { error: e }
   end
 
 
@@ -234,7 +239,7 @@ module PrimaMateria
   
   
   def self.recall_notes(query: '', limit: 7)
-    result = { notes: Mnemosyne.search_notes(query, limit: limit) }
+    result = { notes: Mnemosyne.recall_notes(query, limit: limit) }
     HorologiumAeternum.notes_recalled(query, limit, result[:notes])
     result
   rescue => e
@@ -292,5 +297,16 @@ module PrimaMateria
     { reasoning: reasoning, content: content, context: context }
   rescue => e
     { error: "Reasoning failed: #{e.message}" }
+  end
+
+
+  def self.aegis(tags: nil, context_length: nil)
+    notes = Mnemosyne.unveil_aegis tags: tags, context_length: context_length
+    
+    HorologiumAeternum.aegis_unveiled tags, context_length
+    
+    { aegis_notes: notes, aegis_orientation: Mnemosyne.aegis }
+  rescue => e
+    { error: "Aegis failed: #{e.message}" }
   end
 end

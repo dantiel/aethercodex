@@ -218,6 +218,14 @@ module HorologiumAeternum
       key: key 
     })
   end
+
+  
+  
+  def self.aegis_unveiled(tags, context_length)
+    send_status('aegis_unveiled', { 
+      message: Scriptorium.html("🔮 Aegis unveiled: `#{tags.join ', '}` Limit: #{context_length}")
+    })
+  end
   
   
   def self.memory_searching(query, limit)
@@ -269,15 +277,18 @@ module HorologiumAeternum
     links = if note[:links].nil? || note[:links].empty?
       ''
     else 
-      note[:links].split(',').map { |link| "- `#{link}`" }.join "\n" 
+      if note[:links].is_a? Array then note[:links]
+      else note[:links].split(',') end.map { |link| "- `#{link}`" }.join "\n" 
     end
-    tags = if note[:tags].nil? || note[:tags].empty?
-      ''
-    else
-      note[:tags].split(',').map { |tag| "\\\##{tag}" }.join ", " 
-    end
+    tags = if note[:tags].nil? || note[:tags].empty? then ''
+           else
+             if note[:tags].is_a? Array then note[:tags] 
+             else note[:tags].split(',') end.map { |tag| "\\\##{tag}" }.join ", " 
+           end
+    note_info = if note[:id] then "**ID:** #{note[:id]}, **updated:** #{note[:created_at] || note[:updated_at]}"
+                else '' end
     <<~MARKDOWN
-    **ID:** #{note[:id]}, **updated:** #{note[:created_at]}
+    #{note_info}
 
     #{note[:content]}
 

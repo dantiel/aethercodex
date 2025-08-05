@@ -121,7 +121,8 @@ class Argonaut
     file_info = {
       lines: line_count,
       size: File.size(fullpath),
-      last_modified: File.mtime(fullpath) 
+      last_modified: File.mtime(fullpath),
+      path: path
     }
 
     { notes: notes, file_info: file_info }

@@ -11,15 +11,12 @@ class Mnemosyne
     the a an and of in to with on for is are am be was were it this that
     at by from as if or but so not into out about then
   ])
-  
-  
-  def self.tokenize(text)
-    return Set.new unless text.is_a?(String)
-    tokens = text.downcase.scan(/\w+/)
-    Set.new(tokens) - STOP_WORDS
-  end
-  
+  AEGIS_ID = 1
 
+
+  @aegis = nil
+  
+  
   def self.db_path
     cfg_path = File.expand_path('../.aethercodex', __FILE__)
     cfg = File.exist?(cfg_path) ? YAML.load_file(cfg_path) : {}
@@ -39,43 +36,10 @@ class Mnemosyne
       FileUtils.mkdir_p(File.dirname(db_path))
       db = SQLite3::Database.new(db_path)
       db.results_as_hash = true
-      migrate(db)
+      migrate db
+      restore_aegis db
       db
     end
-  
-  end
-
-  # Search notes with scoring based on content, tags, and links
-  def self.search_notes(query, limit: 5)
-    puts "SEARCH NOTES #{query}"
-    query_tokens = tokenize query
-    
-    notes = db.execute(
-      'SELECT id, content, tags, links FROM project_notes'
-    )
-
-    notes.map do |note|
-      note.transform_keys!(&:to_sym)
-      score = 0
-      
-      if query_tokens.empty?
-        score = 1
-      else
-        content_tokens = tokenize note['content']
-        score += 3 * (query_tokens & content_tokens).size
-        content_tokens = tokenize note['tags']
-        score += 2 * (query_tokens & content_tokens).size
-        content_tokens = tokenize note['links']
-        score += 1 * (query_tokens & content_tokens).size
-      end
-      # score += 3 if note['content']&.include?(query)
-      # score += 2 if note['tags']&.include?(query)
-      # score += 1 if note['links']&.include?(query)
-      { **note, score: score }
-    end
-      .select { |note| note[:score] > 0 }
-      .sort_by { |note| -note[:score] }
-      .take(limit)
   end
   
 
@@ -113,17 +77,100 @@ class Mnemosyne
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     SQL
+    db.execute <<~SQL
+      CREATE TABLE IF NOT EXISTS aegis_state (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tags TEXT,
+        context_length INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    SQL
+  end
+
+
+  # Search notes with scoring based on content, tags, and links
+  def self.recall_notes(query, limit: 5)
+    puts "SEARCH NOTES #{query}"
+    query_tokens = tokenize query
+    
+    sql_query = if query_tokens.empty?
+      ''
+    else
+      'WHERE ' + (%w(content tags links).map{ |field| 
+        query_tokens.map{ |keyword| "#{field} LIKE '%#{keyword}%'" }.join ' OR ' 
+      }.join ' OR ')
+    end
+    
+    notes = db.execute(
+      "SELECT id, content, tags, links FROM project_notes #{sql_query}"
+    )
+    puts "notes=#{notes}"
+
+    notes.map do |note|
+      note.transform_keys! &:to_sym
+      score = 0
+      
+      if query_tokens.empty?
+        score = 1
+      else
+        score += 3 * (query_tokens & tokenize(note[:content])).size
+        score += 2 * (query_tokens & tokenize(note[:tags])).size
+        score += 1 * (query_tokens & tokenize(note[:links])).size
+      end
+      
+      { **note, score: score }
+    end
+      .select { |note| note[:score] > 0 }
+      .sort_by { |note| -note[:score] }
+      .take(limit)
+  end
+  
+  
+  def self.save_aegis_state(tags:, context_length:)
+    tags_json = tags.join ','
+    db.execute(
+      'INSERT OR REPLACE INTO aegis_state (id, tags, context_length) VALUES (?, ?, ?)',
+      [AEGIS_ID, tags_json, context_length]
+    )
+  end
+
+
+  def self.restore_aegis(db)
+    aegis = db.execute('SELECT tags, context_length FROM aegis_state ' +
+      'WHERE id = ? ORDER BY created_at DESC LIMIT 1', [AEGIS_ID])&.first
+
+    @aegis = if aegis.nil? || aegis.empty? then { tags: [], context_length: 20 }  
+             else aegis.transform_keys(&:to_sym) end
+  end
+  
+  
+  def self.unveil_aegis(**aegis)
+    @aegis = aegis
+    save_aegis_state **aegis
+    
+    recall_aegis_notes
+  end
+  
+  
+  def self.recall_aegis_notes
+    puts "recall_aegis_notes #{@aegis.inspect}"
+    tags = @aegis[:tags]
+    tags = tags.split ',' if tags.is_a? String
+    recall_notes tags.join(' '), limit: @aegis[:context_length]
+  end
+
+  
+  def self.aegis
+    @aegis
   end
   
 
-  # Store Q/A
   def self.record(params, answer)
-    puts "record #{[params['prompt'], answer, Array(params['tags']).join(','), params['file'], params['selection']].inspect}"
     db.execute(
       'INSERT INTO entries (prompt, answer, tags, file, selection) VALUES (?,?,?,?,?)',
-      [params['prompt'], answer, Array(params['tags']).join(','), params['file'], params['selection']]
+      [params['prompt'], answer, Array(params['tags']).join(','), params['file'], 
+        params['selection']]
     )
-    puts "record DONE"
   end
   
 
@@ -149,7 +196,6 @@ class Mnemosyne
   end
 
 
-  # Update note by id
   def self.update_note(id, content: nil, links: nil, tags: nil) 
     # TODO change created_at to updated_at
     db.execute('UPDATE project_notes SET content = ?, links = ?, tags = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?', [content, links&.join(','), tags&.join(','), id])
@@ -167,10 +213,12 @@ class Mnemosyne
     action = params['action'] || 'list'
     case action
     when 'create'
-      db.execute('INSERT INTO tasks (title, payload, status) VALUES (?,?,?)', [params['title'], params['payload'].to_json, 'open'])
+      db.execute('INSERT INTO tasks (title, payload, status) VALUES (?,?,?)', 
+        [params['title'], params['payload'].to_json, 'open'])
       { ok: true }
     when 'update'
-      db.execute('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [params['status'], params['id']])
+      db.execute('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+        [params['status'], params['id']])
       { ok: true }
     else # list
       rows = db.execute('SELECT * FROM tasks ORDER BY created_at DESC')
@@ -182,8 +230,19 @@ class Mnemosyne
   # Recall entries by tags or prompt
   def self.search(query, limit: 5)
     db.execute(
-      'SELECT prompt, answer FROM entries WHERE tags LIKE ? OR prompt LIKE ? OR file LIKE ? ORDER BY id DESC LIMIT ?', 
+      'SELECT prompt, answer FROM entries WHERE tags ' +
+      'LIKE ? OR prompt LIKE ? OR file LIKE ? ORDER BY id DESC LIMIT ?', 
       ["%#{query}%", "%#{query}%", "%#{query}%", limit]
     )
+  end
+  
+  
+  private
+  
+  
+  def self.tokenize(text)
+    return Set.new unless text.is_a?(String)
+    tokens = text.downcase.scan(/\w+/)
+    Set.new(tokens) - STOP_WORDS
   end
 end
