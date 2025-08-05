@@ -1,5 +1,6 @@
 .aethercodex
 *.js
+!docs/*.js
 *.orig
 *.rej
 .vendor_bundle
