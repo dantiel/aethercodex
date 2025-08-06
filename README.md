@@ -1,8 +1,8 @@
-# AetherCodex: Atlantean Reasoning Oracle for TextMate
+# 🌌 AetherCodex: Atlantean Reasoning Oracle for TextMate
 
 **A hermetic reasoning oracle dwelling within TextMate's astral plane.**
 
-AetherCodex transforms TextMate into a living interface with advanced AI reasoning. Invoke the oracle to illuminate code, orchestrate multi-step operations, and commune with project context through eldritch wisdom.
+AetherCodex transforms TextMate into a living interface with advanced AI reasoning. Invoke the oracle to illuminate code, orchestrate multi-step operations, and commune with project context through eldritch wisdom. [🔗 Explore on GitHub.io](https://dantiel.github.io/aethercodex/)
 
 ---
 
@@ -15,7 +15,7 @@ AetherCodex transforms TextMate into a living interface with advanced AI reasoni
 - Live status updates during long-running tasks
 
 ### 🛠️ **Hermetic Prima Materia**
-- **File Operations**: Read, create, patch, rename with surgical precision
+- **File Operations**: Read, create, fuzzy patches, rename with surgical precision
 - **Code Analysis**: Context-aware inspection and modification
 - **Memory Systems**: Persistent knowledge storage via Mnemosyne
 - **Command Execution**: Safe shell operations with validation
@@ -41,15 +41,16 @@ cp -R AetherCodex.tmbundle ~/Library/Application\ Support/Avian/Bundles/
 Create `.aethercodex` in your project root:
 ```yaml
 api_key: YOUR_DEEPSEEK_KEY
+api-url: 'https://api.deepseek.com/v1/chat/completions'
 port: 4567
-model: reasoning-1
+model: deepseek-chat
 memory-db: .tm-ai/memory.db
 ```
 
 ### 3. Dependencies
 Ensure Ruby gems are available:
 ```bash
-gem install sqlite3 sinatra httparty
+bundle install
 ```
 
 ---
@@ -103,11 +104,15 @@ Remember this pattern as "user-auth-flow" for future reference
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | **Oracle Chamber** | Interactive AI interface | `ui/chamber.html` |
-| **Streaming Handler** | Real-time response processing | `aetherflux.rb` |
+| **Aetherflux** | Real-time response processing | `aetherflux.rb` |
+| **Argonaut** | Filebrowser | `argonaut.rb` |
+| **Arcanum** | Context Creator | `arcanum.rb` |
+| **Diff Crepusculum** | Fuzzy File Patches | `diff_crepusculum.rb` |
 | **Prima Materia** | Function execution engine | `prima_materia.rb` |
 | **Mnemosyne** | Memory management system | `mnemosyne.rb` |
 | **Limen** | Security and validation | `limen.rb` |
 | **Horologium Aeternum** | Real-time user communication | `horologium_aeternum.rb` |
+| **Scriptorium** | Markdown processor | `scriptorium.rb` |
 
 ### **Data Flow**
 1. **Invocation** → Context gathering → API request
