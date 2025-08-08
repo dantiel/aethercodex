@@ -402,7 +402,6 @@ updateSendButton = ->
     sendBtn.classList.remove 'thinking'
     
 
-
 replaceFileTags = (content) ->
   matchFile = RegExp "<file(?: path=\"([^\"]+)\")?(?: line=\"([^\"]+)\")?" +
               "(?: column=\"([^\"]+)\")?>([^<]+)<\\/file>", 'g'

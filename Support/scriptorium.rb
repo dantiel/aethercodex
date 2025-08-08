@@ -39,7 +39,7 @@ module Scriptorium
 
   # Original renderer for fallback
   @basic_renderer = Redcarpet::Markdown.new(
-    Redcarpet::Render::HTML.new(hard_wrap: true, safe_links_only: true),
+    Redcarpet::Render::HTML.new(hard_wrap: true, safe_links_only: true, filter_html: false),
     fenced_code_blocks: true, 
     tables: true, 
     autolink: true, 

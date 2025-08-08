@@ -21,6 +21,9 @@
   --argonaut-amber: #FFCE00;   /* Golden amber */
   --argonaut-crimson: #DB001C; /* Deep red */
   --argonaut-mystic: #815DB3;  /* Purple */
+  --hermetic-gold: #f39c12;
+  --ethereal-white: #f8f9fa;
+
 }
 
 :root{
@@ -446,5 +449,19 @@ hr {
 ul, ol {
     margin: 0 ;
     padding:0 0 0 1.6em;
+}
+
+
+a.file-link {
+  transition: all 0.2s ease;
+  background: color-mix(in srgb, var(--argonaut-azure) 20%, transparent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #f8f9fa;
+  text-decoration: none
+}
+
+a.file-link:hover {
+  background: color-mix(in srgb, var(--argonaut-azure) 40%, transparent);
 }
 

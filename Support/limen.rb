@@ -235,7 +235,7 @@ def do_attach(p)
   puts "Argonaut.relative_path #{file}"
   file_content = if file and not attachment_data[:selection]
     begin
-      Argonaut.read(file)
+      Argonaut.read file
     rescue => e
       puts "Failed to read file: #{e.message}"
       nil
@@ -245,8 +245,8 @@ def do_attach(p)
   end
   
   selection = attachment_data[:selection]
-  selection = selection[2, selection.length - 3] || ''
-  selection = "\"#{selection.gsub("\"","\\\"").gsub("\\\'","\'")}\"".undump
+  # selection = selection[2, selection.length - 3] || ''
+  # selection = "\"#{selection.gsub("\"","\\\"").gsub("\\\'","\'")}\"".undump
   
   attachment_data.merge! content: file_content, 
                          lines: ((file_content || selection).count '\n'),
