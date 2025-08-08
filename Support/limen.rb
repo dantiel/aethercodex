@@ -138,6 +138,7 @@ def startThinkingThread(ws, req)
       warn "[WS] message: #{req['params'].inspect}"
     
       res = Aetherflux.channel_oracle_divination req['params'], ws
+      warn "[WS][DEBUG] #{res.inspect}"
       ws.send res.to_json
     rescue => e
       warn "[WS][THREAD][ERROR]#{e.inspect}"
@@ -162,6 +163,7 @@ def handle_request(req)
   puts "handle_request #{req.inspect}"
   case req['method']
   when 'askAI'      then do_ask req['params']
+  when 'attach'     then do_attach req['params']
   when 'tool'       then do_tool req['params']
   when 'complete'   then do_complete req['params']
   when 'manageTask' then do_tasks req['params']
@@ -225,6 +227,41 @@ def do_tool(p)
 end
 
 
+def do_attach(p)
+  puts "handle attachments #{p.inspect}"
+  attachment_data = p.transform_keys!(&:to_sym)
+  file_content = nil
+  file = Argonaut.relative_path attachment_data[:file]
+  puts "Argonaut.relative_path #{file}"
+  file_content = if file and not attachment_data[:selection]
+    begin
+      Argonaut.read(file)
+    rescue => e
+      puts "Failed to read file: #{e.message}"
+      nil
+    end
+  else
+    nil
+  end
+  
+  selection = attachment_data[:selection]
+  selection = selection[2, selection.length - 3]
+  selection = "\"#{selection.gsub "\"","\\\""}\"".undump
+
+  attachment_data.merge! content: file_content, 
+                         lines: ((file_content || selection).count '\n'),
+                         file: file,
+                         selection: selection
+
+  HorologiumAeternum.attach("Received attachment: #{attachment_data.inspect}", 
+    **attachment_data)
+  { method: 'attachment', result: { ok: true, **attachment_data } }
+rescue => e
+   puts "ERROR: #{e} , #{p.transform_keys(&:to_sym)}"
+  { method: 'error', result: { error: e.message } }
+end
+
+
 def do_complete(p)
   ctx = Arcanum.build p
   snippet = Oracle.complete(ctx)
@@ -238,7 +275,12 @@ end
 
 
 def do_read(p)
-  result = Argonaut.read(p['path'], p['range'] || [])
+  puts "DO_READ #{p['path']}"
+  
+  path = Argonaut.relative_path p['path']
+  puts "PATHPTAH #{path}"
+  
+  result = Argonaut.readRange(path, p['range'] || [])
   { method: 'fileContent', result: result }
 end
 

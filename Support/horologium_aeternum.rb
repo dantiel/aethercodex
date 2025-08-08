@@ -12,11 +12,11 @@ module HorologiumAeternum
   end
   
   
-  def self.send_status(type, data = {})
+  def self.send(method, type, data = {})
     return unless @websocket
     begin
       payload = {
-        method: 'status',
+        method: method,
         result: { type: type, data: data, timestamp: Time.now.to_f }
       }.to_json
       @websocket.send(payload)
@@ -31,6 +31,11 @@ module HorologiumAeternum
     rescue => e
       warn "Failed to send status: #{e.message}"
     end
+  end
+  
+  
+  def self.send_status(type, data = {})
+    send 'status', type, data
   end
 
 
@@ -355,5 +360,18 @@ module HorologiumAeternum
     send_status('system_message', {
       message: Scriptorium.html(message)
     })
+  end
+  
+  
+  def self.attach(message, file: nil, selection: nil, lines: nil, content: nil)
+    type = Scriptorium.language_tag_from_path file
+
+    puts "self.attach #{message}, #{file}, #{selection}"
+    send 'attach', 'attachment', {
+      file:      file,
+      selection: Scriptorium.html_with_syntax_highlight("```#{type}\n#{selection}\n```"), 
+      lines:     lines,
+      content:   content
+    }
   end
 end

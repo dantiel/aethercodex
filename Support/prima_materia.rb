@@ -9,7 +9,6 @@ require 'json'
 require 'timeout'
 require 'open3'
 require 'cgi'
-require 'pathname'
 
 
 
@@ -162,22 +161,15 @@ module PrimaMateria
     return { error: 'Denied path' } if DENY_PATHS.any? { |re| re.match?(path) }
     HorologiumAeternum.file_reading(path, range)
     
-    src = Argonaut.read(path)
-    result = if range && range.size == 2
-      l0, l1 = range
-      lines = src.lines[l0..l1] || []
-      { content: lines.join, range: [l0, l1] }
-    else
-      { content: src }
-    end
+    result = Argonaut.read path, range
     
     bytes_read = result[:content]&.bytesize || 0
     
-    HorologiumAeternum.file_read_complete(path, bytes_read, range, result[:content])
+    HorologiumAeternum.file_read_complete path, bytes_read, range, result[:content]
     
     result
   rescue => e
-    HorologiumAeternum.file_read_fail(path, e.message, range)
+    HorologiumAeternum.file_read_fail path, e.message, range
     { error: "#{e.message}" }
   end
 
@@ -254,15 +246,7 @@ module PrimaMateria
   
   
   def self.file_overview(path:)
-    path = if path.start_with? '/' 
-      puts "FILE TEST=#{Argonaut.project_root}"
-      absolute_path = Pathname.new path
-      relative_path = absolute_path.relative_path_from Argonaut.project_root
-      puts "relative_path=#{relative_path}"
-      relative_path.to_s
-    else
-      path
-    end
+    path = Argonaut.relative_path path
       
     # puts "[PRIMA MATERIA]: file_overview(path:#{path})"
     results = Argonaut.file_overview path: path

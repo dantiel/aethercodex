@@ -2,23 +2,44 @@ require 'json'
 require 'open3'
 require 'tempfile'
 require_relative 'diff_crepusculum'
+require 'pathname'
+
 
 
 class Argonaut
   @diff_crepusculum ||= DiffCrepusculum::ChrysopoeiaDiff.new
   
   
-  def self.read(path)
+  def self.relative_path(path)
+    path = if path.start_with? '/' 
+      absolute_path = Pathname.new path
+      relative_path = absolute_path.relative_path_from project_root
+      relative_path.to_s
+    else
+      path
+    end
+  end
+  
+
+  def self.read(path, range = nil)
     base = project_root
-    File.read(File.join(base, path))
+    src = File.read(File.join base, path)
+    
+    result = if range && range.size == 2
+      l0, l1 = range
+      lines = src.lines[l0..l1] || []
+      { content: lines.join, range: [l0, l1] }
+    else
+      { content: src }
+    end
   end
   
 
   def self.write(path, text)
     base = project_root
-    full = File.join(base, path)
-    FileUtils.mkdir_p(File.dirname(full))
-    File.write(full, text)
+    full = File.join base, path
+    FileUtils.mkdir_p(File.dirname full)
+    File.write full, text
   end
   
   
@@ -30,8 +51,8 @@ class Argonaut
   
   def self.rename(from, to)
     root = project_root
-    FileUtils.mkdir_p(File.dirname(File.join(root, to)))
-    FileUtils.mv(File.join(root, from), File.join(root, to))
+    FileUtils.mkdir_p(File.dirname(File.join root, to))
+    FileUtils.mv File.join(root, from), File.join(root, to)
   end
 
 

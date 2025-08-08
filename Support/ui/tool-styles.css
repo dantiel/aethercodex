@@ -116,3 +116,52 @@ details[open] summary {
   border-radius: 0.6rem;
   padding: 1rem;
 }
+
+/* Attachment Preview Styling */
+.attachment-preview {
+  margin: 1rem 0;
+  background: rgba(129, 93, 179, 0.08);
+  border: 0.1rem solid rgba(129, 93, 179, 0.25);
+  border-radius: 0.6rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.attachment-header {
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.15) 0%, rgba(129, 93, 179, 0.08) 100%);
+  padding: 0.8rem 1rem;
+  border-bottom: 0.1rem solid var(--argonaut-hermetic);
+  font-weight: 500;
+  color: var(--argonaut-mystic);
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.attachment-header button {
+  background: none;
+  border: none;
+  color: var(--argonaut-steel);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.attachment-header button:hover {
+  color: var(--argonaut-amber);
+}
+
+.attachment-content {
+  overflow: auto;
+}
+
+.attachment-content pre {
+  margin: 0;
+  background: rgba(0, 12, 22, 0.4);
+  color: var(--argonaut-steel);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  border: none;
+  border-radius: 0;
+}

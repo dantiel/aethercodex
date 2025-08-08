@@ -6,6 +6,7 @@ reconnectAttempts = 0
 maxReconnectAttempts = 10
 baseReconnectDelay = 1000  # 1 second
 lastPongTime = null
+activeContext = null
 # console.log = ->
   
 
@@ -270,6 +271,12 @@ showStatus = (type, data) ->
         </details>"""
     when 'aegis_unveiled'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+    when 'active_context'
+      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+      #
+      # file: file,
+      # selection: selection,
+      # lines: lines
 
 
 handleMessage = (e) ->
@@ -305,8 +312,48 @@ handleMessage = (e) ->
       log 'ai', "<pre>#{data.result.snippet}</pre>"
     when 'error'
       log 'error', "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
+    when 'fileContent'
+      log 'system', """
+        <details>
+          <summary>📄 File Content</summary>
+          <pre>#{data.result}</pre>
+        </details>"""
+    when 'attach'
+      renderAttachmentPreview(data.result.data)
     else
       log 'system', "<pre>#{JSON.stringify data, null, 2}</pre>"
+
+
+# Attachment preview rendering
+renderAttachmentPreview = (data) ->
+  console.log "renderAttachmentPreview+",data
+  [file, content, selection, lines] = [data.file, 
+    data.content || "No content preview available.", data.selection, data.lines]
+  attachment_uuid = do crypto.randomUUID
+  activeContext = data
+  console.log "renderAttachmentPreview",file, content, selection
+  preview = document.createElement 'div'
+  preview.id = "attachment_#{attachment_uuid}"
+  preview.className = 'attachment-preview'
+  attachment_content = if selection then """
+    <div class=\"attachment-content\">
+      <div>#{selection}</div>
+    </div>
+  """ else ''
+  preview.innerHTML = """
+    <div class=\"attachment-header\">
+      <span>📎 #{file}</span>
+      <button onclick=\"removeAttachment('#{attachment_uuid}')\">✕</button>
+    </div>
+    #{attachment_content}
+  """
+  textarea.insertAdjacentElement "beforebegin", preview
+
+
+# Attachment management
+removeAttachment = (attachment_uuid) ->
+  # ws.send JSON.stringify method: 'clear_attachment', params: { path: path }
+  do document.getElementById("attachment_#{attachment_uuid}").remove
 
 
 onSendBtnClick = (e) ->

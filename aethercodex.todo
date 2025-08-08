@@ -12,7 +12,7 @@ Hermetic Coding Paradigm & File Naming
 ◯ use textmate links a la txmt://open/?url=file://~/.profile&line=11&column=2 e.g. when clicking on a filename, maybe we need a tag that the ai can use like <file>path/to/file</file> or <file url="path/to/file">text</file>
 ◯ add ai actions to filebrowser actions: callback.file-browser.action-menu
 ◯ add button for proceeed
-
+◯ add ability to create and edit tasks, ai will generate a task from user prompt, generate a detailed plan and then start acting on it in a loop until all parts of the tasks are done
 
 Website:
   ✧ Hermetic Symbolism

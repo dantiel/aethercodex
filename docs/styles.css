@@ -493,6 +493,7 @@ body {
   user-select: none;
   z-index: -1;
   transition: opacity 1s ease, transform 1s ease, text-shadow 1s ease;
+  line-height: 1em;
   position: absolute;
   font-size: 4rem;
   opacity: 0.1;
