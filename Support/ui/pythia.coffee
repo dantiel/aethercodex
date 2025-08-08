@@ -1,12 +1,13 @@
 DEFAULT_PORT = 4567
 isThinking = false
 port = window.AETHER_PORT ? DEFAULT_PORT
+project_root = window.AETHER_PROJECT_ROOT ? null
 ws   = null
 reconnectAttempts = 0
 maxReconnectAttempts = 10
 baseReconnectDelay = 1000  # 1 second
 lastPongTime = null
-activeContext = null
+attachment_context = null
 # console.log = ->
   
 
@@ -327,10 +328,10 @@ handleMessage = (e) ->
 # Attachment preview rendering
 renderAttachmentPreview = (data) ->
   console.log "renderAttachmentPreview+",data
-  [file, content, selection, lines] = [data.file, 
-    data.content || "No content preview available.", data.selection, data.lines]
+  { line, column, selection_range, file, content, selection, lines } = data
+  content ||= 'No content preview available.'
   attachment_uuid = do crypto.randomUUID
-  activeContext = data
+  attachment_context = data
   console.log "renderAttachmentPreview",file, content, selection
   preview = document.createElement 'div'
   preview.id = "attachment_#{attachment_uuid}"
@@ -340,18 +341,35 @@ renderAttachmentPreview = (data) ->
       <div>#{selection}</div>
     </div>
   """ else ''
+
+  line = unless line then '' else
+    "<span>Line: <span>#{line}</span></span>"
+  column = unless column then '' else
+    "<span>Column: <span>#{column}</span></span>"
+  selection_range = unless selection_range then '' else
+    "<span>Selection: <span>#{selection_range}</span></span>"
+
+  attachment_content = replaceFileTags attachment_content
   preview.innerHTML = """
     <div class=\"attachment-header\">
       <span>📎 #{file}</span>
       <button onclick=\"removeAttachment('#{attachment_uuid}')\">✕</button>
     </div>
+    <div class=\"attachment-meta\">
+      #{line}
+      #{column}
+      #{selection_range}
+    </div>
     #{attachment_content}
   """
-  textarea.insertAdjacentElement "beforebegin", preview
+  
+  inputBar = document.getElementById 'input-bar'
+  inputBar.insertAdjacentElement "beforebegin", preview
 
 
 # Attachment management
 removeAttachment = (attachment_uuid) ->
+  attachment_context = null
   # ws.send JSON.stringify method: 'clear_attachment', params: { path: path }
   do document.getElementById("attachment_#{attachment_uuid}").remove
 
@@ -367,8 +385,10 @@ onSendBtnClick = (e) ->
 askAI = ->
   text = document.getElementById('chat-input').value
   return unless text?.length
-  ws.send JSON.stringify method: 'askAI', params: { prompt: text, record: true }
-  log 'user', text
+  { file, selection } = attachment_context || {}
+  ws.send JSON.stringify method: 'askAI', params: { 
+    prompt: text, record: true, file, selection }
+  log 'user', escapeHtml text
   document.getElementById('chat-input').value = ''
   isThinking = true
   do updateSendButton
@@ -380,7 +400,6 @@ stopThinking = ->
   do updateSendButton
   
 
-
 updateSendButton = ->
   if isThinking
     sendBtnGlyph.textContent = '⏹'
@@ -389,6 +408,28 @@ updateSendButton = ->
     sendBtnGlyph.textContent = '⚡'
     sendBtn.classList.remove 'thinking'
     
+
+
+replaceFileTags = (content) ->
+  matchFile = RegExp "<file(?: path=\"([^\"]+)\")?(?: line=\"([^\"]+)\")?" +
+              "(?: column=\"([^\"]+)\")?>([^<]+)<\\/file>", 'g'
+  content.replace matchFile, (match, path, line, column, displayName) ->
+    href = if path 
+     "txmt://open/?url=file://#{project_root}/#{encodeURIComponent(path)}" 
+    else "#"
+    href += "\&line=#{line}" if line
+    href += "\&column=#{column}" if column
+    "<a href=\"#{href}\" class=\"file-link\">#{displayName}</a>"
+
+
+escapeHtml = (unsafe) ->
+  unsafe
+  .replace /&/g, "&amp;"
+  .replace /</g, "&lt;"
+  .replace />/g, "&gt;"
+  .replace /"/g, "&quot;"
+  .replace /'/g, "&#039;"
+
 
 sendBtn = document.getElementById 'send-btn'
 sendBtnGlyph = sendBtn.getElementsByClassName('send-glyph')[0]

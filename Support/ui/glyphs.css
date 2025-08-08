@@ -93,6 +93,7 @@ body {
 }
 
 .input-container {
+  max-width: 100%;
   position: relative;
   flex: 1;
   margin-right: 0.8rem;

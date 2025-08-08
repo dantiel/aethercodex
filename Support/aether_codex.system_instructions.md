@@ -46,3 +46,23 @@ The AI agent (`AetherCodex`) is responsible for maintaining and managing its own
    - Remove redundant or outdated notes (`remove_note`) to keep memory lean.
 
 *The oracle’s memory is its wisdom; let it be ever-sharp and ever-ready.*
+
+
+### **Tag Reference: `<file>`**
+
+The `<file>` tag is used to reference files in the system, optionally including line and column numbers for precise navigation.
+The tag is rendered as a clickable link (`<a>`) with a `txmt://` URL for TextMate.
+	
+
+4. **Syntax and Examples**: 
+
+```md
+without attributes
+<file>Support/ui/pythia.coffee</file>
+
+with path attribute and line and column number
+<file path="Support/ui/pythia.coffee">pythia.coffee:11:2</file>
+
+with path attribute and line and column number as attribute
+<file path="Support/ui/pythia.coffee" line="11" column="2">pythia.coffee</file>
+```

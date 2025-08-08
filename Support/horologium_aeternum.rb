@@ -363,15 +363,19 @@ module HorologiumAeternum
   end
   
   
-  def self.attach(message, file: nil, selection: nil, lines: nil, content: nil)
+  def create_file_link(file, display_name, line, column)
+    line = " line=\"#{line}\"" if line
+    column = " column=\"#{column}\"" if column
+    "<file path=\"#{file}\"#{line}#{column}>#{display_name || file}</file>"
+  end
+  
+  
+  def self.attach(message, file: nil, selection: nil, lines: nil, content: nil, line: nil, column: nil, selection_range: nil)
     type = Scriptorium.language_tag_from_path file
-
-    puts "self.attach #{message}, #{file}, #{selection}"
+    selection = Scriptorium.html_with_syntax_highlight("```#{type}\n#{selection}\n```") if selection
+    file = create_file_link file, file, line, column
     send 'attach', 'attachment', {
-      file:      file,
-      selection: Scriptorium.html_with_syntax_highlight("```#{type}\n#{selection}\n```"), 
-      lines:     lines,
-      content:   content
+      file:, selection:, lines:, content:, line:, column:, selection_range:
     }
   end
 end

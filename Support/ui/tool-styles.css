@@ -119,12 +119,13 @@ details[open] summary {
 
 /* Attachment Preview Styling */
 .attachment-preview {
-  margin: 1rem 0;
+  margin: 1rem 1.5rem;
   background: rgba(129, 93, 179, 0.08);
   border: 0.1rem solid rgba(129, 93, 179, 0.25);
   border-radius: 0.6rem;
   overflow: hidden;
   transition: all 0.3s ease;
+  
 }
 
 .attachment-header {
@@ -165,3 +166,19 @@ details[open] summary {
   border: none;
   border-radius: 0;
 }
+
+
+.attachment-meta {
+  background: var(--argonaut-deep);
+/*  --argonaut-void*/
+  font-size: 0.8em;
+  padding: 0.2em 0.8em;
+} 
+
+.attachment-meta span {
+  color: var(--argonaut-shadow);
+}
+.attachment-meta span span {
+  color: var(--argonaut-hermetic);
+}
+
