@@ -363,7 +363,7 @@ module HorologiumAeternum
   end
   
   
-  def create_file_link(file, display_name, line, column)
+  def self.create_file_link(file, display_name, line, column)
     line = " line=\"#{line}\"" if line
     column = " column=\"#{column}\"" if column
     "<file path=\"#{file}\"#{line}#{column}>#{display_name || file}</file>"

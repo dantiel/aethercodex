@@ -143,23 +143,23 @@ showStatus = (type, data) ->
       else
         log 'status', "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
     when 'file_reading'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"    
+      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
     when 'divination'
       log 'status', "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
     when 'file_read_complete'
       log 'status', """
         <details>
-          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.content}
         </details>"""
     when 'file_read_fail'
-      log 'status', "#{data.message}: #{error} <small>#{timestamp || ''}</small>"
+      log 'status', "#{replaceFileTags data.message}: #{error} <small>#{timestamp || ''}</small>"
     when 'file_creating'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
     when 'file_created'
       log 'status', """
         <details>
-          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.content}
         </details>"""
     when 'tool_starting'
@@ -167,17 +167,17 @@ showStatus = (type, data) ->
       if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
         log 'status', "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
     when 'file_patching'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
     when 'file_patched'
       log 'status', """
         <details>
-          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.diff}
         </details>"""
     when 'file_patched_fail'
       log 'status', """
         <details>
-          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.diff}
         </details>"""
     when 'command_executing'
@@ -189,9 +189,9 @@ showStatus = (type, data) ->
           <pre>#{data.content}</pre>
         </details>"""
     when 'file_renaming'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
     when 'file_renamed'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"      
+      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"      
     when 'memory_storing'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
     when 'memory_stored'
@@ -205,7 +205,7 @@ showStatus = (type, data) ->
           <pre>#{data.content}</pre>
         </details>"""
     when 'info'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"    
+      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
     when 'tool_completed'
       if data.result?.error
         log 'status', "❌ Tool <code>#{data.tool}</code> failed: #{data.result.error} <small>#{timestamp || ''}</small>"
@@ -221,20 +221,20 @@ showStatus = (type, data) ->
           log 'system', "&nbsp;&nbsp;↳ Result: <pre style='display:inline; background:none;'>#{resultJson}</pre>"
     when 'oracle_revelation'
       if data.content
-        log 'ai', data.content
+        log 'ai', replaceFileTags data.content
       else
         log 'status', "💭 AI responding... <small>#{timestamp || ''}</small>"
     when 'oracle_conjuration_revelation'
       log 'system', """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-          #{data.content}
+          #{replaceFileTags data.content}
         </details>"""
     when 'oracle_conjuration'
       log 'status', """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-          #{data.content}
+          #{replaceFileTags data.content}
         </details>"""
     when 'plan_announced'
       log 'status', "📋Plan: #{data.steps?.join ' → '} <small>#{timestamp || ''}</small>"
@@ -250,35 +250,29 @@ showStatus = (type, data) ->
       log 'system', """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-          #{data.content}
+          #{replaceFileTags data.content}
         </details>"""
     when 'note_updated'
       log 'system', """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-          #{data.content}
+          #{replaceFileTags data.content}
         </details>"""
     when 'notes_recalled'
       log 'system', """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-          #{data.notes}
+          #{replaceFileTags data.notes}
         </details>"""
     when 'file_overview'
       log 'system', """
         <details>
-          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-          #{data.content}
+          <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+          #{replaceFileTags data.content}
         </details>"""
     when 'aegis_unveiled'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
-    when 'active_context'
-      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
-      #
-      # file: file,
-      # selection: selection,
-      # lines: lines
-
+      
 
 handleMessage = (e) ->
   console.log "handleMessage", e.data
@@ -349,10 +343,9 @@ renderAttachmentPreview = (data) ->
   selection_range = unless selection_range then '' else
     "<span>Selection: <span>#{selection_range}</span></span>"
 
-  attachment_content = replaceFileTags attachment_content
   preview.innerHTML = """
     <div class=\"attachment-header\">
-      <span>📎 #{file}</span>
+      <span>📎 #{replaceFileTags file}</span>
       <button onclick=\"removeAttachment('#{attachment_uuid}')\">✕</button>
     </div>
     <div class=\"attachment-meta\">
