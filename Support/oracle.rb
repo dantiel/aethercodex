@@ -160,6 +160,7 @@ class Oracle
     # Return the structured output
     [answer, arts, tool_results]
   rescue => e
+    puts "#{e.inspect}"
     HorologiumAeternum.system_error('Conjuration failed', e.message)
     { error: "Conjuration failed: #{e.message}" }
   end

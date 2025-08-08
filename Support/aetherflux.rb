@@ -85,7 +85,8 @@ class Aetherflux
     
     answer, arts, tool_results = 
       Oracle.conjuration(params['prompt'], ctx) do |name, args|
-        puts "TRY HANDLE TOOL=#{name}, ARGS=#{args.inspect}"
+        puts "TRY HANDLE TOOL=#{name}"
+        puts "ARGS=#{args.inspect}"
         result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
         puts "TOOL RESULT=#{result}"
         sleep 0.1
@@ -120,6 +121,7 @@ class Aetherflux
       }
     }
   rescue => e
+    puts "#{e.inspect}"
     HorologiumAeternum.server_error("Oracle reasoning stream failed: #{e.message}")
     { error: "Oracle reasoning stream failed: #{e.message}" }
   end

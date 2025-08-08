@@ -90,7 +90,7 @@ class Mnemosyne
 
   # Search notes with scoring based on content, tags, and links
   def self.recall_notes(query, limit: 5)
-    puts "SEARCH NOTES #{query}"
+    puts "SEARCH NOTES query=#{query} limit=#{limit}"
     query_tokens = tokenize query
     
     sql_query = if query_tokens.empty?
@@ -107,6 +107,7 @@ class Mnemosyne
     puts "notes=#{notes}"
 
     notes.map do |note|
+      puts "mapping note #{note.inspect}"
       note.transform_keys! &:to_sym
       score = 0
       
@@ -118,11 +119,11 @@ class Mnemosyne
         score += 1 * (query_tokens & tokenize(note[:links])).size
       end
       
-      { **note, score: score }
+      { **note, score: }
     end
-      .select { |note| note[:score] > 0 }
-      .sort_by { |note| -note[:score] }
-      .take(limit)
+    .select { |note| note[:score] > 0 }
+    .sort_by { |note| -note[:score] }
+    .take(limit)
   end
   
   
@@ -156,7 +157,7 @@ class Mnemosyne
     puts "recall_aegis_notes #{@aegis.inspect}"
     tags = @aegis[:tags]
     tags = tags.split ',' if tags.is_a? String
-    recall_notes tags.join(' '), limit: @aegis[:context_length]
+    recall_notes tags.join(' '), limit: (@aegis[:context_length] || 10)
   end
 
   

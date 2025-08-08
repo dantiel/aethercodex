@@ -77,12 +77,12 @@ module HorologiumAeternum
   def self.file_reading(path, range = nil)
     if range
       send_status('file_reading', { 
-        message: Scriptorium.html("📖 Reading `#{path}` (lines #{range[0]}-#{range[1]})"),
+        message: Scriptorium.html("📖 Reading #{create_file_link path, nil, range[0]} (lines #{range[0]}-#{range[1]})"),
         path: path, range: range 
       })
     else
       send_status('file_reading', { 
-        message: Scriptorium.html("📖 Reading `#{path}`"),
+        message: Scriptorium.html("📖 Reading #{create_file_link path}"),
         path: path 
       })
     end
@@ -94,13 +94,13 @@ module HorologiumAeternum
     #TODO add linenumbers
     if range
       send_status('file_read_complete', { 
-        message: Scriptorium.html("✅ Read #{bytes_read} bytes from `#{path}`"),
+        message: Scriptorium.html("✅ Read #{bytes_read} bytes from #{create_file_link path, nil, range[0]}"),
         path: path, bytes: bytes_read, range: range,
         content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
       })
     else
       send_status('file_read_complete', { 
-        message: Scriptorium.html("✅ Read #{bytes_read} bytes from `#{path}`"),
+        message: Scriptorium.html("✅ Read #{bytes_read} bytes from #{create_file_link path}"),
         path: path, bytes: bytes_read,
         content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
       })
@@ -110,7 +110,7 @@ module HorologiumAeternum
   
   def self.file_read_fail(path, error_message, range = nil)
     send_status('file_read_fail', { 
-      message: Scriptorium.html("❌ Reading failed on `#{path}`"),
+      message: Scriptorium.html("❌ Reading failed on #{create_file_link path}"),
       path: path, 
       error: error_message,
     })
@@ -119,7 +119,7 @@ module HorologiumAeternum
   
   def self.file_creating(path, bytes)
     send_status('file_creating', { 
-      message: Scriptorium.html("✏️ Creating `#{path}` (#{bytes} bytes)"),
+      message: Scriptorium.html("✏️ Creating #{create_file_link path} (#{bytes} bytes)"),
       path: path, bytes: bytes 
     })
   end
@@ -128,7 +128,7 @@ module HorologiumAeternum
   def self.file_created(path, bytes, content="")
     type = Scriptorium.language_tag_from_path path
     send_status('file_created', { 
-      message: Scriptorium.html("✅ Created `#{path}` (#{bytes} bytes written)"),
+      message: Scriptorium.html("✅ Created #{create_file_link path} (#{bytes} bytes written)"),
       path: path, 
       bytes: bytes,
       content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```"),
@@ -138,7 +138,7 @@ module HorologiumAeternum
   
   def self.file_patching(path, diff_lines)
     send_status('file_patching', { 
-      message: Scriptorium.html("🔧 Applying patch to `#{path}` (#{diff_lines} diff lines)"),
+      message: Scriptorium.html("🔧 Applying patch to #{create_file_link path} (#{diff_lines} diff lines)"),
       path: path, 
       diff_lines: diff_lines,
       expandable: true
@@ -148,7 +148,7 @@ module HorologiumAeternum
   
   def self.file_patched(path, diff_content)
     send_status('file_patched', { 
-      message: Scriptorium.html("✅ Patch applied to `#{path}`"),
+      message: Scriptorium.html("✅ Patch applied to #{create_file_link path}"),
       path: path, 
       diff: Scriptorium.html_with_syntax_highlight("```diff\n#{diff_content}\n```"),
       expandable: true
@@ -158,7 +158,7 @@ module HorologiumAeternum
   
   def self.file_patched_fail(path, error_message, diff_content)
     send_status('file_patched_fail', {
-      message: Scriptorium.html("❌ Patch failed on `#{path}`"),
+      message: Scriptorium.html("❌ Patch failed on #{create_file_link path}"),
       path: path, 
       diff: Scriptorium.html_with_syntax_highlight("```\n#{error_message}```\n\n```diff\n#{diff_content}\n```"),
       error: error_message
@@ -195,7 +195,7 @@ module HorologiumAeternum
   
   def self.file_renaming(from, to)
     send_status('file_renaming', { 
-      message: Scriptorium.html("📝 Renaming `#{from}` → `#{to}`"),
+      message: Scriptorium.html("📝 Renaming #{create_file_link from} → #{create_file_link to}"),
       from: from, to: to 
     })
   end
@@ -203,7 +203,7 @@ module HorologiumAeternum
   
   def self.file_renamed(from, to)
     send_status('file_renamed', { 
-      message: Scriptorium.html("✅ Renamed `#{from}` → `#{to}`"),
+      message: Scriptorium.html("✅ Renamed #{create_file_link from} → #{create_file_link to}"),
       from: from, to: to 
     })
   end
@@ -283,8 +283,9 @@ module HorologiumAeternum
       ''
     else 
       if note[:links].is_a? Array then note[:links]
-      else note[:links].split(',') end.map { |link| "- `#{link}`" }.join "\n" 
+      else note[:links].split(',') end.map { |link| "- #{create_file_link link}" }.join "\n" 
     end
+    # TODO make tags clickable as links
     tags = if note[:tags].nil? || note[:tags].empty? then ''
            else
              if note[:tags].is_a? Array then note[:tags] 
@@ -324,7 +325,7 @@ module HorologiumAeternum
     MARKDOWN
     
     send_status 'file_overview', {
-      message: Scriptorium.html("💬 Overview: `#{path}`"),
+      message: Scriptorium.html("💬 Overview: #{create_file_link path}"),
       content: Scriptorium.html_with_syntax_highlight(content)
     }
   end
@@ -363,7 +364,7 @@ module HorologiumAeternum
   end
   
   
-  def self.create_file_link(file, display_name, line, column)
+  def self.create_file_link(file, display_name = nil, line = nil, column = nil)
     line = " line=\"#{line}\"" if line
     column = " column=\"#{column}\"" if column
     "<file path=\"#{file}\"#{line}#{column}>#{display_name || file}</file>"
@@ -373,7 +374,7 @@ module HorologiumAeternum
   def self.attach(message, file: nil, selection: nil, lines: nil, content: nil, line: nil, column: nil, selection_range: nil)
     type = Scriptorium.language_tag_from_path file
     selection = Scriptorium.html_with_syntax_highlight("```#{type}\n#{selection}\n```") if selection
-    file = create_file_link file, file, line, column
+    file = create_file_link file, nil, line, column
     send 'attach', 'attachment', {
       file:, selection:, lines:, content:, line:, column:, selection_range:
     }

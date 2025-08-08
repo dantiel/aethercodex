@@ -127,12 +127,36 @@ renderTools = (tools) ->
 
 
 # Enhanced status display with live feedback
+renderTaskProgress = (task) ->
+  """
+  <div class=\"task-progress\">
+    <div class=\"task-header\">
+      <strong>#{task.title}</strong>
+      <span>Step #{task.progress}/#{task.max_steps}</span>
+    </div>
+    <div class=\"progress-bar\">
+      <div class=\"progress\" style=\"width: #{Math.round(task.progress/task.max_steps*100)}%\"></div>
+    </div>
+    <div class=\"task-plan\">
+      #{task.plan?.map((step, i) ->
+        "<div class='step #{if i < task.progress then 'completed' else if i == task.progress then 'current' else ''}'>#{step}</div>"
+      ).join('')}
+    </div>
+  </div>
+  """
+
 showStatus = (type, data) ->
   timestamp = new Date(data.timestamp * 1000).toLocaleTimeString() if data.timestamp
   
   console.log "showStatus", timestamp, type, data
   
   switch type
+    when 'task_created'
+      log 'system', "📋 New task created: #{data.title} <small>#{timestamp || ''}</small>"
+      log 'system', renderTaskProgress data
+    when 'task_updated'
+      log 'system', "🔄 Task updated: #{data.title} <small>#{timestamp || ''}</small>"
+      log 'system', renderTaskProgress data
     when 'thinking'
       if data.content
         log 'system', """
@@ -270,6 +294,9 @@ showStatus = (type, data) ->
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.content}
         </details>"""
+    when 'task_completed'
+      log 'system', "✅ Task completed: #{data.title} <small>#{timestamp || ''}</small>"
+      log 'system', renderTaskProgress data
     when 'aegis_unveiled'
       log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
       

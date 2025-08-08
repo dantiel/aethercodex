@@ -36,7 +36,10 @@ class Arcanum
       aegis_notes: Mnemosyne.recall_aegis_notes,
     }
 
-    # Automatically add attached file to Aegis state
+    puts "file=#{file}"
+    puts "selection=#{selection}"
+    
+    # Automatically add attached file to Aegis state    
     if file
       ctx[:aegis_orientation] ||= {}
       ctx[:aegis_orientation][:files] ||= []

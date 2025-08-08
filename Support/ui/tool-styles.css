@@ -90,6 +90,58 @@ details {
   /*margin: 0.5rem 0;*/
 }
 
+.task-progress {
+  border: 1px solid #334;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 10px 0;
+  background: #1a1a2a;
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #334;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress {
+  height: 100%;
+  background: #4a8;
+  transition: width 0.3s;
+}
+
+.task-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-plan .step {
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: #223;
+  opacity: 0.6;
+}
+
+.task-plan .step.completed {
+  opacity: 1;
+  background: #2a4;
+}
+
+.task-plan .step.current {
+  opacity: 1;
+  background: #4a8;
+  font-weight: bold;
+}
+
 
 details summary {
   cursor: pointer;
@@ -181,4 +233,3 @@ details[open] summary {
 .attachment-meta span span {
   color: var(--argonaut-hermetic);
 }
-
