@@ -2,6 +2,7 @@ require 'sqlite3'
 require 'fileutils'
 require 'yaml'
 require 'set'
+require 'json'
 
 
 
@@ -62,8 +63,12 @@ class Mnemosyne
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
-        payload TEXT,
+        plan TEXT,
+        updates TEXT,
         status TEXT,
+        progress INTEGER DEFAULT 0,
+        max_steps INTEGER DEFAULT 10,
+        current_step INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -206,24 +211,38 @@ class Mnemosyne
   # Remove note by id
   def self.remove_note(id)
     db.execute('DELETE FROM project_notes WHERE id = ?', [id])
-  end
-
-
-  # Simple task ledger
+  # Task ledger with states, progress, and dynamic plan updates
   def self.manage_tasks(params)
     action = params['action'] || 'list'
     case action
     when 'create'
-      db.execute('INSERT INTO tasks (title, payload, status) VALUES (?,?,?)', 
-        [params['title'], params['payload'].to_json, 'open'])
-      { ok: true }
+      db.execute('INSERT INTO tasks (title, plan, status, progress, max_steps) VALUES (?,?,?,?,?)',
+        [params['title'], params['plan'].to_json, 'pending', 0, params['max_steps'] || 10])
+      { ok: true, id: db.last_insert_row_id }
     when 'update'
-      db.execute('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-        [params['status'], params['id']])
+      db.execute('UPDATE tasks SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [params['status'], params['progress'], params['id']])
+      { ok: true }
+    when 'activate'
+      db.execute('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        ['active', params['id']])
+      { ok: true }
+    when 'update_plan'
+      updates = JSON.parse(db.execute('SELECT updates FROM tasks WHERE id = ?', [params['id']]).first['updates'] || []
+      updates << { step: params['current_step'], plan: params['plan'], timestamp: Time.now.to_s }
+      db.execute('UPDATE tasks SET plan = ?, updates = ?, current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [params['plan'].to_json, updates.to_json, params['current_step'], params['id']])
+      { ok: true }
+    when 'advance_step'
+      db.execute('UPDATE tasks SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [params['current_step'], params['id']])
       { ok: true }
     else # list
       rows = db.execute('SELECT * FROM tasks ORDER BY created_at DESC')
-      rows.map { |r| r }
+      rows.map { |r| r.transform_keys(&:to_sym) }
+    end
+  end
+      rows.map { |r| r.transform_keys(&:to_sym) }
     end
   end
   

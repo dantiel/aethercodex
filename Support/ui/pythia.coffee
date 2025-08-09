@@ -142,6 +142,11 @@ renderTaskProgress = (task) ->
         "<div class='step #{if i < task.progress then 'completed' else if i == task.progress then 'current' else ''}'>#{step}</div>"
       ).join('')}
     </div>
+    <div class=\"task-controls\">
+      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'pause', id: #{task.id} }}))\">⏸</button>
+      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'resume', id: #{task.id} }}))\">▶</button>
+      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'cancel', id: #{task.id} }}))\">✕</button>
+    </div>
   </div>
   """
 
