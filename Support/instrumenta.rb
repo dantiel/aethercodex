@@ -1,3 +1,4 @@
+# The following serves as Schema for AI API and will be converted to JSON. This is the collection of all available tools but may be filtered later however.
 INSTRUMENTA = [
   {
     type: 'function',
@@ -283,6 +284,122 @@ INSTRUMENTA = [
           context_length: { type: 'integer' }
         },
         required: []
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_task',
+      description: 'Generate a task for complex prompts with fields for plan, progress, and max_steps.',
+      parameters: {
+        type: 'object',
+        properties: {
+          plan: { type: 'string', description: 'The task execution plan.' },
+          max_steps: { type: 'integer', description: 'Total steps in the task.' }
+        },
+        required: ['plan', 'max_steps']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'execute_task',
+      description: 'Run the task loop with minimal intervention, updating status and progress.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'integer', description: 'The ID of the task to execute.' }
+        },
+        required: ['task_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_task',
+      description: 'Dynamically refine the task plan during execution.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'integer', description: 'The ID of the task to update.' },
+          new_plan: { type: 'string', description: 'The updated task plan.' }
+        },
+        required: ['task_id', 'new_plan']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'evaluate_task',
+      description: 'Check task progress and handle edge cases.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'integer', description: 'The ID of the task to evaluate.' }
+        },
+        required: ['task_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_task',
+      description: 'Generate a task for complex prompts with fields for plan, progress, and max_steps.',
+      parameters: {
+        type: 'object',
+        properties: {
+          plan: { type: 'string', description: 'The task execution plan.' },
+          max_steps: { type: 'integer', description: 'Total steps in the task.' }
+        },
+        required: ['plan', 'max_steps']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'execute_task',
+      description: 'Run the task loop with minimal intervention, updating status and progress.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'integer', description: 'The ID of the task to execute.' }
+        },
+        required: ['task_id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_task',
+      description: 'Dynamically refine the task plan during execution.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'integer', description: 'The ID of the task to update.' },
+          new_plan: { type: 'string', description: 'The updated task plan.' }
+        },
+        required: ['task_id', 'new_plan']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'evaluate_task',
+      description: 'Check task progress and handle edge cases.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'integer', description: 'The ID of the task to evaluate.' }
+        },
+        required: ['task_id']
       }
     }
   }

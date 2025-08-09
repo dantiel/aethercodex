@@ -30,7 +30,11 @@ module PrimaMateria
     'remove_note'        => { req: %i[id],           forbid: [] },
     'file_overview'      => { req: %i[path],         forbid: [] },
     'oracle_conjuration' => { req: %i[prompt],       forbid: %i[recursive] },
-    'aegis'              => { req: %i[],             forbid: %i[] }
+    'aegis'              => { req: %i[],             forbid: %i[] },
+    'create_task'        => { req: %i[plan max_steps], forbid: [] },
+    'execute_task'       => { req: %i[task_id],       forbid: [] },
+    'update_task'        => { req: %i[task_id new_plan], forbid: [] },
+    'evaluate_task'      => { req: %i[task_id],       forbid: [] }
   }
 
 
@@ -89,6 +93,10 @@ module PrimaMateria
     when 'file_overview'      then file_overview(**args)
     when 'oracle_conjuration' then oracle_conjuration(**args)
     when 'aegis'              then aegis(**args)
+    when 'create_task'        then create_task(**args)
+    when 'execute_task'       then execute_task(**args)
+    when 'update_task'        then update_task(**args)
+    when 'evaluate_task'      then evaluate_task(**args)
     else { error: "Unknown tool #{tool}" }
     end
   rescue ArgumentError => e
@@ -292,5 +300,46 @@ module PrimaMateria
     { aegis_notes: notes, aegis_orientation: Mnemosyne.aegis }
   rescue => e
     { error: "Aegis failed: #{e.message}" }
+  end
+
+
+  def self.create_task(plan:, max_steps:)
+    Mnemosyne.create_task(plan: plan, max_steps: max_steps)
+    { ok: true }
+  rescue => e
+    { error: e.message }
+  end
+
+
+  def self.execute_task(task_id:)
+    task = Mnemosyne.get_task(task_id)
+    return { error: "Task not found" } unless task
+    
+    TaskEngine.execute(task)
+    { ok: true }
+  rescue => e
+    { error: e.message }
+  end
+
+
+  def self.update_task(task_id:, new_plan:)
+    Mnemosyne.update_task(task_id, plan: new_plan)
+    { ok: true }
+  rescue => e
+    { error: e.message }
+  end
+
+
+  def self.evaluate_task(task_id:)
+    task = Mnemosyne.get_task(task_id)
+    return { error: "Task not found" } unless task
+    
+    if task[:progress] >= task[:max_steps]
+      { status: :completed, result: "Task successfully executed" }
+    else
+      { status: :in_progress, progress: task[:progress] }
+    end
+  rescue => e
+    { error: e.message }
   end
 end
