@@ -211,6 +211,9 @@ class Mnemosyne
   # Remove note by id
   def self.remove_note(id)
     db.execute('DELETE FROM project_notes WHERE id = ?', [id])
+  end
+    
+    
   # Task ledger with states, progress, and dynamic plan updates
   def self.manage_tasks(params)
     action = params['action'] || 'list'
@@ -228,7 +231,7 @@ class Mnemosyne
         ['active', params['id']])
       { ok: true }
     when 'update_plan'
-      updates = JSON.parse(db.execute('SELECT updates FROM tasks WHERE id = ?', [params['id']]).first['updates'] || []
+      updates = JSON.parse(db.execute('SELECT updates FROM tasks WHERE id = ?', [params['id']]).first['updates']) || []
       updates << { step: params['current_step'], plan: params['plan'], timestamp: Time.now.to_s }
       db.execute('UPDATE tasks SET plan = ?, updates = ?, current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         [params['plan'].to_json, updates.to_json, params['current_step'], params['id']])
@@ -239,9 +242,6 @@ class Mnemosyne
       { ok: true }
     else # list
       rows = db.execute('SELECT * FROM tasks ORDER BY created_at DESC')
-      rows.map { |r| r.transform_keys(&:to_sym) }
-    end
-  end
       rows.map { |r| r.transform_keys(&:to_sym) }
     end
   end
@@ -266,3 +266,4 @@ class Mnemosyne
     Set.new(tokens) - STOP_WORDS
   end
 end
+
