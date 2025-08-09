@@ -204,7 +204,7 @@ module PrimaMateria
       out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
       HorologiumAeternum.command_completed(cmd, out.length, out)
       
-      return { error: "Command output: #{out}" }
+      return { success: "Command output: #{out}" }
     rescue => e
       return { error: "Command error: #{e.message}" }
     end

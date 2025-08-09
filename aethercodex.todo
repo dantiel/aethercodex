@@ -15,6 +15,7 @@ Hermetic Coding Paradigm & File Naming
 ◯ add ability to create and edit tasks, ai will generate a task from user prompt, generate a detailed plan and then start acting on it in a loop until all parts of the tasks are done
 ◯ add syntax check to created or patched files. if fails, rollback automatically.
 ◯ better rollback system, maybe using git stashes
+◯ add error to history
 
 Website:
   ✧ Hermetic Symbolism

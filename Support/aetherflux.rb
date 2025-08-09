@@ -30,7 +30,9 @@ class Aetherflux
         
         result
       end
-        
+      
+    raise answer unless answer.is_a? String
+    
     # Process final artifacts
     # HorologiumAeternum.processing(Scriptorium.html("📋 Processing response artifacts..."))
     
@@ -68,7 +70,7 @@ class Aetherflux
       }
     }
   rescue => e
-    { method: 'answer', result: 'error' }
+    { method: 'answer', result: 'error', error: e.error }
   end
 
 

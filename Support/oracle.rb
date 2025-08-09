@@ -142,7 +142,7 @@ class Oracle
   rescue => e
     log_json(error: (e.message || e), backtrace: e.backtrace)
     HorologiumAeternum.server_error (e.message || e)
-    ["", { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
+    [{ error: (e.message || e) }, { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
   end
   
 

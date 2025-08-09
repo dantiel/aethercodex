@@ -1,7 +1,35 @@
 # Support/task_engine.rb
+require_relative 'mnemosyne'
+
 class TaskEngine
-  # Stub methods for workflow steps
-  def query_notes(task_id, query); end
+  # Query Mnemosyne for notes related to the task's business need
+  def query_notes(task_id, query)
+    # Retrieve and score notes based on relevance
+    notes = Mnemosyne.recall_notes(query, limit: 10)
+    
+    # Score notes by relevance to the business need
+    scored_notes = notes.map do |note|
+      {
+        id: note[:id],
+        content: note[:content],
+        score: relevance_score(note[:content], query)
+      }
+    end
+    
+    # Sort by score descending and return top 3
+    scored_notes.sort_by { |n| -n[:score] }.first(3)
+  end
+  
+  private
+  
+  # Calculate relevance score using simple keyword matching
+  def relevance_score(content, query)
+    query_terms = query.downcase.split
+    content_terms = content.downcase.split
+    
+    # Count matching terms
+    (query_terms & content_terms).size.to_f / query_terms.size
+  end
   def generate_solution_options(task_id); end
   def evaluate_alternatives(task_id); end
   def choose_best_option(task_id); end
@@ -14,25 +42,11 @@ class TaskEngine
   STATES = %i[pending active paused failed completed]
   WORKFLOW_STEPS = 10
 
+  public
 
-  # Initialize progress tracking for tasks
-  def halted?(task_id)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
-    task && (task[:status] == 'paused' || task[:status] == 'failed')
-
-    broadcast_update(task_id)
-  end
-  
-  
-  def initialize(mnemosyne)
-    @mnemosyne = mnemosyne
-    @current_task = nil
-  end
-  
-  
   # Creates a new task with optional sub-tasks
   def create_task(prompt, parent_task_id: nil)
-    task_id = @mnemosyne.remember(
+    task_id = Mnemosyne.remember(
       content: prompt,
       tags: ['task'],
       links: [],
@@ -49,7 +63,7 @@ class TaskEngine
 
   # Executes a task, supporting recursive sub-tasks
   def execute_task(task_id)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    task = Mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
     return unless task[:status] == 'pending'
 
     update_state(task_id, :active)
@@ -62,21 +76,19 @@ class TaskEngine
     end
     
     # Execute sub-tasks recursively
-    sub_tasks = @mnemosyne.manage_tasks({ 'action' => 'list' }).select { |t| t[:parent_task_id] == task_id }
-    sub_tasks.each { |sub_task| execute_task(sub_task[:id]) }
+    sub_tasks = Mnemosyne.manage_tasks({ 'action' => 'list', 'parent_task_id' => task_id })
+    sub_tasks.each { |sub_task| execute_task(sub_task[:id]) unless halted?(sub_task[:id]) }
     
     update_state(task_id, :completed) unless halted?(task_id)
   end
-
-
-  private
+private
   
   
-  # Executes a step, supporting recursive sub-tasks and tool restrictions
+  # Executes a step dynamically using the reasoning model
   def execute_step(task_id, step_index)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
-    case step_index
-    when 1
+    task = Mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    prompt = "Execute step #{step_index} for task #{task_id}: #{task[:description]}"
+    oracle_conjuration(prompt: prompt)
       # Step 1: Understand business need (restricted to query tools)
       log_step(task_id, "Understanding business need...")
       query_notes(task_id, "business_need")
@@ -121,13 +133,13 @@ class TaskEngine
   
 
   def log_step(task_id, message)
-    @mnemosyne.update_note(task_id, meta: { log: message })
+    Mnemosyne.update_note(task_id, meta: { log: message })
     broadcast_update(task_id)
   end
 
 
   def update_state(task_id, state)
-    @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'status' => state.to_s })
+    Mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'status' => state.to_s })
     broadcast_update(task_id)
   end
   
@@ -138,13 +150,13 @@ class TaskEngine
 
 
   def halted?(task_id)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    task = Mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
     task[:status] == 'paused' || task[:status] == 'failed'
   end
   
 
   def update_progress(task_id, step)
-    @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'progress' => step })
+    Mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'progress' => step })
     broadcast_update(task_id)
   end
 end

@@ -7,6 +7,16 @@ module HorologiumAeternum
   @websocket = nil
   
   
+  def self.display_bytes(bytes)
+    if bytes < 1024
+      "#{bytes} Bytes"
+    else
+      kilobytes = bytes / 1024.0
+      "%.2f KB" % kilobytes
+    end
+  end
+  
+
   def self.set_websocket(ws)
     @websocket = ws
   end
@@ -94,13 +104,13 @@ module HorologiumAeternum
     #TODO add linenumbers
     if range
       send_status('file_read_complete', { 
-        message: Scriptorium.html("✅ Read #{bytes_read} bytes from #{create_file_link path, nil, range[0]}"),
+        message: Scriptorium.html("✅ Read #{display_bytes bytes_read} from #{create_file_link path, nil, range[0]}"),
         path: path, bytes: bytes_read, range: range,
         content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
       })
     else
       send_status('file_read_complete', { 
-        message: Scriptorium.html("✅ Read #{bytes_read} bytes from #{create_file_link path}"),
+        message: Scriptorium.html("✅ Read #{display_bytes bytes_read} from #{create_file_link path}"),
         path: path, bytes: bytes_read,
         content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
       })
@@ -119,7 +129,7 @@ module HorologiumAeternum
   
   def self.file_creating(path, bytes)
     send_status('file_creating', { 
-      message: Scriptorium.html("✏️ Creating #{create_file_link path} (#{bytes} bytes)"),
+      message: Scriptorium.html("✏️ Creating #{create_file_link path} (#{display_bytes bytes})"),
       path: path, bytes: bytes 
     })
   end
@@ -128,7 +138,7 @@ module HorologiumAeternum
   def self.file_created(path, bytes, content="")
     type = Scriptorium.language_tag_from_path path
     send_status('file_created', { 
-      message: Scriptorium.html("✅ Created #{create_file_link path} (#{bytes} bytes written)"),
+      message: Scriptorium.html("✅ Created #{create_file_link path} (#{display_bytes bytes} written)"),
       path: path, 
       bytes: bytes,
       content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```"),
@@ -184,9 +194,10 @@ module HorologiumAeternum
   end
   
   
-  def self.command_completed(cmd, output_length, content = "")
+  def self.command_completed(cmd, output_length, content = "", exit_status = nil)
+    symbol = if 0 == exit_status then '✅' else '❌' end
     send_status('command_completed', { 
-      message: Scriptorium.html("✅ Command complete: `#{cmd}` (#{output_length} chars output)"),
+      message: Scriptorium.html("#{symbol} Command complete: `#{cmd}` (#{output_length} chars output)"),
       command: cmd, output_length: output_length,
       content: content
     })
@@ -211,7 +222,7 @@ module HorologiumAeternum
   
   def self.memory_storing(key, bytes)
     send_status('memory_storing', { 
-      message: Scriptorium.html("🧠 Storing memory: `#{key}` (#{bytes} bytes)"),
+      message: Scriptorium.html("🧠 Storing memory: `#{key}` (#{display_bytes bytes})"),
       key: key, bytes: bytes 
     })
   end
@@ -316,7 +327,7 @@ module HorologiumAeternum
   
   def self.file_overview(path, result)
     content = <<~MARKDOWN
-    **File Size:** #{result[:file_info][:size]} bytes
+    **File Size:** #{display_bytes result[:file_info][:size]}
     **Number of Lines:** #{result[:file_info][:lines]}
     **Last Modified:** #{result[:file_info][:last_modified]}
 

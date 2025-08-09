@@ -234,29 +234,30 @@ class Mnemosyne
     
   # Task ledger with states, progress, and dynamic plan updates
   def self.manage_tasks(params)
-    action = params['action'] || 'list'
+    params.transform_keys!(&:to_sym)
+    action = params[:action] || 'list'
     case action
     when 'create'
       db.execute('INSERT INTO tasks (title, plan, updates, status, progress, max_steps, current_step) VALUES (?,?,?,?,?,?,?)',
-          [params['title'], params['plan'].to_json, '[]', 'pending', 0, params['max_steps'] || 10, 0])
+          [params[:title], params[:plan].to_json, '[]', 'pending', 0, params[:max_steps] || 10, 0])
       { ok: true, id: db.last_insert_row_id }
     when 'update'
       db.execute('UPDATE tasks SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [params['status'], params['progress'], params['id']])
+        [params[:status], params[:progress], params[:id]])
       { ok: true }
     when 'activate'
       db.execute('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        ['active', params['id']])
+        ['active', params[:id]])
       { ok: true }
     when 'update_plan'
-      updates = JSON.parse(db.execute('SELECT updates FROM tasks WHERE id = ?', [params['id']]).first['updates']) || []
-      updates << { step: params['current_step'], plan: params['plan'], timestamp: Time.now.to_s }
+      updates = JSON.parse(db.execute('SELECT updates FROM tasks WHERE id = ?', [params[:id]]).first['updates']) || []
+      updates << { step: params[:current_step], plan: params[:plan], timestamp: Time.now.to_s }
       db.execute('UPDATE tasks SET plan = ?, updates = ?, current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [params['plan'].to_json, updates.to_json, params['current_step'], params['id']])
+        [params[:plan].to_json, updates.to_json, params[:current_step], params[:id]])
       { ok: true }
     when 'advance_step'
       db.execute('UPDATE tasks SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [params['current_step'], params['id']])
+        [params[:current_step], params[:id]])
       { ok: true }
     else # list
       rows = db.execute('SELECT * FROM tasks ORDER BY created_at DESC')
