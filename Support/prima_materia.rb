@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative 'task_engine'
 require_relative 'argonaut'
 require_relative 'verbum'
 require_relative 'scriptorium'
@@ -10,10 +11,15 @@ require 'timeout'
 require 'open3'
 require 'cgi'
 
+TaskEngine # Force load the TaskEngine class
+
+TaskEngine # Force load the TaskEngine class
+require 'cgi'
+
 
 
 module PrimaMateria
-  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/, /^cd\b/, /^curl\b/]
+  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/, /^cd\b/, /^curl\b/, /^ag\b/]
   DENY_PATHS   = [/\.aethercodex$/, /\.env$/, /\.git\//]
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
@@ -312,10 +318,12 @@ module PrimaMateria
 
 
   def self.execute_task(task_id:)
+    require_relative 'task_engine'
     task = Mnemosyne.get_task(task_id)
     return { error: "Task not found" } unless task
     
-    TaskEngine.execute(task)
+    engine = TaskEngine.new(Mnemosyne)
+    engine.execute_task(task[:id])
     { ok: true }
   rescue => e
     { error: e.message }

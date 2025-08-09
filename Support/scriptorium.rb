@@ -32,6 +32,7 @@ module Scriptorium
     RougeRenderer.new(hard_wrap: true, safe_links_only: true),
     fenced_code_blocks: true, 
     tables: true, 
+    no_intra_emphasis: true,
     autolink: true, 
     strikethrough: true,
     superscript: true
@@ -43,6 +44,7 @@ module Scriptorium
     fenced_code_blocks: true, 
     tables: true, 
     autolink: true, 
+    no_intra_emphasis: true,
     strikethrough: true,
     superscript: true,
     prettify: true

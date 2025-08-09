@@ -40,7 +40,9 @@ INSTRUMENTA = [
       name: 'run_command',
       description: (
         <<~DESCRIPTION
-        Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`, `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `ruby`, `cd`, `curl`. Please suggest to add more cmds to this list if you like.
+        Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`, `git`, `ls`, 
+        `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `ruby`, `cd`, `curl`, `ag`. 
+        Please suggest to add more cmds to this list if you like.
         DESCRIPTION
       ),
       parameters: {
@@ -153,7 +155,11 @@ INSTRUMENTA = [
       name: 'remember',
       description: (
         <<~DESCRIPTION
-        Store a note in Mnemosyne memory. To overwrite existing note use id, otherwise a new note will be created. Remove redundant notes with remove_note. links is an array of linked paths, these are used by file_overview tool. These can be many or only one file, thus reflecting on multifile relations and significatives. When links are empty or null the note will be stored in a global context and always be present.
+        Store a note in Mnemosyne memory. To overwrite existing note use id, otherwise a new note 
+        will be created. Remove redundant notes with remove_note. links is an array of linked paths, 
+        these are used by file_overview tool. These can be many or only one file, thus reflecting on 
+        multifile relations and significatives. When links are empty or null the note will be stored 
+        in a global context and always be present.
         DESCRIPTION
       ),
       parameters: {
@@ -205,11 +211,13 @@ INSTRUMENTA = [
 
         ALWAYS make as many changes in a single 'patch_file' request as possible using multiple 
         SEARCH/REPLACE blocks.
+        
+        If a patch fails it may be that the line number was too wrong.
 
         ### Diff Format:
         ```
         <<<<<<< SEARCH
-        :start_line: (required ) The line number of original content where the search block starts.
+        :start_line: (required) The line number of original content where the search block begins.
         -------
         [exact content to find including whitespace]
         =======
@@ -220,7 +228,7 @@ INSTRUMENTA = [
         ### Example 1: Single Edit
         ```
         <<<<<<< SEARCH
-        :start_line:1
+        :start_line:116
         -------
         def calculate_total(items):
             total = 0
@@ -237,7 +245,7 @@ INSTRUMENTA = [
         ### Example 2: Multiple Edits
         ```
         <<<<<<< SEARCH
-        :start_line:1
+        :start_line:10
         -------
         def calculate_total(items):
             sum = 0
@@ -247,7 +255,7 @@ INSTRUMENTA = [
         >>>>>>> REPLACE
 
         <<<<<<< SEARCH
-        :start_line:4
+        :start_line:42
         -------
             total += item
             return total

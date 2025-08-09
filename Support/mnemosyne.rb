@@ -7,6 +7,24 @@ require 'json'
 
 
 class Mnemosyne
+  # Create a new task with a plan and max steps
+  def self.create_task(plan:, max_steps:)
+    db.execute('INSERT INTO tasks (plan, max_steps, status) VALUES (?, ?, ?)',
+      [plan, max_steps, 'pending'])
+    { ok: true, id: db.last_insert_row_id }
+  end
+
+  # Retrieve a task by ID
+  def self.get_task(task_id)
+    db.execute('SELECT * FROM tasks WHERE id = ?', [task_id]).first&.transform_keys(&:to_sym)
+  end
+
+  # Update task progress
+  def self.update_task_progress(task_id, progress)
+    db.execute('UPDATE tasks SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [progress, task_id])
+    { ok: true }
+  end
   DB_VERSION = 1
   STOP_WORDS = Set.new(%w[
     the a an and of in to with on for is are am be was were it this that
@@ -219,8 +237,8 @@ class Mnemosyne
     action = params['action'] || 'list'
     case action
     when 'create'
-      db.execute('INSERT INTO tasks (title, plan, status, progress, max_steps) VALUES (?,?,?,?,?)',
-        [params['title'], params['plan'].to_json, 'pending', 0, params['max_steps'] || 10])
+      db.execute('INSERT INTO tasks (title, plan, updates, status, progress, max_steps, current_step) VALUES (?,?,?,?,?,?,?)',
+          [params['title'], params['plan'].to_json, '[]', 'pending', 0, params['max_steps'] || 10, 0])
       { ok: true, id: db.last_insert_row_id }
     when 'update'
       db.execute('UPDATE tasks SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
@@ -266,4 +284,3 @@ class Mnemosyne
     Set.new(tokens) - STOP_WORDS
   end
 end
-

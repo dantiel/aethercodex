@@ -46,6 +46,8 @@ The tag is rendered as a clickable link (`<a>`) with a `txmt://` URL for TextMat
 
 4. **Syntax and Examples**: 
 
+make sure to use this as html in your markdown.
+
 ```md
 without attributes
 <file>Support/ui/pythia.coffee</file>
@@ -53,6 +55,6 @@ without attributes
 with path attribute and line and column number
 <file path="Support/ui/pythia.coffee">pythia.coffee:11:2</file>
 
-with path attribute and line and column number as attribute
-<file path="Support/ui/pythia.coffee" line="11" column="2">pythia.coffee</file>
+with path attribute and line and column number as attribute, this may be used to reference any part of the code.
+<file path="Support/ui/pythia.coffee" line="11" column="2">some_method()</file>
 ```

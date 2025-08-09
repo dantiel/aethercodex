@@ -171,6 +171,11 @@ module DiffCrepusculum
         # Perform fuzzy search
         match_result = perform_fuzzy_search(
           result_lines, search_lines.join("\n"), start_line, no_position)
+        # Try again search without position
+        unless match_result[:success] or no_position
+          match_result = perform_fuzzy_search(
+            result_lines, search_lines.join("\n"), start_line, true)
+        end
         unless match_result[:success]
           diff_results << match_result
           next

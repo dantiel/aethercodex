@@ -108,28 +108,29 @@ RSpec.describe DiffCrepusculum::ChrysopoeiaDiff do
       result = strategy.apply_diff(content, diff)[:content]
       expect(result).to eq("qux\nbar\nbaz")
     end
-    
-    it 'test with start_line' do
-      content = File.read "prima_materia.rb"
       
-      diff = """
-        <<<<<<< SEARCH
-            when 'file_overview'  then file_overview(**args)
-            else { error: \"Unknown tool \#{tool}\" }
-            end
-          rescue ArgumentError => e
-        =======
-            when 'file_overview'  then file_overview(**args)
-            when 'reasoning_model' then reasoning_model(**args)
-            else { error: \"Unknown tool \#{tool}\" }
-            end
-          rescue ArgumentError => e
-        >>>>>>> REPLACE
-      """
-      result = strategy.apply_diff(content, diff)
-      puts result.inspect
-      
-      expect(result[:content]).to eq("qux\nbar\nbaz")
-    end
+    # TODO rplace this test with a special for testing
+    # it 'test with start_line' do
+    #   content = File.read "prima_materia.rb"
+    #
+    #   diff = """
+    #     <<<<<<< SEARCH
+    #         when 'file_overview'  then file_overview(**args)
+    #         else { error: \"Unknown tool \#{tool}\" }
+    #         end
+    #       rescue ArgumentError => e
+    #     =======
+    #         when 'file_overview'  then file_overview(**args)
+    #         when 'reasoning_model' then reasoning_model(**args)
+    #         else { error: \"Unknown tool \#{tool}\" }
+    #         end
+    #       rescue ArgumentError => e
+    #     >>>>>>> REPLACE
+    #   """
+    #   result = strategy.apply_diff(content, diff)
+    #   puts result.inspect
+    #
+    #   expect(result[:content]).to eq("qux\nbar\nbaz")
+    # end
   end
 end

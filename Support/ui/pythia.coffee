@@ -72,11 +72,11 @@ scheduleReconnect = (immediate = false) ->
 
 # Message persistence
 STORAGE_KEY = 'aether_messages'
-MAX_MESSAGES = 50
+MAX_MESSAGES = 150
 
 
 saveMessages = ->
-  messages = Array.from(document.querySelectorAll('#messages > div')).map (el) ->
+  messages = Array.from(document.querySelectorAll('#messages > div:not(.system,.error)')).map (el) ->
     className: el.className
     innerHTML: el.innerHTML
   localStorage.setItem STORAGE_KEY, JSON.stringify(messages.slice(-MAX_MESSAGES))
