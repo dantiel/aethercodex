@@ -11,6 +11,7 @@ includeInBrowser      = "{$includeInBrowser,.tm-ai}"
 includeDirectories    = "{$includeDirectories}"
 includeInFileChooser  = "{$includeInFileChooser,.gitignore,*.orig,*.rej,*.js}"
 includeInFolderSearch = "{$includeInFolderSearch}"
+includeInArgonaut     = "{}"
 
 
 # Excludes
@@ -20,7 +21,7 @@ excludeInBrowser      = "{$excludeInBrowser,*.orig,*.rej,*.js}"
 excludeDirectories    = "{$excludeDirectories,excludedDir1}"
 excludeInFileChooser  = "{$excludeInFileChooser}"
 excludeInFolderSearch = "{$excludeInFolderSearch,.bundle,.vendor_bundle}"
-
+excludeInArgonaut     = "{$excludeInBrowser}"
 
 # Variables
 

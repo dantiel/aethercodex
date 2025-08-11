@@ -66,9 +66,13 @@ class Argonaut
     
     # Apply the converted diff
     result = @diff_crepusculum.apply_diff original_content, patch_text
+    result => { success:, fail_parts: }
+    
+    raise "Patch failed: #{fail_parts.to_json}" unless success
 
-    raise "Patch failed: #{result[:fail_parts].to_json}" unless result[:success]
-    File.write(full, result[:content])
+    content = result[:content]
+    File.write full, content
+    [original_content, content]
   end
 
   def self.project_root
@@ -93,13 +97,13 @@ class Argonaut
 
   def self.includeFiles
     ["*", ".tm_properties", ".htaccess"] + 
-    `#{ENV['TM_QUERY']}`.scan(/includeInFileChooser=\{(.*?)\}/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
+    (`#{ENV['TM_QUERY']}`.scan(/includeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' })
   end
 
 
   def self.excludeFiles
     ["*.{o", "pyc"] +
-    `#{ENV['TM_QUERY']}`.scan(/excludeInFileChooser=\{(.*?)\}/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
+    `#{ENV['TM_QUERY']}`.scan(/excludeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
   end
   
   

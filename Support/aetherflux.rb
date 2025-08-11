@@ -69,8 +69,12 @@ class Aetherflux
         next_step: arts[:next_step]
       }
     }
+  rescue TypeError => e
+    puts "[AETHER FLUX][TYPE ERROR]: #{e.inspect}"
+    { method: 'answer', result: 'error', error: e.full_message || e.message, backtrace: e.backtrace }
   rescue => e
-    { method: 'answer', result: 'error', error: e.error }
+    puts "[AETHER FLUX][ERROR]: #{e.inspect}"
+    { method: 'answer', result: 'error', error: e.error || e.error[:error] }
   end
 
 

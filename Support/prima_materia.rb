@@ -11,6 +11,11 @@ require 'timeout'
 require 'open3'
 require 'cgi'
 
+
+require 'differ'
+require 'differ/string' # Required for the inline `diff` method on strings
+
+
 TaskEngine # Force load the TaskEngine class
 
 TaskEngine # Force load the TaskEngine class
@@ -158,15 +163,19 @@ module PrimaMateria
     return { error: 'missing :path or :diff' } unless path && diff
     
     diff_lines = diff.lines.count
-    HorologiumAeternum.file_patching(path, diff_lines)
+    HorologiumAeternum.file_patching path, diff, diff_lines
     
     return { error: 'Diff too big' } if diff.lines.count > MAX_DIFF
-    Argonaut.patch(path, diff)
+    old_content, new_content = Argonaut.patch path, diff
     
-    HorologiumAeternum.file_patched(path, diff)
+    word_diff = Differ.diff_by_word old_content, new_content
+    Differ.format = :html
+    
+    HorologiumAeternum.file_patched path, word_diff.to_s
+    # HorologiumAeternum.file_patched(path, diff)
     { ok: true }
   rescue => e
-    HorologiumAeternum.file_patched_fail(path, e.message, diff)
+    HorologiumAeternum.file_patched_fail path, e.message, diff
     { error: "patch failed: #{e.message}" }
   end
 
@@ -202,9 +211,9 @@ module PrimaMateria
     begin
       stdout, stderr, status = Open3.capture3(cmd, chdir: Argonaut.project_root)
       out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
-      HorologiumAeternum.command_completed(cmd, out.length, out)
+      HorologiumAeternum.command_completed(cmd, out.length, out, status.exitstatus)
       
-      return { success: "Command output: #{out}" }
+      return { ok: true, exit_status: status.exitstatus, result: "Command output: #{out}" }
     rescue => e
       return { error: "Command error: #{e.message}" }
     end

@@ -22,3 +22,9 @@ gem "rouge", "~> 4.6"
 gem "ruby-enum", "~> 1.0"
 
 gem "rspec", "~> 3.13"
+
+gem "textpow", "~> 1.4"
+
+gem "tiktoken_ruby", "~> 0.0.9"
+
+gem "differ", "~> 0.1.2"

@@ -55,7 +55,8 @@ module HorologiumAeternum
 
   
   def self.oracle_revelation(content)
-    send_status('oracle_revelation', { content: Scriptorium.html_with_syntax_highlight(content.to_s) })
+    send_status('oracle_revelation', { 
+      content: Scriptorium.html_with_syntax_highlight(content.to_s) })
   end
   
   
@@ -67,7 +68,8 @@ module HorologiumAeternum
     
     
   def self.oracle_conjuration(prompt)
-    send_status('oracle_conjuration', { message: Scriptorium.html('🏛️ Oracle Conjuration'), 
+    send_status('oracle_conjuration', { 
+      message: Scriptorium.html('🏛️ Oracle Conjuration'), 
       content: Scriptorium.html_with_syntax_highlight("#{prompt}") })
   end
   
@@ -146,21 +148,21 @@ module HorologiumAeternum
   end
   
   
-  def self.file_patching(path, diff_lines)
+  def self.file_patching(path, diff_content, diff_lines)
     send_status('file_patching', { 
       message: Scriptorium.html("🔧 Applying patch to #{create_file_link path} (#{diff_lines} diff lines)"),
       path: path, 
-      diff_lines: diff_lines,
+      diff: Scriptorium.html_with_syntax_highlight("```diff\n#{diff_content}\n```"),
       expandable: true
     })
   end
   
   
-  def self.file_patched(path, diff_content)
+  def self.file_patched(path, word_diff_content)
     send_status('file_patched', { 
       message: Scriptorium.html("✅ Patch applied to #{create_file_link path}"),
       path: path, 
-      diff: Scriptorium.html_with_syntax_highlight("```diff\n#{diff_content}\n```"),
+      diff: "<pre><code class=\"differ\">#{word_diff_content}</code></pre>",
       expandable: true
     })
   end
@@ -170,7 +172,7 @@ module HorologiumAeternum
     send_status('file_patched_fail', {
       message: Scriptorium.html("❌ Patch failed on #{create_file_link path}"),
       path: path, 
-      diff: Scriptorium.html_with_syntax_highlight("```\n#{error_message}```\n\n```diff\n#{diff_content}\n```"),
+      diff: Scriptorium.html_with_syntax_highlight("```\n#{error_message}\n```\n\n```diff\n#{diff_content}\n```"),
       error: error_message
     })
   end
@@ -354,9 +356,9 @@ module HorologiumAeternum
   end
   
   
-  def self.server_error(error)
+  def self.server_error(error, type = 'Server Error')
     send_status('server_error', {
-      error: Scriptorium.html("❌ Server Error: `#{error}`")
+      error: Scriptorium.html("❌ #{type}#{if error then ': ' else '' end}`#{error}`")
     })
   end
   

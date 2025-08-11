@@ -53,13 +53,13 @@ module Scriptorium
 
   # Primary method with Rouge highlighting
   def self.html_with_syntax_highlight(md)
-    @rouge_renderer.render(md.to_s)
+    @rouge_renderer.render md.to_s.gsub(/([^\n])\n```(\w*)\n([^\n])/, "\\1\n\n```\\2\n\\3")
   end
 
 
   # Legacy method for compatibility
   def self.html(md)
-    @basic_renderer.render(md.to_s)
+    @basic_renderer.render md.to_s
   end
   
   

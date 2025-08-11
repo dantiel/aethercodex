@@ -56,6 +56,9 @@ setupWebSocketHandlers = ->
       handleMessage e
   
 
+connectWebSocketTimeout = null
+
+
 scheduleReconnect = (immediate = false) ->
   return if reconnectAttempts >= maxReconnectAttempts
   
@@ -67,7 +70,8 @@ scheduleReconnect = (immediate = false) ->
   reconnectAttempts++
   
   log 'system', "🔮 Attempting dimensional reconnection #{reconnectAttempts}/#{maxReconnectAttempts} in #{if immediate then 0 else delay}ms..."
-  setTimeout connectWebSocket, delay
+  clearTimeout connectWebSocketTimeout
+  connectWebSocketTimeout = setTimeout connectWebSocket, delay
 
 
 # Message persistence
@@ -196,7 +200,11 @@ showStatus = (type, data) ->
       if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
         log 'status', "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
     when 'file_patching'
-      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
+      log 'status', """
+        <details>
+          <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+          #{data.diff}
+        </details>"""
     when 'file_patched'
       log 'status', """
         <details>

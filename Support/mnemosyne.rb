@@ -113,7 +113,6 @@ class Mnemosyne
 
   # Search notes with scoring based on content, tags, and links
   def self.recall_notes(query, limit: 5)
-    puts "SEARCH NOTES query=#{query} limit=#{limit}"
     query_tokens = tokenize query
     
     sql_query = if query_tokens.empty?
@@ -127,10 +126,8 @@ class Mnemosyne
     notes = db.execute(
       "SELECT id, content, tags, links FROM project_notes #{sql_query}"
     )
-    puts "notes=#{notes}"
 
     notes.map do |note|
-      puts "mapping note #{note.inspect}"
       note.transform_keys! &:to_sym
       score = 0
       
@@ -162,7 +159,7 @@ class Mnemosyne
   def self.restore_aegis(db)
     aegis = db.execute('SELECT tags, context_length FROM aegis_state ' +
       'WHERE id = ? ORDER BY created_at DESC LIMIT 1', [AEGIS_ID])&.first
-
+      
     @aegis = if aegis.nil? || aegis.empty? then { tags: [], context_length: 20 }  
              else aegis.transform_keys(&:to_sym) end
   end
@@ -177,7 +174,6 @@ class Mnemosyne
   
   
   def self.recall_aegis_notes
-    puts "recall_aegis_notes #{@aegis.inspect}"
     tags = @aegis[:tags]
     tags = tags.split ',' if tags.is_a? String
     recall_notes tags.join(' '), limit: (@aegis[:context_length] || 10)
@@ -211,10 +207,7 @@ class Mnemosyne
   # Fetch notes by links (for Argonaut file overview)
   def self.fetch_notes_by_links(links)
     links = [links] unless links.is_a? Array
-    
-    puts "SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join ' OR '}"
-    
-    puts links.map { |link| "%#{link}%" }
+        
     db.execute("SELECT * FROM project_notes WHERE #{(["links LIKE ?"] * links.count).join ' OR '}", 
       links.map { |link| "%#{link}%" }).each {|note| note.transform_keys!(&:to_sym)}
   end

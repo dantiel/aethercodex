@@ -16,6 +16,9 @@ Hermetic Coding Paradigm & File Naming
 ◯ add syntax check to created or patched files. if fails, rollback automatically.
 ◯ better rollback system, maybe using git stashes
 ◯ add error to history
+◯ add file overview: syntax tree, imports/exports
+◯ aegis: trigger generation of new history summary
+◯ use dynamic temperature parameter in aegis and tasks
 
 Website:
   ✧ Hermetic Symbolism

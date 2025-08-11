@@ -21,6 +21,12 @@ require_relative 'scriptorium'
 # Version: 2.1.0-hermetic
 class Oracle
   SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions.md"
+  SYSTEM_PROMPT_BRIEFING = <<~BRIEFING
+  Focus on autonomous execution: Read files, plan briefly if needed, then chain all required tools 
+  (e.g., read_file → recall_notes → patch) in one go. Do not seek confirmation—apply changes and 
+  proceed to verify (e.g., run tests) without pausing. Prioritize precision and action over 
+  dialogue.
+  BRIEFING
   
 
   def self.deep_symbolize(obj)
@@ -140,9 +146,10 @@ class Oracle
 
     [answer || '<<empty>>', arts, tool_results]
   rescue => e
-    log_json(error: (e.message || e), backtrace: e.backtrace)
-    HorologiumAeternum.server_error (e.message || e)
-    [{ error: (e.message || e) }, { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
+    log_json(error: (e.message || e), backtrace: e.backtrace, info: e.inspect)
+    puts "[ORACLE][DIVINATION][ERROR]: #{e.inspect}"
+    HorologiumAeternum.server_error e.message[:message], e.message[:type]
+    [{ error:(e.message || e) }, { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
   end
   
 
@@ -184,7 +191,8 @@ class Oracle
     [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user',   content: "Context:\n#{ctx.to_json}" },
-      { role: 'user',   content: prompt },
+      { role: 'system', content: SYSTEM_PROMPT_BRIEFING },
+      { role: 'user',   content: prompt }
     ]
   end
   

@@ -1,3 +1,4 @@
+require 'tiktoken_ruby'
 require_relative 'mnemosyne'
 require_relative 'argonaut'
 
@@ -16,7 +17,11 @@ require_relative 'argonaut'
  
 class Arcanum
   MAX_CONTEXT_LINES = 120
-
+  MAX_HIST_TOKENS = 1200
+  MAX_SUMMARY_TOKENS = 300
+  
+  @tokenizer = Tiktoken.encoding_for_model("gpt-4")
+  
   def self.build(params)
     # Inject TextMate environment if provided
     if params['tm_env']
@@ -25,16 +30,20 @@ class Arcanum
   
     file = params['file']
     selection = params['selection']
+    
+    project_files = Argonaut.list_project_files
+    puts "project_files TOKEN LENGTH=#{tok_len project_files.inspect}"
+    history = fetch_history(7)
+    puts "history TOKEN LENGTH=#{tok_len history.inspect}"
+    aegis_notes = Mnemosyne.recall_aegis_notes
+    puts "aegis_notes TOKEN LENGTH=#{tok_len aegis_notes.inspect}"
 
     ctx = {
-      history: fetch_history(7),
-      project_files: Argonaut.list_project_files,
-      file: file,
-      selection: selection,
-      snippet: snippet_for(file, selection),
-      aegis_orientation: Mnemosyne.aegis,
-      aegis_notes: Mnemosyne.recall_aegis_notes,
+      history:, project_files:, file:, selection:, snippet: snippet_for(file, selection),
+      aegis_orientation: Mnemosyne.aegis, aegis_notes:,
     }
+    
+    puts "context TOTAL TOKEN LENGTH=#{tok_len ctx.inspect}"
 
     puts "file=#{file}"
     puts "selection=#{selection}"
@@ -71,5 +80,34 @@ class Arcanum
     content[first..last].join
   rescue
     nil
+  end
+  
+  
+  def self.tok_len(s) = @tokenizer.encode(s.to_s).length
+
+
+  def self.pack_context!(messages:, max_hist_tokens:, max_summary_tokens:)
+    # messages: [{role:, content:, ts:}, ...] oldest→newest
+    recent = []
+    tokens = 0
+    messages.reverse_each do |m|
+      l = tok_len("#{m[:role]}: #{m[:content]}")
+      break if tokens + l > max_hist_tokens
+      recent << m
+      tokens += l
+    end
+    recent.reverse!
+
+    older = messages[0...messages.size - recent.size]
+    summary_source = older.map { |m| "#{m[:role]}: #{m[:content]}" }.join("\n")
+    summary = if summary_source.empty?
+                ""
+              else
+                # call your model once to summarize older history to ≤ max_summary_tokens
+                # e.g. summarize(summary_source, max_tokens: max_summary_tokens)
+                "[[summary placeholder ≤ #{max_summary_tokens} tokens]]"
+              end
+
+    { summary:, recent: recent }
   end
 end

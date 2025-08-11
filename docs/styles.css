@@ -120,6 +120,7 @@ body {
     border-radius: 10px;
     border: 1px solid rgba(74, 144, 226, 0.3);
     -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
 }
 
 .description h2 {
@@ -160,6 +161,7 @@ body {
     border: 1px solid rgba(142, 68, 173, 0.3);
     transition: all 0.3s ease;
     -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
     
 }
 
@@ -168,6 +170,7 @@ body {
     border-color: var(--argonaut-mystic);
     box-shadow: 0 10px 30px rgba(142, 68, 173, 0.2);
     -webkit-backdrop-filter: blur(0.3rem);
+    backdrop-filter: blur(0.3rem);
 }
 
 
@@ -226,6 +229,7 @@ body {
     transition: all 0.3s ease;
     display: block;
     -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
     border-left: 4px solid var(--argonaut-cosmic);
     background: linear-gradient(135deg, color-mix(in srgb, var(--argonaut-mystic) 10%, transparent), color-mix(in srgb, var(--argonaut-cosmic) 10%, transparent));
     color: color-mix(in srgb, var(--argonaut-cosmic) 90%, var(--ethereal-white));
@@ -241,6 +245,7 @@ body {
     border-color: var(--ethereal-white);
     box-shadow: 0 10px 30px color-mix(in srgb, var(--ethereal-white) 15%, transparent);
     -webkit-backdrop-filter: blur(0.3rem);
+    backdrop-filter: blur(0.3rem);
 }
 
 .card-transformations {
