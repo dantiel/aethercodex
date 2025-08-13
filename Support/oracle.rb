@@ -22,12 +22,17 @@ require_relative 'scriptorium'
 class Oracle
   SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions.md"
   SYSTEM_PROMPT_BRIEFING = <<~BRIEFING
-  Focus on autonomous execution: Read files, plan briefly if needed, then chain all required tools 
-  (e.g., read_file → recall_notes → patch) in one go. Do not seek confirmation—apply changes and 
-  proceed to verify (e.g., run tests) without pausing. Prioritize precision and action over 
+  Focus on autonomous execution: Read files, plan briefly if needed, then chain all required tools
+  (e.g., read_file → recall_notes → patch) in one go. Do not seek confirmation—apply changes and
+  proceed to verify (e.g., run tests) without pausing. Prioritize precision and action over
   dialogue.
   BRIEFING
   
+  # Temperature change threshold for restart
+  TEMPERATURE_DELTA_THRESHOLD = 0.2
+  
+  # Exception to signal restart needed
+  class RestartException < StandardError; end
 
   def self.deep_symbolize(obj)
     case obj
@@ -60,6 +65,9 @@ class Oracle
 
 
   def self.divination(prompt, ctx, max_depth: 50, reasoning: false, &exec)
+    # Capture initial temperature for restart checks
+    initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
+    
     msgs = base_messages prompt, ctx
     tool_results = []
     arts   = { prelude: [] }
@@ -74,6 +82,13 @@ class Oracle
 
     loop do
       depth += 1
+      
+      # Check for temperature change and restart if significant
+      current_temperature = Mnemosyne.aegis[:temperature] || 1.0
+      if (current_temperature - initial_temperature).abs > TEMPERATURE_DELTA_THRESHOLD
+        HorologiumAeternum.thinking("Temperature change detected. Restarting oracle...")
+        raise RestartException, "Temperature change detected. Restarting oracle."
+      end
       
       body = build_body_with_messages_and_tools(msgs, want_json: false, reasoning: reasoning)
       raw  = post body
@@ -139,7 +154,7 @@ class Oracle
         next
       else
         answer = content
-        arts.merge! extract_artifacts(answer.to_s)
+        # arts.merge! extract_artifacts(answer.to_s)
         break
       end
     end
@@ -153,16 +168,13 @@ class Oracle
   end
   
 
-  def self.conjuration(prompt, context, &exec)
-    # Log the invocation
-    # HorologiumAeternum.divination("Conjuring knowledge for prompt: #{prompt}")
 
+  def self.conjuration(prompt, context, &exec)
+    # Capture initial temperature for restart checks
+    initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
+    
     # Delegate tool calls to Oracle.reason with the provided block
     answer, arts, tool_results = divination(prompt, context, reasoning: true, &exec)
-    # reasoning_output = ['<<empty>>', { reasoning: "blabla" }, []]
-
-    # Log the completion
-    # HorologiumAeternum.completed("Conjuration completed successfully.")
 
     # Return the structured output
     [answer, arts, tool_results]
@@ -190,7 +202,8 @@ class Oracle
   def self.base_messages(prompt, ctx)
     [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user',   content: "Context:\n#{ctx.to_json}" },
+      *ctx[:history],
+      { role: 'system', content: "Context:\n#{ctx[:extraContext].to_json}" },
       { role: 'system', content: SYSTEM_PROMPT_BRIEFING },
       { role: 'user',   content: prompt }
     ]
@@ -209,12 +222,16 @@ class Oracle
       [cfg['model'] || 'deepseek-chat', 8192, INSTRUMENTA]
     end
     
-    {
-      model: model,
-      messages: messages,
-      max_tokens: max_tokens,
-      tools: instrumenta
-    }
+    temperature = Mnemosyne.aegis[:temperature] || 1.0
+    if temperature < 0.34
+      temperature *= 3.333        
+    else
+      temperature += 0.7
+    end
+    temperature = [temperature, 0, 1.75].sort[1]
+    puts "USING TEMPERATURE=#{temperature}"
+    
+    { model:, messages:, max_tokens:, tools: instrumenta, temperature: }
   end
 
 
@@ -286,17 +303,17 @@ class Oracle
     { 'error' => raw.to_s }
   end
   
-  
-  def self.extract_artifacts(text)
-    patch      = text[/```patch\n(.*?)```/m, 1]
-    tasks_json = text[/```tasks\n(.*?)```/m, 1]
-    tools_json = text[/```aether\.tools\n(.*?)```/m, 1]
-    tools = tools_json ? JSON.parse(tools_json)['tools'] : nil
-    tasks = tasks_json ? JSON.parse(tasks_json) : nil
-    { patch: patch, tasks: tasks, tools: tools }
-  rescue
-    { patch: nil, tasks: nil, tools: nil }
-  end
+    #
+  # def self.extract_artifacts(text)
+  #   patch      = text[/```patch\n(.*?)```/m, 1]
+  #   tasks_json = text[/```tasks\n(.*?)```/m, 1]
+  #   tools_json = text[/```aether\.tools\n(.*?)```/m, 1]
+  #   tools = tools_json ? JSON.parse(tools_json)['tools'] : nil
+  #   tasks = tasks_json ? JSON.parse(tasks_json) : nil
+  #   { patch: patch, tasks: tasks, tools: tools }
+  # rescue
+  #   { patch: nil, tasks: nil, tools: nil }
+  # end
 
 
   def self.safe_parse(str)

@@ -1,3 +1,10 @@
+GIT
+  remote: https://github.com/myobie/htmldiff.git
+  revision: 003c74c61817b41864f7651e0c8fdb2c1117270c
+  specs:
+    htmldiff (1.0.0)
+      diff-lcs
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -5,6 +12,8 @@ GEM
     daemons (1.4.1)
     diff-lcs (1.6.2)
     differ (0.1.2)
+    diffy (3.4.4)
+    dotenv (3.1.8)
     eventmachine (1.2.7)
     faraday (2.13.3)
       faraday-net_http (>= 2.0, < 3.5)
@@ -69,8 +78,11 @@ PLATFORMS
 
 DEPENDENCIES
   differ (~> 0.1.2)
+  diffy (~> 3.4)
+  dotenv (~> 3.1)
   faraday (~> 2.8)
   faye-websocket (~> 0.11.0)
+  htmldiff!
   redcarpet (~> 3.6)
   rouge (~> 4.6)
   rspec (~> 3.13)

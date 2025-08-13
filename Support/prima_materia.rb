@@ -10,42 +10,43 @@ require 'json'
 require 'timeout'
 require 'open3'
 require 'cgi'
-
-
-require 'differ'
-require 'differ/string' # Required for the inline `diff` method on strings
-
-
-TaskEngine # Force load the TaskEngine class
-
-TaskEngine # Force load the TaskEngine class
-require 'cgi'
-
+require 'htmldiff'
+require_relative 'diff_test'
+require 'dotenv'
 
 
 module PrimaMateria
-  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^ruby\b/, /^cd\b/, /^curl\b/, /^ag\b/]
+  ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/, /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/, /^bundle exec irb\b/, /^ruby\b/, /^irb\b/, /^cd\b/, /^curl\b/, /^ag\b/]
   DENY_PATHS   = [/\.aethercodex$/, /\.env$/, /\.git\//]
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
   SCHEMA = {
-    'create_file'        => { req: %i[path content], forbid: %i[diff] },
-    'patch_file'         => { req: %i[path diff],    forbid: %i[content] },
-    'read_file'          => { req: %i[path],         forbid: [] },
-    'rename_file'        => { req: %i[from to],      forbid: [] },
-    'run_command'        => { req: %i[cmd],          forbid: [] },
-    'tell_user'          => { req: %i[message],      forbid: [] },
-    'recall_history'     => { req: %i[],             forbid: [] },
-    'remember'           => { req: %i[content],      forbid: [] },
-    'recall_notes'       => { req: %i[],             forbid: [] },
-    'remove_note'        => { req: %i[id],           forbid: [] },
-    'file_overview'      => { req: %i[path],         forbid: [] },
-    'oracle_conjuration' => { req: %i[prompt],       forbid: %i[recursive] },
-    'aegis'              => { req: %i[],             forbid: %i[] },
-    'create_task'        => { req: %i[plan max_steps], forbid: [] },
-    'execute_task'       => { req: %i[task_id],       forbid: [] },
+    'create_file'        => { req: %i[path content],     forbid: %i[diff] },
+    'patch_file'         => { req: %i[path diff],        forbid: %i[content] },
+    'read_file'          => { req: %i[path],             forbid: [] },
+    'rename_file'        => { req: %i[from to],          forbid: [] },
+    'run_command'        => { req: %i[cmd],              forbid: [] },
+    'tell_user'          => { req: %i[message],          forbid: [] },
+    'recall_history'     => { req: %i[],                 forbid: [] },
+    'remember'           => { req: %i[content],          forbid: [] },
+    'recall_notes'       => { req: %i[],                 forbid: [] },
+    'remove_note'        => { req: %i[id],               forbid: [] },
+    'file_overview'      => { req: %i[path],             forbid: [] },
+    'oracle_conjuration' => { req: %i[prompt],           forbid: %i[recursive] },
+    'aegis'              => { req: %i[summary],          forbid: %i[] },
+    'create_task'        => { req: %i[plan max_steps],   forbid: [] },
+    'execute_task'       => { req: %i[task_id],          forbid: [] },
     'update_task'        => { req: %i[task_id new_plan], forbid: [] },
-    'evaluate_task'      => { req: %i[task_id],       forbid: [] }
+    'evaluate_task'      => { req: %i[task_id],          forbid: [] }
+  }
+  TOOL_ALIASES = {
+    'readfile'          => 'read_file',
+    'patchfile'         => 'patch_file',
+    'createfile'        => 'create_file',
+    'runcommand'        => 'run_command',
+    'renamefile'        => 'rename_file',
+    'telluser'          => 'tell_user',
+    'oracleconjuration' => 'oracle_conjuration'
   }
 
 
@@ -58,24 +59,12 @@ module PrimaMateria
   end
   
   
-  # --- helpers at top ---
   def self.symbolize(obj)
     case obj
     when Hash  then obj.each_with_object({}) { |(k,v),h| h[k.to_sym] = symbolize(v) }
     when Array then obj.map { |v| symbolize(v) }
     else obj end
   end
-  
-  
-  TOOL_ALIASES = {
-    'readfile'          => 'read_file',
-    'patchfile'         => 'patch_file',
-    'createfile'        => 'create_file',
-    'runcommand'        => 'run_command',
-    'renamefile'        => 'rename_file',
-    'telluser'          => 'tell_user',
-    'oracleconjuration' => 'oracle_conjuration'
-  }
   
   
   def self.handle(call)
@@ -168,11 +157,10 @@ module PrimaMateria
     return { error: 'Diff too big' } if diff.lines.count > MAX_DIFF
     old_content, new_content = Argonaut.patch path, diff
     
-    word_diff = Differ.diff_by_word old_content, new_content
-    Differ.format = :html
-    
-    HorologiumAeternum.file_patched path, word_diff.to_s
-    # HorologiumAeternum.file_patched(path, diff)
+    # html_diff = HTMLDiff.diff(old_content, new_content, html_format: { class: 'diff' })
+    html_diff = hunk_based_character_diff_final(old_content, new_content)
+        
+    HorologiumAeternum.file_patched path, html_diff
     { ok: true }
   rescue => e
     HorologiumAeternum.file_patched_fail path, e.message, diff
@@ -209,7 +197,9 @@ module PrimaMateria
     HorologiumAeternum.command_executing(cmd)
     
     begin
-      stdout, stderr, status = Open3.capture3(cmd, chdir: Argonaut.project_root)
+      project_root = Argonaut.project_root
+      env_vars = Dotenv.parse("#{project_root}/.env.run_command")
+      stdout, stderr, status = Open3.capture3(env_vars, cmd, chdir: project_root)
       out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
       HorologiumAeternum.command_completed(cmd, out.length, out, status.exitstatus)
       
@@ -281,6 +271,7 @@ module PrimaMateria
     puts "[PRIMA MATERIA][ERROR]: #{e.inspect}"
     { error: "File overview for #{path} failed: #{e.message || e.error}" }
   end
+  
 
   def self.oracle_conjuration(prompt:, context: nil)
     params = {
@@ -307,10 +298,10 @@ module PrimaMateria
   end
 
 
-  def self.aegis(tags: nil, context_length: nil)
-    notes = Mnemosyne.unveil_aegis tags: tags, context_length: context_length
+  def self.aegis(tags: nil, context_length: nil, summary: '', temperature: nil)
+    notes = Mnemosyne.unveil_aegis(tags:, context_length:, summary:, temperature:)
     
-    HorologiumAeternum.aegis_unveiled tags, context_length
+    HorologiumAeternum.aegis_unveiled tags, context_length, summary, temperature, notes
     
     { aegis_notes: notes, aegis_orientation: Mnemosyne.aegis }
   rescue => e
@@ -320,7 +311,6 @@ module PrimaMateria
 
   def self.create_task(plan:, max_steps:)
     Mnemosyne.create_task(plan: plan, max_steps: max_steps)
-    { ok: true }
   rescue => e
     { error: e.message }
   end

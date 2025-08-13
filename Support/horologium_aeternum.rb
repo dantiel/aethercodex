@@ -158,11 +158,11 @@ module HorologiumAeternum
   end
   
   
-  def self.file_patched(path, word_diff_content)
+  def self.file_patched(path, html_diff_content)
     send_status('file_patched', { 
       message: Scriptorium.html("✅ Patch applied to #{create_file_link path}"),
       path: path, 
-      diff: "<pre><code class=\"differ\">#{word_diff_content}</code></pre>",
+      diff: "<pre><code class=\"diff\">#{html_diff_content}</code></pre>",
       expandable: true
     })
   end
@@ -239,9 +239,12 @@ module HorologiumAeternum
 
   
   
-  def self.aegis_unveiled(tags, context_length)
+  def self.aegis_unveiled(tags, context_length, summary, temperature, notes)
+    temperature = if temperature then "\n\nTemperature #{temperature}" else '' end
+    notes = "\n\n**Notes:**\n\n#{render_notes notes}"
     send_status('aegis_unveiled', { 
-      message: Scriptorium.html("🔮 Aegis unveiled: `#{tags.join ', '}` Limit: #{context_length}")
+      message: Scriptorium.html("🔮 Aegis unveiled: `#{tags.join ', '}` Limit: #{context_length}"),
+      content: Scriptorium.html_with_syntax_highlight("#{summary}#{temperature}#{notes}")
     })
   end
   
@@ -386,10 +389,11 @@ module HorologiumAeternum
   
   def self.attach(message, file: nil, selection: nil, lines: nil, content: nil, line: nil, column: nil, selection_range: nil)
     type = Scriptorium.language_tag_from_path file
-    selection = Scriptorium.html_with_syntax_highlight("```#{type}\n#{selection}\n```") if selection
-    file = create_file_link file, nil, line, column
+    selection_html = Scriptorium.html_with_syntax_highlight("```#{type}\n#{selection}\n```") if selection
+    file_html = create_file_link file, nil, line, column
     send 'attach', 'attachment', {
-      file:, selection:, lines:, content:, line:, column:, selection_range:
+      file:, file_html:, selection:, selection_html:, lines:, content:, line:, column:, 
+      selection_range:
     }
   end
 end

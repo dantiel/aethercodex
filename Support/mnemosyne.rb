@@ -3,37 +3,89 @@ require 'fileutils'
 require 'yaml'
 require 'set'
 require 'json'
+require 'tiktoken_ruby'
+require 'timeout'
+
+# Ensure tags are always an array in Aegis state
+# class Array
+#   def to_json(*args)
+#     to_s.to_json(*args)
+#   end
+# end
 
 
 
 class Mnemosyne
+  DB_VERSION = 1
+  STOP_WORDS = Set.new(%w[
+    the a an and of in to with on for is are am be was were it this that
+    at by from as if or but so not into out about then
+  ])
+  
+  @aegis = { tags: [], context_length: 20, summary: '', temperature: 1.0 }
+  
+  
   # Create a new task with a plan and max steps
   def self.create_task(plan:, max_steps:)
     db.execute('INSERT INTO tasks (plan, max_steps, status) VALUES (?, ?, ?)',
       [plan, max_steps, 'pending'])
     { ok: true, id: db.last_insert_row_id }
   end
+  
 
+  # Update the Aegis summary dynamically
+  def self.update_aegis_summary(summary)
+    @aegis[:summary] = summary
+    save_aegis_state **@aegis
+  end
+
+
+  # Dynamically adjust the Aegis temperature
+  def self.set_aegis_temperature(temperature)
+    @aegis[:temperature] = temperature
+    save_aegis_state **@aegis
+  end
+  
+
+  def self.fetch_aegis_summaries(since:, max_summary_tokens:)
+    summaries = Mnemosyne.db.execute(
+      'SELECT summary FROM aegis WHERE created_at >= ? ORDER BY created_at DESC', [since]
+    ).map { |row| row[:summary] }
+    combined_summary = summaries.join("\n").strip
+
+    tokens = tok_len(combined_summary)
+    if tokens > max_summary_tokens
+      tokens = 0
+      trimmed_summary = ""
+      summaries.each do |summary|
+        summary_tokens = tok_len(summary)
+        if tokens + summary_tokens <= max_summary_tokens
+          trimmed_summary += "\n" + summary
+          tokens += summary_tokens
+        else
+          break
+        end
+      end
+      trimmed_summary.strip
+    else
+      combined_summary
+    end
+  end
+  
+  
   # Retrieve a task by ID
   def self.get_task(task_id)
     db.execute('SELECT * FROM tasks WHERE id = ?', [task_id]).first&.transform_keys(&:to_sym)
   end
-
+  
+  
+  # TODO missing update_task?
   # Update task progress
   def self.update_task_progress(task_id, progress)
-    db.execute('UPDATE tasks SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [progress, task_id])
+    db.execute 'UPDATE tasks SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [progress, task_id]
     { ok: true }
   end
-  DB_VERSION = 1
-  STOP_WORDS = Set.new(%w[
-    the a an and of in to with on for is are am be was were it this that
-    at by from as if or but so not into out about then
-  ])
-  AEGIS_ID = 1
-
-
-  @aegis = nil
   
   
   def self.db_path
@@ -52,11 +104,12 @@ class Mnemosyne
 
   def self.db
     @db ||= begin
-      FileUtils.mkdir_p(File.dirname(db_path))
+      FileUtils.mkdir_p(File.dirname db_path)
       db = SQLite3::Database.new(db_path)
       db.results_as_hash = true
       migrate db
       restore_aegis db
+      puts "restore_aegis=#{@aegis}"
       db
     end
   end
@@ -101,13 +154,15 @@ class Mnemosyne
       );
     SQL
     db.execute <<~SQL
-      CREATE TABLE IF NOT EXISTS aegis_state (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tags TEXT,
-        context_length INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    SQL
+        CREATE TABLE IF NOT EXISTS aegis_state (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tags TEXT,
+          context_length INTEGER,
+          summary TEXT,
+          temperature REAL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      SQL
   end
 
 
@@ -118,13 +173,13 @@ class Mnemosyne
     sql_query = if query_tokens.empty?
       ''
     else
-      'WHERE ' + (%w(content tags links).map{ |field| 
-        query_tokens.map{ |keyword| "#{field} LIKE '%#{keyword}%'" }.join ' OR ' 
+      'WHERE ' + (%w(content tags links).map{ |field|
+        query_tokens.map{ |keyword| "#{field} LIKE '%#{keyword}%'" }.join ' OR '
       }.join ' OR ')
     end
     
     notes = db.execute(
-      "SELECT id, content, tags, links FROM project_notes #{sql_query}"
+      "SELECT id, content, tags, links, created_at FROM project_notes #{sql_query}"
     )
 
     notes.map do |note|
@@ -147,25 +202,69 @@ class Mnemosyne
   end
   
   
-  def self.save_aegis_state(tags:, context_length:)
-    tags_json = tags.join ','
+  # Recall Aegis notes with token and date filtering
+  def self.recall_aegis_notes(max_summary_tokens:, since:)
+    # Get all notes (we'll filter in Ruby)
+    all_notes = recall_notes('', limit: 1000)
+    
+    # Filter by date if provided
+    filtered_notes = if since
+      since_time = Time.parse(since)
+      all_notes.select { |note| Time.parse(note[:created_at]) >= since_time }
+    else
+      all_notes
+    end
+    
+    # Sort by date descending (newest first)
+    sorted_notes = filtered_notes.sort_by { |note| Time.parse(note[:created_at]) }.reverse
+    
+    # Select notes until token limit is reached
+    selected_notes = []
+    current_tokens = 0
+    
+    sorted_notes.each do |note|
+      note_tokens = note[:content].split.size
+      break if current_tokens + note_tokens > max_summary_tokens
+      
+      selected_notes << note
+      current_tokens += note_tokens
+    end
+    
+    # Return concatenated content
+    selected_notes.map { |n| n[:content] }.join("\n\n")
+  end
+  
+  
+  def self.save_aegis_state(tags: [], context_length:10, summary: nil, temperature: 1.0)
+    tags = Array(tags)
+    tags_json = tags.join(',')
     db.execute(
-      'INSERT OR REPLACE INTO aegis_state (id, tags, context_length) VALUES (?, ?, ?)',
-      [AEGIS_ID, tags_json, context_length]
+      'INSERT INTO aegis_state ' +
+      '(tags, context_length, summary, temperature, created_at) VALUES ' +
+      '(?, ?, ?, ?, CURRENT_TIMESTAMP)',
+      [tags_json, context_length, summary, temperature]
     )
+  end
+  
+  
+  def self.load_aegis(db: nil, limit: 3)
+    db ||= @db
+    db.execute('SELECT tags, summary, temperature, context_length FROM aegis_state ' +
+          'ORDER BY created_at DESC LIMIT ?', [limit])
   end
 
 
-  def self.restore_aegis(db)
-    aegis = db.execute('SELECT tags, context_length FROM aegis_state ' +
-      'WHERE id = ? ORDER BY created_at DESC LIMIT 1', [AEGIS_ID])&.first
-      
-    @aegis = if aegis.nil? || aegis.empty? then { tags: [], context_length: 20 }  
-             else aegis.transform_keys(&:to_sym) end
+  def self.restore_aegis(db = nil)
+    db ||= @db
+    aegis = (load_aegis db:, limit: 1)&.first
+    @aegis = if aegis.nil? || aegis.empty? 
+               { tags: [], context_length: 20, summary: '', temperature: 1.0 }
+             else aegis.transform_keys!(&:to_sym) end
   end
   
   
   def self.unveil_aegis(**aegis)
+    aegis[:tags] ||= []
     @aegis = aegis
     save_aegis_state **aegis
     
@@ -173,10 +272,31 @@ class Mnemosyne
   end
   
   
-  def self.recall_aegis_notes
-    tags = @aegis[:tags]
+  def self.recall_aegis_notes(max_summary_tokens: nil, since: nil)
+    tags = @aegis[:tags] || []
     tags = tags.split ',' if tags.is_a? String
-    recall_notes tags.join(' '), limit: (@aegis[:context_length] || 10)
+    notes = recall_notes tags.join(' '), limit: (@aegis[:context_length] || 10)
+
+    # Filter by date if provided
+    notes = notes.select { |note| since.nil? || Time.parse(note[:created_at]) >= since } if since
+
+    # Apply token limit if provided
+    if max_summary_tokens
+      encoder = Tiktoken.encoding_for_model("gpt-4")
+      token_count = 0
+      summary_notes = []
+
+      notes.each do |note|
+        note_tokens = encoder.encode(note[:content]).size
+        break if token_count + note_tokens > max_summary_tokens
+        summary_notes << note
+        token_count += note_tokens
+      end
+
+      notes = summary_notes
+    end
+
+    notes
   end
 
   
@@ -269,7 +389,7 @@ class Mnemosyne
   end
   
   
-  private
+private
   
   
   def self.tokenize(text)

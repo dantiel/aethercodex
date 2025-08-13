@@ -19,6 +19,8 @@ STEP_PURPOSES = [
   "Documenting changes"
 ]
 
+
+
 class TaskEngine
   def initialize(options = {})
     mnemosyne = options[:mnemosyne] || Mnemosyne
@@ -30,6 +32,7 @@ class TaskEngine
     @mnemosyne = mnemosyne
     @aetherflux = aetherflux
   end
+
 
   # Query @mnemosyne for notes related to the task's business need
   def query_notes(task_id, query)
@@ -79,7 +82,9 @@ class TaskEngine
     max_loops - 1
   end
 
-  public
+
+public
+
 
   # Creates a new task with optional sub-tasks
   def create_task(prompt, parent_task_id: nil)
@@ -132,6 +137,7 @@ class TaskEngine
           next if halted?(sub_task[:id]) || max_loops <= 0
           execute_task(sub_task[:id], max_loops: max_loops - 1)
         end
+        @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'max_loops' => max_loops - 1 })
       end
   
       update_state(task_id, :completed) unless halted?(task_id)
@@ -181,6 +187,7 @@ private
     @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'log' => message })
     broadcast_update(task_id)
   end
+
 
   def update_state(task_id, state)
     unless STATES.include?(state)

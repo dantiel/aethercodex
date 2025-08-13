@@ -465,7 +465,7 @@ a.file-link:hover {
   background: color-mix(in srgb, var(--argonaut-azure) 40%, transparent);
 }
 
-
+/*
 li:has(:first-child.file-link) {
     list-style: none;
 }
@@ -473,18 +473,18 @@ li:has(:first-child.file-link):before {
     content:'📄';
     margin: 0em 0.5em 0em -1em;
 }
+*/
 
-
-pre > code.differ {
+pre > code.diff {
     color:var(--ethereal-white);
     line-height: 1.35em;
 }
-ins.differ {
+ins.diff {
     background: color-mix(in srgb, var(--argonaut-emerald) 90%, transparent);
     color: color-mix(in srgb, var(--argonaut-emerald) 20%, var(--ethereal-white));
 }
 
-del.differ {
+del.diff {
     background: color-mix(in srgb, var(--argonaut-crimson) 60%, transparent);
     color: color-mix(in srgb, var(--argonaut-crimson) 50%, var(--ethereal-white));
 }

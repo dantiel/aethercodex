@@ -311,7 +311,11 @@ showStatus = (type, data) ->
       log 'system', "✅ Task completed: #{data.title} <small>#{timestamp || ''}</small>"
       log 'system', renderTaskProgress data
     when 'aegis_unveiled'
-      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          #{replaceFileTags data.content}
+        </details>"""
       
 
 handleMessage = (e) ->
@@ -357,35 +361,46 @@ handleMessage = (e) ->
       renderAttachmentPreview(data.result.data)
     else
       log 'system', "<pre>#{JSON.stringify data, null, 2}</pre>"
+      
+      
+      
+match_selection_range =/([0-9]+)(?:\:([0-9]+))?(?:-([0-9]+)(?:\:([0-9]+))?)?/
 
 
 # Attachment preview rendering
 renderAttachmentPreview = (data) ->
-  console.log "renderAttachmentPreview+",data
-  { line, column, selection_range, file, content, selection, lines } = data
+  console.log "renderAttachmentPreview", data
+  { line, column, selection_range, file_html, content, selection_html, lines } = data
   content ||= 'No content preview available.'
   attachment_uuid = do crypto.randomUUID
   attachment_context = data
-  console.log "renderAttachmentPreview",file, content, selection
+  console.log "renderAttachmentPreview",file_html, content, selection_html
   preview = document.createElement 'div'
   preview.id = "attachment_#{attachment_uuid}"
   preview.className = 'attachment-preview'
-  attachment_content = if selection then """
+  attachment_content = if selection_html then """
     <div class=\"attachment-content\">
-      <div>#{selection}</div>
+      <div>#{selection_html}</div>
     </div>
   """ else ''
-
+    
+  [selection_range, line, column] = if selection_range
+    [_, from_line, from_column, to_line, to_column] = 
+      selection_range.match match_selection_range
+    if to_line
+      ["<span>Selection: <span>#{selection_range}</span></span>", 0, 0]
+    else
+      ['', from_line, from_column]
+  else ['', 0, 0]
+    
   line = unless line then '' else
     "<span>Line: <span>#{line}</span></span>"
   column = unless column then '' else
     "<span>Column: <span>#{column}</span></span>"
-  selection_range = unless selection_range then '' else
-    "<span>Selection: <span>#{selection_range}</span></span>"
 
   preview.innerHTML = """
     <div class=\"attachment-header\">
-      <span>📎 #{replaceFileTags file}</span>
+      <span>📎 #{replaceFileTags file_html}</span>
       <button onclick=\"removeAttachment('#{attachment_uuid}')\">✕</button>
     </div>
     <div class=\"attachment-meta\">
@@ -441,17 +456,25 @@ updateSendButton = ->
     sendBtnGlyph.textContent = '⚡'
     sendBtn.classList.remove 'thinking'
     
-
+    
 replaceFileTags = (content) ->
-  matchFile = RegExp "<file(?: path=\"([^\"]+)\")?(?: line=\"([^\"]+)\")?" +
+  match_file = RegExp "<file(?: path=\"([^\"]+)\")?(?: line=\"([^\"]+)\")?" +
               "(?: column=\"([^\"]+)\")?>([^<]+)<\\/file>", 'g'
-  content.replace matchFile, (match, path, line, column, displayName) ->
-    href = if path 
-     "txmt://open/?url=file://#{project_root}/#{encodeURIComponent(path)}" 
-    else "#"
+  match_file_html = 
+    RegExp "\&lt;file(?: path=\&quot;((?!.*\&quot;).*)\&quot;)?" +
+           "(?: line=\&quot;((?!.*\&quot;).*)\&quot;)?" +
+           "(?: column=\&quot;((?!.*\&quot;).*)\&quot;)?\&gt;" +
+           "(.*(?<!\&lt;))\&lt;\\/file\&gt;", 'g'
+           
+  replace_matches = (match, path, line, column, displayName) ->
+    path ||= displayName
+    href = "txmt://open/?url=file://#{project_root}/#{encodeURIComponent(path)}" 
     href += "\&line=#{line}" if line
     href += "\&column=#{column}" if column
     "<a href=\"#{href}\" class=\"file-link\">#{displayName}</a>"
+    
+  content = content.replace match_file, replace_matches
+  content.replace match_file_html, replace_matches
 
 
 escapeHtml = (unsafe) ->
@@ -495,3 +518,8 @@ document.addEventListener 'DOMContentLoaded', ->
     
 # Load messages when page loads
 window.addEventListener 'DOMContentLoaded', loadMessages
+
+
+
+
+

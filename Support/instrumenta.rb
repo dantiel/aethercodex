@@ -41,8 +41,8 @@ INSTRUMENTA = [
       description: (
         <<~DESCRIPTION
         Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`, `git`, `ls`, 
-        `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `ruby`, `cd`, `curl`, `ag`. 
-        Please suggest to add more cmds to this list if you like.
+        `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`, `bundle exec irb`, `ruby`, 
+        `irb`, `cd`, `curl`, `ag`. Please suggest to add more cmds to this list if you like.
         DESCRIPTION
       ),
       parameters: {
@@ -289,9 +289,11 @@ INSTRUMENTA = [
         type: 'object',
         properties: {
           tags: { type: 'array', items: { type: 'string' } },
-          context_length: { type: 'integer' }
+          context_length: { type: 'integer' },
+          summary: { type: 'string', description: 'Dynamic summary update without altering tags. Required for every invocation.' },
+          temperature: { type: 'number', description: 'Optional parameter to fine-tune the Aegis state responsiveness.' }
         },
-        required: []
+        required: ['summary']
       }
     }
   },

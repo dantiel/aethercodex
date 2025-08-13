@@ -15,32 +15,67 @@ require_relative 'argonaut'
 
  
  
-class Arcanum
+module Arcanum
+  # Aegis state variable to store active tags and context length
   MAX_CONTEXT_LINES = 120
   MAX_HIST_TOKENS = 1200
   MAX_SUMMARY_TOKENS = 300
   
-  @tokenizer = Tiktoken.encoding_for_model("gpt-4")
+  @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
+  
   
   def self.build(params)
     # Inject TextMate environment if provided
     if params['tm_env']
       params['tm_env'].each { |k, v| ENV[k] = v if v }
     end
+
+    # Update Aegis summary dynamically
+    # Mnemosyne.update_aegis_summary("Context updated for #{params['file']}") if params['file']
   
     file = params['file']
     selection = params['selection']
-    
+    puts "SELECTION=#{selection} FILE=#{file}"
     project_files = Argonaut.list_project_files
     puts "project_files TOKEN LENGTH=#{tok_len project_files.inspect}"
     history = fetch_history(7)
     puts "history TOKEN LENGTH=#{tok_len history.inspect}"
     aegis_notes = Mnemosyne.recall_aegis_notes
     puts "aegis_notes TOKEN LENGTH=#{tok_len aegis_notes.inspect}"
+    
+    aegis_summary = Mnemosyne.fetch_aegis_summaries(since: history.last[:created_at], max_summary_tokens: MAX_SUMMARY_TOKENS)
+    puts "aegis_summary TOKEN LENGTH=#{tok_len aegis_summary.inspect}"
+
+    # Pack history and aegis_summary to respect token limits
+    packed_history = pack_context!(
+      messages: history.map { |h| [{ role: "user", content: h[:prompt], ts: h[:created_at] },
+                                   { role: "system", content: h[:answer], ts: h[:created_at] }]
+                                 }.flatten,
+      max_hist_tokens: MAX_HIST_TOKENS,
+      max_summary_tokens: MAX_SUMMARY_TOKENS
+    )
+    puts "packed_history=#{packed_history[:recent].count} TOKEN LENGTH=#{tok_len packed_history.inspect}"
+
+    packed_notes = pack_context!(
+      messages: aegis_notes.map { |n| { role: "system", content: n[:content], ts: n[:created_at] } },
+      max_hist_tokens: MAX_HIST_TOKENS,
+      max_summary_tokens: MAX_SUMMARY_TOKENS
+    )
+    puts "packed_notes=#{packed_notes[:recent].count} TOKEN LENGTH=#{tok_len packed_notes.inspect},"
 
     ctx = {
-      history:, project_files:, file:, selection:, snippet: snippet_for(file, selection),
-      aegis_orientation: Mnemosyne.aegis, aegis_notes:,
+      history: packed_history[:recent],
+      extraContext: {
+        project_files:,
+        file:,
+        selection:,
+        snippet: snippet_for(file, selection),
+        aegis_orientation: {
+          **Mnemosyne.aegis,
+          # summary: packed_history[:summary] + packed_notes[:summary]
+        },
+        aegis_notes: packed_notes[:recent]
+      }
     }
     
     puts "context TOTAL TOKEN LENGTH=#{tok_len ctx.inspect}"
@@ -66,8 +101,8 @@ class Arcanum
 
   def self.fetch_history(limit)
     Mnemosyne.db.execute(
-      'SELECT prompt, answer FROM entries ORDER BY id DESC LIMIT ?', [limit]
-    ).reverse
+      'SELECT prompt, answer, created_at FROM entries ORDER BY id DESC LIMIT ?', [limit]
+    ).reverse.map{ |el| el.transform_keys!(&:to_sym) }
   end
   
 
@@ -91,6 +126,7 @@ class Arcanum
     recent = []
     tokens = 0
     messages.reverse_each do |m|
+      puts "#{m.inspect}"
       l = tok_len("#{m[:role]}: #{m[:content]}")
       break if tokens + l > max_hist_tokens
       recent << m
