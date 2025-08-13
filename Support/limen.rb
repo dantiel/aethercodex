@@ -138,6 +138,7 @@ def startThinkingThread(ws, req)
       warn "[WS] message: #{req['params'].inspect}"
     
       res = Aetherflux.channel_oracle_divination req['params'], ws
+      raise res[:error] if 'error' == res[:result] 
       warn "[WS][DEBUG] #{res.inspect}"
       ws.send res.to_json
     rescue => e

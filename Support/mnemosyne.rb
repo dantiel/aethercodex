@@ -16,6 +16,8 @@ require 'timeout'
 
 
 class Mnemosyne
+  @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
+  
   DB_VERSION = 1
   STOP_WORDS = Set.new(%w[
     the a an and of in to with on for is are am be was were it this that
@@ -47,9 +49,9 @@ class Mnemosyne
   end
   
 
-  def self.fetch_aegis_summaries(since:, max_summary_tokens:)
+  def self.fetch_aegis_summaries(before:, max_summary_tokens:)
     summaries = Mnemosyne.db.execute(
-      'SELECT summary FROM aegis WHERE created_at >= ? ORDER BY created_at DESC', [since]
+      'SELECT summary FROM aegis_state WHERE created_at <= ? ORDER BY created_at DESC', [before]
     ).map { |row| row[:summary] }
     combined_summary = summaries.join("\n").strip
 
@@ -397,4 +399,7 @@ private
     tokens = text.downcase.scan(/\w+/)
     Set.new(tokens) - STOP_WORDS
   end
+  
+  
+  def self.tok_len(s) = @tokenizer.encode(s.to_s).length
 end

@@ -57,7 +57,7 @@ class Aetherflux
     { method: 'answer', result: 'error', error: e.full_message || e.message, backtrace: e.backtrace }
   rescue => e
     puts "[AETHER FLUX][ERROR]: #{e.inspect}"
-    { method: 'answer', result: 'error', error: e.error || e.error[:error] }
+    { method: 'answer', result: 'error', error: e.message || e.message[:error] }
   end
 
 

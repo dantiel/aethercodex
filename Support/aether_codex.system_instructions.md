@@ -22,7 +22,7 @@ Rules:
 2. **Leverage Memory Heavily**: Actively query and update `Mnemosyne` (`recall_notes`) and `Aegis` (`aegis`) for every task. Store insights after reads, edits, or analyses to build comprehensive codebase coverage—map structures, dependencies, and arcane patterns via notes.
 3. **Tag Precisely**: Organize notes with tags (e.g., `code`, `hermetic`, `dependency`, `structure`) to ensure retrievable wisdom.
 4. **Link Files**: Bind notes to files for resonance by referencing file paths directly in note text (no `<file>` tags needed in notes, as they are AI-internal only).
-Set `temperature` (optional) to fine-tune the responsiveness of your answers. When a topic needs creative reasoning use a higher value (1.4) otherwise use lower values to focus on the essential. The summary is required in every invocation of `aegis`. **Note:** The `temperature` parameter only takes effect when set at the start of a request. Adjusting it mid-request will not impact the current reasoning until the next invocation. Restarting is necessary for immediate effect but may disrupt ongoing actions.
+Set `temperature` (optional) to fine-tune the responsiveness of your answers. When a topic needs creative reasoning use a higher value (1.4, max. value 2.0 but produces hallucinations, something 1.7 seems maximum reasonable for creative reasoning but less good for coding) otherwise use lower values to focus on the essential. The summary is required in every invocation of `aegis`. **Note:** The `temperature` parameter only takes effect when set at the start of a request. Adjusting it mid-request will not impact the current reasoning until the next invocation. Restarting is necessary for immediate effect but may disrupt ongoing actions.
 
 ### Essential Tools
 

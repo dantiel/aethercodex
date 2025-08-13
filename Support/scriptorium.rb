@@ -1,5 +1,7 @@
 require 'redcarpet'
 require 'rouge'
+require 'diffy'
+require 'htmldiff'
 
 
 
@@ -81,4 +83,49 @@ module Scriptorium
 
     return 'text'
   end
+  
+  
+
+  # Function to perform character-level diff on *hunks* identified by Diffy
+  def self.hunk_based_character_diff(old_content, new_content)
+    diff_output = Diffy::Diff.new(old_content, new_content, 
+      context:  3, include_diff_info: true).to_s(:text) 
+    original_hunk_lines = []
+    modified_hunk_lines = []
+    out = ''
+
+    diff_output.each_line do |line|
+      case line[0] 
+      when '@'
+        unless original_hunk_lines.empty? and modified_hunk_lines.empty?
+          out += '</div>' + process_hunk(original_hunk_lines, modified_hunk_lines)
+        end
+      
+        original_hunk_lines = []
+        modified_hunk_lines = []
+        out += "<span class=\"info\">#{line.strip}</span>\n<div class=\"hunk-content\">"
+      when '+'
+        modified_hunk_lines << line[1..-1] unless '+++ ' == line[0..3]
+      when '-' 
+        original_hunk_lines << line[1..-1] unless '--- ' == line[0..3]
+      when ' ' 
+        original_hunk_lines << line[1..-1] 
+        modified_hunk_lines << line[1..-1]
+      end
+    end
+
+    out += '</div>' + process_hunk(original_hunk_lines, modified_hunk_lines)
+  
+    out
+  end
+  
+
+  def self.process_hunk(original_lines, modified_lines)
+    original_content = original_lines ? original_lines.join('') : ''
+    modified_content = modified_lines ? modified_lines.join('') : ''
+  
+    HTMLDiff.diff(original_content, modified_content, html_format: { class: 'diff' })
+  end
 end
+
+

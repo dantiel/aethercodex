@@ -158,11 +158,13 @@ module HorologiumAeternum
   end
   
   
-  def self.file_patched(path, html_diff_content)
+  def self.file_patched(path, old_content, new_content)
+    html_diff_content = Scriptorium.hunk_based_character_diff old_content, new_content
+    
     send_status('file_patched', { 
       message: Scriptorium.html("✅ Patch applied to #{create_file_link path}"),
       path: path, 
-      diff: "<pre><code class=\"diff\">#{html_diff_content}</code></pre>",
+      diff: "<pre class=\"diff\"><code>#{html_diff_content}</code></pre>",
       expandable: true
     })
   end

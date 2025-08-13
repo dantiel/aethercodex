@@ -475,16 +475,54 @@ li:has(:first-child.file-link):before {
 }
 */
 
-pre > code.diff {
-    color:var(--ethereal-white);
+pre.diff > code {
+    color: var(--ethereal-white);
+    color: var(--argonaut-steel) !important;
     line-height: 1.35em;
+    padding: 0!important;
+    margin: 0!important;
+    flex-directaion: column;
+    display: inline-block!important;
+    height: 100%!important;
+    width: 100% !important;
+    position: relative;
 }
-ins.diff {
+
+pre.diff {
+    poition: relative;
+    padding:0 !important;
+}
+
+pre.diff span.info {
+    color: var(--argonaut-shadow);
+    border-top: 0.1em solid var(--argonaut-shadow);
+    border-bottom: 0.1em solid var(--argonaut-shadow);
+    padding: 0.2em 0;
+    font-size: 0.8em;
+    display: flex;
+    background: black;
+    width: 100%;
+    position: sticky;
+    top: 0;
+    left: 0;
+    right:0;
+    top: 0.8em;
+    box-shadow: 0 -0.80em 0 0.8em  var(--argonaut-void);
+    transform: translate3d(0, 0, 0);
+}
+
+pre.diff ins {
     background: color-mix(in srgb, var(--argonaut-emerald) 90%, transparent);
     color: color-mix(in srgb, var(--argonaut-emerald) 20%, var(--ethereal-white));
 }
 
-del.diff {
+pre.diff del {
     background: color-mix(in srgb, var(--argonaut-crimson) 60%, transparent);
     color: color-mix(in srgb, var(--argonaut-crimson) 50%, var(--ethereal-white));
+}
+
+div.hunk-content {
+    waidth:100%;
+    overflow-x:auto;
+    
 }

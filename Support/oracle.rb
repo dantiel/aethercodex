@@ -223,12 +223,12 @@ class Oracle
     end
     
     temperature = Mnemosyne.aegis[:temperature] || 1.0
-    if temperature < 0.34
-      temperature *= 3.333        
-    else
-      temperature += 0.7
-    end
-    temperature = [temperature, 0, 1.75].sort[1]
+    # if temperature < 0.34
+    #   temperature *= 3.333
+    # else
+    #   temperature += 0.7
+    # end
+    # temperature = [temperature, 0, 1.7].sort[1]
     puts "USING TEMPERATURE=#{temperature}"
     
     { model:, messages:, max_tokens:, tools: instrumenta, temperature: }

@@ -43,23 +43,24 @@ module Arcanum
     aegis_notes = Mnemosyne.recall_aegis_notes
     puts "aegis_notes TOKEN LENGTH=#{tok_len aegis_notes.inspect}"
     
-    aegis_summary = Mnemosyne.fetch_aegis_summaries(since: history.last[:created_at], max_summary_tokens: MAX_SUMMARY_TOKENS)
+    aegis_summary = Mnemosyne.fetch_aegis_summaries(before: history.last[:created_at], max_summary_tokens: MAX_SUMMARY_TOKENS)
     puts "aegis_summary TOKEN LENGTH=#{tok_len aegis_summary.inspect}"
 
-    # Pack history and aegis_summary to respect token limits
+    # Pack history without summaries to respect token limits
     packed_history = pack_context!(
       messages: history.map { |h| [{ role: "user", content: h[:prompt], ts: h[:created_at] },
                                    { role: "system", content: h[:answer], ts: h[:created_at] }]
                                  }.flatten,
       max_hist_tokens: MAX_HIST_TOKENS,
-      max_summary_tokens: MAX_SUMMARY_TOKENS
+      max_summary_tokens: 0
     )
     puts "packed_history=#{packed_history[:recent].count} TOKEN LENGTH=#{tok_len packed_history.inspect}"
 
+    # Pack notes without summaries to respect token limits
     packed_notes = pack_context!(
       messages: aegis_notes.map { |n| { role: "system", content: n[:content], ts: n[:created_at] } },
       max_hist_tokens: MAX_HIST_TOKENS,
-      max_summary_tokens: MAX_SUMMARY_TOKENS
+      max_summary_tokens: 0
     )
     puts "packed_notes=#{packed_notes[:recent].count} TOKEN LENGTH=#{tok_len packed_notes.inspect},"
 
@@ -72,7 +73,7 @@ module Arcanum
         snippet: snippet_for(file, selection),
         aegis_orientation: {
           **Mnemosyne.aegis,
-          # summary: packed_history[:summary] + packed_notes[:summary]
+          aegis_summary: aegis_summary
         },
         aegis_notes: packed_notes[:recent]
       }

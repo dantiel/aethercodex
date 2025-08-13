@@ -10,8 +10,6 @@ require 'json'
 require 'timeout'
 require 'open3'
 require 'cgi'
-require 'htmldiff'
-require_relative 'diff_test'
 require 'dotenv'
 
 
@@ -156,11 +154,8 @@ module PrimaMateria
     
     return { error: 'Diff too big' } if diff.lines.count > MAX_DIFF
     old_content, new_content = Argonaut.patch path, diff
-    
-    # html_diff = HTMLDiff.diff(old_content, new_content, html_format: { class: 'diff' })
-    html_diff = hunk_based_character_diff_final(old_content, new_content)
-        
-    HorologiumAeternum.file_patched path, html_diff
+            
+    HorologiumAeternum.file_patched path, old_content, new_content
     { ok: true }
   rescue => e
     HorologiumAeternum.file_patched_fail path, e.message, diff
