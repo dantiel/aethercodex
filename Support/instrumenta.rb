@@ -289,11 +289,10 @@ INSTRUMENTA = [
         type: 'object',
         properties: {
           tags: { type: 'array', items: { type: 'string' } },
-          context_length: { type: 'integer' },
           summary: { type: 'string', description: 'Dynamic summary update without altering tags. Required for every invocation.' },
           temperature: { type: 'number', description: 'Optional parameter to fine-tune the Aegis state responsiveness.' }
         },
-        required: ['summary']
+        required: []
       }
     }
   },

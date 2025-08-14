@@ -31,7 +31,7 @@ module PrimaMateria
     'remove_note'        => { req: %i[id],               forbid: [] },
     'file_overview'      => { req: %i[path],             forbid: [] },
     'oracle_conjuration' => { req: %i[prompt],           forbid: %i[recursive] },
-    'aegis'              => { req: %i[summary],          forbid: %i[] },
+    'aegis'              => { req: %i[],                 forbid: %i[] },
     'create_task'        => { req: %i[plan max_steps],   forbid: [] },
     'execute_task'       => { req: %i[task_id],          forbid: [] },
     'update_task'        => { req: %i[task_id new_plan], forbid: [] },
@@ -293,10 +293,10 @@ module PrimaMateria
   end
 
 
-  def self.aegis(tags: nil, context_length: nil, summary: '', temperature: nil)
-    notes = Mnemosyne.unveil_aegis(tags:, context_length:, summary:, temperature:)
+  def self.aegis(tags: nil, summary: '', temperature: nil)
+    notes = Mnemosyne.unveil_aegis(tags:, summary:, temperature:)
     
-    HorologiumAeternum.aegis_unveiled tags, context_length, summary, temperature, notes
+    HorologiumAeternum.aegis_unveiled tags, summary, temperature, notes
     
     { aegis_notes: notes, aegis_orientation: Mnemosyne.aegis }
   rescue => e

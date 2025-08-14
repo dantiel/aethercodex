@@ -12,13 +12,16 @@ require_relative 'argonaut'
 # TM_SELECTION"=>"36:20-36:4",
 # TM_SELECTED_FILE
 
+
+
 module Arcanum
   # Aegis state variable to store active tags and context length
   MAX_CONTEXT_LINES = 120
   MAX_HIST_TOKENS = 1200
-  MAX_SUMMARY_TOKENS = 300
+  MAX_SUMMARY_TOKENS = 400
 
   @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
+
 
   def self.build(params)
     # Inject TextMate environment if provided
@@ -30,22 +33,22 @@ module Arcanum
     selection = params['selection']
     puts "SELECTION=#{selection} FILE=#{file}"
     project_files = Argonaut.list_project_files
-    puts "project_files TOKEN LENGTH=#{tok_len project_files.inspect}"
+    puts "project_files TOKEN LENGTH=#{tok_len project_files.to_json}"
     history = Mnemosyne.fetch_history 7
-    puts "history TOKEN LENGTH=#{tok_len history.inspect}"
-    aegis_notes = Mnemosyne.recall_aegis_notes
-    puts "aegis_notes TOKEN LENGTH=#{tok_len aegis_notes.inspect}"
+    puts "history TOKEN LENGTH=#{tok_len history.to_json}"
+    aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
+    puts "aegis_notes TOKEN LENGTH=#{tok_len aegis_notes.to_json}"
 
     # Pack history with aegis_summary dynamically integrated before messages
     history_messages = history.map do |h|
       [{ role: 'user', content: h[:prompt], ts: h[:created_at] },
-       { role: 'system', content: h[:answer], ts: h[:created_at] }]
+       { role: 'assistant', content: h[:answer], ts: h[:created_at] }]
     end.flatten
 
     packed_history = pack_context! \
       messages: history_messages,
       max_hist_tokens: MAX_HIST_TOKENS,
-      max_summary_tokens: 0
+      max_tokens: 0
     history_messages = packed_history[:recent]
 
     # Fetch summaries strictly before the last packed history entry
@@ -55,29 +58,17 @@ module Arcanum
       history.last[:created_at]
     end
     aegis_summaries = Mnemosyne.fetch_aegis_summaries before: last_history_ts,
-                                                    max_summary_tokens: MAX_SUMMARY_TOKENS
-    puts "packed_summary=#{history_messages.count} TOKEN LENGTH=#{tok_len packed_history.inspect}"
+                                                      max_tokens: MAX_SUMMARY_TOKENS
 
-    unless aegis_summaries.empty?
-      aegis_summaries.each do |summary|
-        history_messages.unshift({ role: 'system',
-                                   content: "#{summary[:summary]}\n\nTags: #{summary[:tags]}",
-                                   ts: summary[:created_at] })
-      end
+    # Prepend each summary as a separate system message
+    aegis_summaries.each do |summary|
+      history_messages.unshift({ role: 'system',
+                                 content: "Summary: #{summary[:summary]}\n\nTags: #{summary[:tags]}",
+                                 ts: summary[:created_at] })
     end
-    puts "PACKED_HISTORY=#{history_messages.inspect}"
-    
-    puts "packed_history=#{history_messages.count} TOKEN LENGTH=#{tok_len packed_history.inspect}"
+    puts "PACKED_HISTORY=#{history_messages.to_json}"
 
-    # Pack notes without summaries to avoid redundancy
-    packed_notes = pack_context!(
-      messages: aegis_notes.map do |n|
-        { role: 'system', content: n[:content], ts: n[:created_at] }
-      end,
-      max_hist_tokens: MAX_HIST_TOKENS,
-      max_summary_tokens: 0
-    )
-    puts "packed_notes=#{packed_notes[:recent].count} TOKEN LENGTH=#{tok_len packed_notes.inspect},"
+    puts "packed_history=#{history_messages.count} TOKEN LENGTH=#{tok_len packed_history.to_json}"
 
     ctx = {
       history: history_messages,
@@ -87,13 +78,13 @@ module Arcanum
         selection:,
         snippet: snippet_for(file, selection),
         aegis_orientation: {
-          **Mnemosyne.aegis,
+          **Mnemosyne.aegis
         },
-        aegis_notes: packed_notes[:recent]
+        aegis_notes:
       }
     }
 
-    puts "context TOTAL TOKEN LENGTH=#{tok_len ctx.inspect}"
+    puts "context TOTAL TOKEN LENGTH=#{tok_len ctx.to_json}"
 
     puts "file=#{file}"
     puts "selection=#{selection}"
@@ -130,7 +121,7 @@ module Arcanum
   def self.tok_len(s) = @tokenizer.encode(s.to_s).length
 
 
-  def self.pack_context!(messages:, max_hist_tokens:, max_summary_tokens:)
+  def self.pack_context!(messages:, max_hist_tokens:, max_tokens:)
     # messages: [{role:, content:, ts:}, ...] oldest→newest
     recent = []
     tokens = 0

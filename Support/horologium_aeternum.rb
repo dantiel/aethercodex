@@ -241,11 +241,11 @@ module HorologiumAeternum
 
   
   
-  def self.aegis_unveiled(tags, context_length, summary, temperature, notes)
+  def self.aegis_unveiled(tags, summary, temperature, notes)
     temperature = if temperature then "\n\nTemperature #{temperature}" else '' end
     notes = "\n\n**Notes:**\n\n#{render_notes notes}"
     send_status('aegis_unveiled', { 
-      message: Scriptorium.html("🔮 Aegis unveiled: `#{tags.join ', '}` Limit: #{context_length}"),
+      message: Scriptorium.html("🔮 Aegis unveiled: `#{tags.join ', '}`"),
       content: Scriptorium.html_with_syntax_highlight("#{summary}#{temperature}#{notes}")
     })
   end
