@@ -522,7 +522,7 @@ pre.diff del {
 }
 
 div.hunk-content {
-    waidth:100%;
+    width:100%;
     overflow-x:auto;
     
 }
