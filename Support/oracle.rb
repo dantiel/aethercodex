@@ -212,7 +212,7 @@ class Oracle
     [
       { role: 'system', content: SYSTEM_PROMPT },
       *ctx[:history],
-      { role: 'system', content: "Context:\n#{ctx[:extraContext].to_json}" },
+      { role: 'system', content: "Context:\n#{ctx[:extra_context].to_json}" },
       { role: 'system', content: SYSTEM_PROMPT_BRIEFING },
       { role: 'user', content: prompt }
     ]

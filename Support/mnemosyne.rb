@@ -39,10 +39,27 @@ class Mnemosyne
   end
 
 
-  def self.fetch_history(limit)
-    Mnemosyne.db.execute(
+  def self.fetch_history(limit: 30, max_tokens: nil)
+    entries = Mnemosyne.db.execute(
       'SELECT prompt, answer, created_at FROM entries ORDER BY id DESC LIMIT ?', [limit]
-    ).reverse.map { |el| el.transform_keys!(&:to_sym) }
+    ).map { |entry| entry.transform_keys!(&:to_sym) }
+
+    unless max_tokens.nil?
+      tokens = 0
+      included_entries = []
+
+      entries.each do |entry|
+        entry_tokens = tok_len entry
+        break unless tokens + entry_tokens <= max_tokens
+
+        included_entries << entry
+        tokens += entry_tokens
+      end
+      
+      entries = included_entries
+    end
+    
+    entries.reverse
   end
 
 
@@ -53,17 +70,17 @@ class Mnemosyne
       ), [before]).map { |el| el.transform_keys!(&:to_sym) }
 
     tokens = 0
-    packed_summaries = []
+    included_summaries = []
 
     summaries.each do |summary|
       summary_tokens = tok_len summary
       break unless tokens + summary_tokens <= max_tokens
 
-      packed_summaries << summary
+      included_summaries << summary
       tokens += summary_tokens
     end
 
-    packed_summaries
+    included_summaries
   end
 
 
@@ -240,7 +257,7 @@ class Mnemosyne
     notes = recall_notes tags.join(' '), limit: 30
 
     # Apply token limit if provided
-    if max_tokens
+    unless max_tokens.nil?
       token_count = 0
       included_notes = []
 

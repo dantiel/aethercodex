@@ -17,7 +17,7 @@ require_relative 'argonaut'
 module Arcanum
   # Aegis state variable to store active tags and context length
   MAX_CONTEXT_LINES = 120
-  MAX_HIST_TOKENS = 1200
+  MAX_HISTORY_TOKENS = 1200
   MAX_SUMMARY_TOKENS = 400
 
   @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
@@ -34,33 +34,22 @@ module Arcanum
     puts "SELECTION=#{selection} FILE=#{file}"
     project_files = Argonaut.list_project_files
     puts "project_files TOKEN LENGTH=#{tok_len project_files.to_json}"
-    history = Mnemosyne.fetch_history 7
+    history = Mnemosyne.fetch_history limit: 7, max_tokens: MAX_HISTORY_TOKENS
     puts "history TOKEN LENGTH=#{tok_len history.to_json}"
     aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
     puts "aegis_notes TOKEN LENGTH=#{tok_len aegis_notes.to_json}"
 
-    # Pack history with aegis_summary dynamically integrated before messages
     history_messages = history.map do |h|
       [{ role: 'user', content: h[:prompt], ts: h[:created_at] },
        { role: 'assistant', content: h[:answer], ts: h[:created_at] }]
     end.flatten
 
-    packed_history = pack_context! \
-      messages: history_messages,
-      max_hist_tokens: MAX_HIST_TOKENS,
-      max_tokens: 0
-    history_messages = packed_history[:recent]
+    last_history_ts = history.last[:created_at]
 
-    # Fetch summaries strictly before the last packed history entry
-    last_history_ts = begin
-      history_messages.last[:ts]
-    rescue StandardError
-      history.last[:created_at]
-    end
     aegis_summaries = Mnemosyne.fetch_aegis_summaries before: last_history_ts,
                                                       max_tokens: MAX_SUMMARY_TOKENS
 
-    # Prepend each summary as a separate system message
+    # Prepend each summary as a clean system message
     aegis_summaries.each do |summary|
       history_messages.unshift({ role: 'system',
                                  content: "Summary: #{summary[:summary]}\n\nTags: #{summary[:tags]}",
@@ -68,11 +57,11 @@ module Arcanum
     end
     puts "PACKED_HISTORY=#{history_messages.to_json}"
 
-    puts "packed_history=#{history_messages.count} TOKEN LENGTH=#{tok_len packed_history.to_json}"
+    puts "packed_history=#{history_messages.count} TOKEN LENGTH=#{tok_len history_messages.to_json}"
 
     ctx = {
       history: history_messages,
-      extraContext: {
+      extra_context: {
         project_files:,
         file:,
         selection:,
@@ -119,32 +108,4 @@ module Arcanum
 
 
   def self.tok_len(s) = @tokenizer.encode(s.to_s).length
-
-
-  def self.pack_context!(messages:, max_hist_tokens:, max_tokens:)
-    # messages: [{role:, content:, ts:}, ...] oldest→newest
-    recent = []
-    tokens = 0
-    messages.reverse_each do |m|
-      puts "#{m.inspect}"
-      l = tok_len "#{m[:role]}: #{m[:content]}"
-      break if tokens + l > max_hist_tokens
-
-      recent << m
-      tokens += l
-    end
-    recent.reverse!
-
-    older = messages[0...messages.size - recent.size]
-    summary_source = older.map { |m| "#{m[:role]}: #{m[:content]}" }.join("\n")
-    summary = if summary_source.empty?
-                ''
-              else
-                # call your model once to summarize older history to ≤ max_summary_tokens
-                # e.g. summarize(summary_source, max_tokens: max_summary_tokens)
-                "[[summary placeholder ≤ #{max_summary_tokens} tokens]]"
-              end
-
-    { summary:, recent: recent }
-  end
 end
