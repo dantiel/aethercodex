@@ -259,7 +259,7 @@ tt, code, kbd, samp,pre {
 #chat-input {
   background: var(--argonaut-void);
   border: 0.1em solid var(--argonaut-shadow);
-  color: var(--argonaut-steel);
+  color: var(-argonaut-steel);
   border-radius: 0.5em;
   transition: all 0.3s ease;
   font-family: var(--sans);
@@ -411,17 +411,17 @@ pre > code {
 
 .error {
 /*  margin: 0.5em 0;*/
-    color: var(--argonaut-crimson);
+  color: var(--argonaut-crimson);
 }
 
 .system, .system summary {
 /*  margin: 0.5em 0;*/
-    color: var(--argonaut-shadow);
-    text-align: center ;
+  color: var(--argonaut-shadow);
+  text-align: center;
 }
 
 .system details {
-        text-align: left ;
+  text-align: left;
 }
 
 strong {

@@ -9,7 +9,7 @@ projectDirectory      = "$CWD"
 includeFiles          = "{$includeFiles,.aethercodex}"
 includeInBrowser      = "{$includeInBrowser,.tm-ai}"
 includeDirectories    = "{$includeDirectories}"
-includeInFileChooser  = "{$includeInFileChooser,.gitignore,*.orig,*.rej,*.js}"
+includeInFileChooser  = "{$includeInFileChooser,.gitignore,*.orig,*.rej,*.js,.env*}"
 includeInFolderSearch = "{$includeInFolderSearch}"
 includeInArgonaut     = "{}"
 

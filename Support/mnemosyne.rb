@@ -6,6 +6,8 @@ require 'json'
 require 'tiktoken_ruby'
 require 'timeout'
 
+
+
 class Mnemosyne
   @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
 
@@ -47,9 +49,8 @@ class Mnemosyne
     unless max_tokens.nil?
       tokens = 0
       included_entries = []
-
       entries.each do |entry|
-        entry_tokens = tok_len entry
+        entry_tokens = tok_len entry.to_json
         break unless tokens + entry_tokens <= max_tokens
 
         included_entries << entry
@@ -64,7 +65,7 @@ class Mnemosyne
 
 
   def self.fetch_aegis_summaries(before:, max_tokens:)
-    summaries = Mnemosyne.db.execute(%(
+    summaries = Mnemosyne.db.execute(%q(
       SELECT summary, tags, created_at FROM aegis_state
       WHERE created_at <= ? ORDER BY created_at DESC
       ), [before]).map { |el| el.transform_keys!(&:to_sym) }
