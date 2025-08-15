@@ -217,6 +217,7 @@ details[open] summary {
   line-height: 1.4;
   border: none;
   border-radius: 0;
+  max-height: 11em;
 }
 
 

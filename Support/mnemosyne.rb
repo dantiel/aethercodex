@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sqlite3'
 require 'fileutils'
 require 'yaml'
@@ -20,9 +22,11 @@ class Mnemosyne
   @aegis = { tags: [], summary: '', temperature: 1.0 }
 
   # Create a new task with a plan and max steps
-  def self.create_task(plan:, max_steps:)
-    db.execute 'INSERT INTO tasks (plan, max_steps, status) VALUES (?, ?, ?)',
-               [plan, max_steps, 'pending']
+  def self.create_task(title:, plan:, max_steps:)
+    puts "CREATE TASK #{title}:#{plan}"
+    x = db.execute 'INSERT INTO tasks (title, plan, max_steps, status) VALUES (?, ?, ?, ?)',
+                   [title, plan, max_steps, 'pending']
+    puts "x=#{x}, id=#{db.last_insert_row_id}"
     { ok: true, id: db.last_insert_row_id }
   end
 
@@ -45,30 +49,35 @@ class Mnemosyne
     entries = Mnemosyne.db.execute(
       'SELECT prompt, answer, created_at FROM entries ORDER BY id DESC LIMIT ?', [limit]
     ).map { |entry| entry.transform_keys!(&:to_sym) }
-
     unless max_tokens.nil?
       tokens = 0
       included_entries = []
       entries.each do |entry|
         entry_tokens = tok_len entry.to_json
+
+        if entry_tokens > max_tokens
+          entry = entry.gsub(/\n\s*```(\w*).*?\n\s*```\s*\n/m, '```\\1[CONTENT EXPIRED]```')
+          entry_tokens = tok_len entry.to_json
+          next if entry_tokens > max_tokens
+        end
         break unless tokens + entry_tokens <= max_tokens
 
         included_entries << entry
         tokens += entry_tokens
       end
-      
+
       entries = included_entries
     end
-    
+
     entries.reverse
   end
 
 
   def self.fetch_aegis_summaries(before:, max_tokens:)
-    summaries = Mnemosyne.db.execute(%q(
+    summaries = Mnemosyne.db.execute('
       SELECT summary, tags, created_at FROM aegis_state
       WHERE created_at <= ? ORDER BY created_at DESC
-      ), [before]).map { |el| el.transform_keys!(&:to_sym) }
+      ', [before]).map { |el| el.transform_keys!(&:to_sym) }
 
     tokens = 0
     included_summaries = []
@@ -105,13 +114,13 @@ class Mnemosyne
     cfg = File.exist?(cfg_path) ? YAML.load_file(cfg_path) : {}
     path = cfg['memory-db'] || '.tm-ai/memory.db'
     project_root = ENV['TM_PROJECT_DIRECTORY'] || Dir.pwd
-    
+
     if ENV['TM_DEBUG_PATHS']
       puts "cfg_path=#{cfg_path}"
       puts "path=#{path}"
       puts "project_root=#{project_root}"
     end
-    
+
     File.join project_root, path
   end
 
@@ -123,7 +132,6 @@ class Mnemosyne
       db.results_as_hash = true
       migrate db
       restore_aegis db
-      puts "restore_aegis=#{@aegis}"
       db
     end
   end
@@ -208,7 +216,7 @@ class Mnemosyne
 
       { **note, score: }
     end
-      .select { |note| note[:score] > 0 }
+      .select { |note| note[:score].positive? }
          .sort_by { |note| -note[:score] }
          .take(limit)
   end
@@ -218,8 +226,8 @@ class Mnemosyne
     tags = Array tags
     tags_json = tags.join ','
     db.execute \
-      'INSERT INTO aegis_state ' +
-      '(tags, summary, temperature, created_at) VALUES ' +
+      'INSERT INTO aegis_state ' \
+      '(tags, summary, temperature, created_at) VALUES ' \
       '(?, ?, ?, CURRENT_TIMESTAMP)',
       [tags_json, summary, temperature]
   end
@@ -227,7 +235,7 @@ class Mnemosyne
 
   def self.load_aegis(db: nil, limit: 3)
     db ||= @db
-    db.execute 'SELECT tags, summary, temperature FROM aegis_state ' +
+    db.execute 'SELECT tags, summary, temperature FROM aegis_state ' \
                'ORDER BY created_at DESC LIMIT ?', [limit]
   end
 
@@ -244,8 +252,8 @@ class Mnemosyne
 
 
   def self.unveil_aegis(**aegis)
-    aegis[:tags] ||= []
-    @aegis = aegis
+    aegis.compact!
+    @aegis.merge! aegis
     save_aegis_state(**aegis)
 
     recall_aegis_notes
@@ -276,9 +284,11 @@ class Mnemosyne
     notes
   end
 
+
   class << self
     attr_reader :aegis
   end
+
 
   def self.record(params, answer)
     db.execute \
@@ -328,10 +338,15 @@ class Mnemosyne
     action = params[:action] || 'list'
     case action
     when 'create'
-      db.execute('INSERT INTO tasks (title, plan, updates, status, progress, max_steps, current_step) VALUES (?,?,?,?,?,?,?)',
-                 [params[:title], params[:plan].to_json, '[]', 'pending', 0,
-                  params[:max_steps] || 10, 0])
-      { ok: true, id: db.last_insert_row_id }
+      begin
+        db.execute('INSERT INTO tasks (title, plan, updates, status, progress, max_steps, current_step) VALUES (?,?,?,?,?,?,?)',
+                   [params[:title], params[:plan].to_json, '[]', 'pending', 0,
+                    params[:max_steps] || 10, 0])
+        { 'ok' => true, 'id' => db.last_insert_row_id }
+      rescue SQLite3::Exception => e
+        warn "Task creation failed: #{e.message}"
+        { 'ok' => false, 'error' => e.message }
+      end
     when 'update'
       db.execute 'UPDATE tasks SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
                  [params[:status], params[:progress], params[:id]]
@@ -361,7 +376,7 @@ class Mnemosyne
   # Recall entries by tags or prompt
   def self.search(query, limit: 5)
     db.execute \
-      'SELECT prompt, answer FROM entries WHERE tags ' +
+      'SELECT prompt, answer FROM entries WHERE tags ' \
       'LIKE ? OR prompt LIKE ? OR file LIKE ? ORDER BY id DESC LIMIT ?',
       ["%#{query}%", "%#{query}%", "%#{query}%", limit]
   end

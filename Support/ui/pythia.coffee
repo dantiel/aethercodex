@@ -209,7 +209,7 @@ showStatus = (type, data) ->
       log 'status', """
         <details>
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
-          #{data.diff}
+          #{replaceFileTags data.diff}
         </details>"""
     when 'file_patched_fail'
       log 'status', """
@@ -334,13 +334,13 @@ handleMessage = (e) ->
           switch l.type
             when 'prelude' then log 'ai', l.data s
             when 'say'     then log 'ai', l.data.message      
-      if data.result.tools? and data.result.tools.length > 0
-        toolsJson = JSON.stringify(data.result.tools, null, 2)
-        if toolsJson.length > 300
-          log 'system', "<details><summary>🔧 Tools (#{toolsJson.length} chars)</summary><pre>#{toolsJson}</pre></details>"
-        else
-          log 'system', "<pre>#{toolsJson}</pre>"        
-        renderTools data.result.tools
+      # if data.result.tools? and data.result.tools.length > 0
+      #   toolsJson = JSON.stringify(data.result.tools, null, 2)
+      #   if toolsJson.length > 300
+      #     log 'system', "<details><summary>🔧 Tools (#{toolsJson.length} chars)</summary><pre>#{toolsJson}</pre></details>"
+      #   else
+      #     log 'system', "<pre>#{toolsJson}</pre>"
+      #   renderTools data.result.tools
     when 'toolResult'
       resultJson = JSON.stringify data.result, null, 2
       if resultJson.length > 300
@@ -519,6 +519,10 @@ document.addEventListener 'DOMContentLoaded', ->
 # Load messages when page loads
 window.addEventListener 'DOMContentLoaded', loadMessages
 
+history.pushState null, null, location.href
+
+window.onpopstate = ->
+  history.go 1
 
 
 

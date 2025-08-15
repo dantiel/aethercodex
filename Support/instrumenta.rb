@@ -21,7 +21,10 @@ INSTRUMENTA = [
       name: 'oracle_conjuration',
       description: (
         <<~DESCRIPTION
-        Invoke the reasoning model to generate responses based on a prompt and filtered tools. Make sure to provide a meaningful and profound prompt as invocation to the high oracle and give a rich context as sacred offerings like files and other tools output, however the oracle may call tools on its own, too.
+        Invoke the reasoning model to generate responses based on a prompt and filtered tools. Make 
+        sure to provide a meaningful and profound prompt as invocation to the high oracle and give a 
+        rich context as sacred offerings like files and other tools output, however the oracle may 
+        call tools on its own, too.
         DESCRIPTION
       ),
       parameters: {
@@ -304,10 +307,11 @@ INSTRUMENTA = [
       parameters: {
         type: 'object',
         properties: {
+          title: { type: 'string', description: 'The title of the plan.' },
           plan: { type: 'string', description: 'The task execution plan.' },
           max_steps: { type: 'integer', description: 'Total steps in the task.' }
         },
-        required: ['plan', 'max_steps']
+        required: ['plan', 'max_steps', 'title']
       }
     }
   },

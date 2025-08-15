@@ -50,6 +50,13 @@ body.fancy-animations .status::before {
   border-radius: 4px;
   color: #f3e8ff;
   font-weight: bold;
+}
+
+.status code:hover {
+  background: rgba(147, 51, 234, 0.4);
+}
+
+.status summary code {
   white-space: nowrap;
   text-overflow: ellipsis;
   display: inline-block;
@@ -58,9 +65,8 @@ body.fancy-animations .status::before {
   vertical-align: bottom;
 }
 
-.status code:hover {
-  background: rgba(147, 51, 234, 0.4);
-    white-space: normal;
+.status summary code:hover {
+  white-space: normal;
 }
 
 .status pre {

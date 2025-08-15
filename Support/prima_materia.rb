@@ -17,30 +17,30 @@ require 'dotenv'
 
 module PrimaMateria
   ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/,
-                  /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/, 
-                  /^bundle exec irb\b/, /^ruby\b/, /^irb\b/, /^cd\b/, /^curl\b/, /^ag\b/]
-  DENY_PATHS   = [/\.aethercodex$/, /\.env$/, %r{\.git/}]
+                  /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/,
+                  /^bundle exec irb\b/, /^ruby\b/, /^irb\b/, /^cd\b/, /^curl\b/, /^ag\b/].freeze
+  DENY_PATHS   = [/\.aethercodex$/, /\.env$/, %r{\.git/}].freeze
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
   SCHEMA = {
-    'create_file'        => { req: %i[path content],     forbid: %i[diff] },
-    'patch_file'         => { req: %i[path diff],        forbid: %i[content] },
-    'read_file'          => { req: %i[path],             forbid: [] },
-    'rename_file'        => { req: %i[from to],          forbid: [] },
-    'run_command'        => { req: %i[cmd],              forbid: [] },
-    'tell_user'          => { req: %i[message],          forbid: [] },
-    'recall_history'     => { req: %i[],                 forbid: [] },
-    'remember'           => { req: %i[content],          forbid: [] },
-    'recall_notes'       => { req: %i[],                 forbid: [] },
-    'remove_note'        => { req: %i[id],               forbid: [] },
-    'file_overview'      => { req: %i[path],             forbid: [] },
-    'oracle_conjuration' => { req: %i[prompt],           forbid: %i[recursive] },
-    'aegis'              => { req: %i[],                 forbid: %i[] },
-    'create_task'        => { req: %i[plan max_steps],   forbid: [] },
-    'execute_task'       => { req: %i[task_id],          forbid: [] },
-    'update_task'        => { req: %i[task_id new_plan], forbid: [] },
-    'evaluate_task'      => { req: %i[task_id],          forbid: [] }
-  }
+    'create_file'        => { req: %i[path content],         forbid: %i[diff] },
+    'patch_file'         => { req: %i[path diff],            forbid: %i[content] },
+    'read_file'          => { req: %i[path],                 forbid: [] },
+    'rename_file'        => { req: %i[from to],              forbid: [] },
+    'run_command'        => { req: %i[cmd],                  forbid: [] },
+    'tell_user'          => { req: %i[message],              forbid: [] },
+    'recall_history'     => { req: %i[],                     forbid: [] },
+    'remember'           => { req: %i[content],              forbid: [] },
+    'recall_notes'       => { req: %i[],                     forbid: [] },
+    'remove_note'        => { req: %i[id],                   forbid: [] },
+    'file_overview'      => { req: %i[path],                 forbid: [] },
+    'oracle_conjuration' => { req: %i[prompt],               forbid: %i[recursive] },
+    'aegis'              => { req: %i[],                     forbid: %i[] },
+    'create_task'        => { req: %i[plan max_steps title], forbid: [] },
+    'execute_task'       => { req: %i[task_id],              forbid: [] },
+    'update_task'        => { req: %i[task_id new_plan],     forbid: [] },
+    'evaluate_task'      => { req: %i[task_id],              forbid: [] }
+  }.freeze
   TOOL_ALIASES = {
     'readfile'          => 'read_file',
     'patchfile'         => 'patch_file',
@@ -49,7 +49,7 @@ module PrimaMateria
     'renamefile'        => 'rename_file',
     'telluser'          => 'tell_user',
     'oracleconjuration' => 'oracle_conjuration'
-  }
+  }.freeze
 
 
   def self.validate!(tool, args)
@@ -128,7 +128,7 @@ module PrimaMateria
     HorologiumAeternum.file_created path, bytes, content
     { ok: true }
   rescue StandardError => e
-    puts "#{e.inspect}"
+    puts e.inspect
     { error: e.message }
   end
 
@@ -157,7 +157,7 @@ module PrimaMateria
     diff_lines = diff.lines.count
     HorologiumAeternum.file_patching path, diff, diff_lines
 
-    return { error: 'Diff too big' } if diff.lines.count > MAX_DIFF
+    return { error: 'Diff too big' } if MAX_DIFF < diff.lines.count
 
     old_content, new_content = Argonaut.patch path, diff
 
@@ -183,7 +183,7 @@ module PrimaMateria
     result
   rescue StandardError => e
     HorologiumAeternum.file_read_fail path, e.message, range
-    { error: "#{e.message}" }
+    { error: e.message.to_s }
   end
 
 
@@ -203,7 +203,7 @@ module PrimaMateria
       run_command_env = Dotenv.parse "#{project_root}/.env.run_command", overwrite: true
 
       env_vars = run_command_env.merge({ 'BUNDLE_GEMFILE' => '' })
-      
+
       stdout, stderr, status = Open3.capture3 env_vars, cmd, chdir: project_root
       out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
       HorologiumAeternum.command_completed cmd, out.length, out, status.exitstatus
@@ -321,9 +321,16 @@ module PrimaMateria
   end
 
 
-  def self.create_task(plan:, max_steps:)
-    Mnemosyne.create_task plan: plan, max_steps: max_steps
+  def self.create_task(title:, plan:, max_steps:)
+    result = Mnemosyne.create_task(title:, plan:, max_steps:)
+    puts "result=#{result}"
+
+    HorologiumAeternum.task_created(title, plan, max_steps, result[:id])
+
+    result
   rescue StandardError => e
+    HorologiumAeternum.system_error 'Error Creating Task', e.message
+
     { error: e.message }
   end
 
@@ -333,32 +340,51 @@ module PrimaMateria
     task = Mnemosyne.get_task task_id
     return { error: 'Task not found' } unless task
 
-    engine = TaskEngine.new Mnemosyne
+    engine = TaskEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
     engine.execute_task task[:id]
+
+    HorologiumAeternum.task_started task_id, task[:title], task[:max_steps]
+
     { ok: true }
   rescue StandardError => e
+    HorologiumAeternum.system_error 'Error Executing Task', e.message
+
     { error: e.message }
   end
 
 
   def self.update_task(task_id:, new_plan:)
     Mnemosyne.update_task task_id, plan: new_plan
+
+    HorologiumAeternum.task_updated task_id, title: task[:title], plan: new_plan, progress:,
+max_steps: task[:max_steps]
+
     { ok: true }
   rescue StandardError => e
+    HorologiumAeternum.system_error 'Error Updating Task', e.message
+
     { error: e.message }
   end
 
 
   def self.evaluate_task(task_id:)
     task = Mnemosyne.get_task task_id
-    return { error: 'Task not found' } unless task
+    raise 'Task not found' unless task
 
-    if task[:progress] >= task[:max_steps]
+    result = if task[:progress] >= task[:max_steps]
       { status: :completed, result: 'Task successfully executed' }
     else
       { status: :in_progress, progress: task[:progress] }
     end
+    
+    puts result.inspect
+
+    # HorologiumAeternum.task_evaluated task_id, result
+                                               
+    result
   rescue StandardError => e
+    HorologiumAeternum.system_error 'Error Evaluating Task', e.message
+
     { error: e.message }
   end
 end

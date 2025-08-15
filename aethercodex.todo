@@ -21,6 +21,7 @@ Hermetic Coding Paradigm & File Naming
 ◯ use dynamic temperature parameter in aegis and tasks
 ◯ improve word diff by applying section wise
 ◯ save many aegis state and include old summaries when changed
+◯ add a syntax tree to file_overview. Notes should be able to connect directly to methods (instead of line number). When a file, or method disappears or is moved the reference in memory need also be migrated.
 
 Website:
   ✧ Hermetic Symbolism
