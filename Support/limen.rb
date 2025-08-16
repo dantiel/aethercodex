@@ -184,7 +184,7 @@ end
 
 
 def do_ask(p)
-  HorologiumAeternum.thinking 'Initializing astral connection...'
+  uuid = HorologiumAeternum.thinking 'Initializing astral connection...'
   ctx = Arcanum.build p
 
   # Enhanced streaming callback for real-time tool feedback

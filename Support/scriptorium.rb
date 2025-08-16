@@ -121,7 +121,7 @@ module Scriptorium
       end
     end
 
-    out += "</div>#{process_hunk original_hunk_lines, modified_hunk_lines}"
+    out += "#{process_hunk original_hunk_lines, modified_hunk_lines}</div>"
 
     out
   end

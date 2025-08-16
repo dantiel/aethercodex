@@ -100,12 +100,13 @@ class Mnemosyne
   end
 
 
-  # TODO: missing update_task?
-  # Update task progress
-  def self.update_task_progress(task_id, progress)
-    db.execute 'UPDATE tasks SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-               [progress, task_id]
-    { ok: true }
+  # Update task
+  def self.update_task(task_id, **fields)
+    fields.compact!
+    x = db.execute "UPDATE tasks SET #{fields.map { |key, _| "#{key} = ?" }.join ', '}, " \
+                   'updated_at = CURRENT_TIMESTAMP WHERE id = ?', [*fields.values, task_id]
+    puts "UPDATE_TASK=#{x.inspect}"
+    get_task task_id
   end
 
 

@@ -234,3 +234,31 @@ details[open] summary {
 .attachment-meta span span {
   color: var(--argonaut-hermetic);
 }
+
+
+
+
+.task-list {
+  padding: 1em;
+  background: var(--argonaut-void);
+  border-radius: 4px;
+  margin: 1em 0;
+  color:var(--argonaut-shadow) ;
+}
+
+.task-list > ul {
+  list-style: none;
+  padding: 0;
+}
+
+.task-list > ul > li {
+  padding: 0.5em;
+  border-bottom: 0.1em solid color-mix(in srgb, var(--argonaut-shadow) 20%, transparent);
+}
+
+.task-list > ul ul li,
+.task-list > ul ol li{
+  margin: 0 0.5em;
+}
+
+

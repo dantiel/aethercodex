@@ -415,5 +415,17 @@ INSTRUMENTA = [
         required: ['task_id']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_tasks',
+      description: 'List all active tasks in the system.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    }
   }
 ]

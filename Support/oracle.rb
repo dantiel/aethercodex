@@ -49,7 +49,7 @@ class Oracle
   end
 
 
-  def self.divination(prompt, ctx, max_depth: 50, reasoning: false, &exec)
+  def self.divination(prompt, ctx, max_depth: 50, reasoning: false, msg_uuid: nil, &exec)
     # Capture initial temperature for restart checks
     initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
 
@@ -62,7 +62,7 @@ class Oracle
     # Stream initial status
     if defined? HorologiumAeternum
       sleep 0.1 # Brief pause for UI responsiveness
-      HorologiumAeternum.thinking 'Consulting the hermetic oracle...'
+      HorologiumAeternum.thinking 'Consulting the hermetic oracle...', uuid: msg_uuid
     end
 
     loop do
@@ -152,18 +152,15 @@ class Oracle
 
         msgs << { role:    'user',
                   content: "Tool results:\n#{tool_results.to_json}\nContinue." }
-        puts "MSGS=#{msgs.inspect}"
         next
       else
         answer = content
-        puts "nothing, content=#{content}"
         arts.merge! tools: extract_tool_calls_from_content(answer.to_s)
         break
       end
     end
 
     [answer || '<<empty>>', arts, tool_results]
-
   rescue Oracle::RestartException => e
     puts "[ORACLE][RESTART_EXCEPTION]: #{e.inspect} passing on"
     raise
@@ -175,12 +172,12 @@ class Oracle
   end
 
 
-  def self.conjuration(prompt, context, &)
+  def self.conjuration(prompt, context, msg_uuid:, &)
     # Capture initial temperature for restart checks
     initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
 
     # Delegate tool calls to Oracle.reason with the provided block
-    answer, arts, tool_results = divination(prompt, context, reasoning: true, &)
+    answer, arts, tool_results = divination(prompt, context, reasoning: true, msg_uuid:, &)
 
     # Return the structured output
     [answer, arts, tool_results]
@@ -232,7 +229,7 @@ class Oracle
         [cfg['model'] || 'deepseek-chat', 8192, INSTRUMENTA]
       end
 
-    temperature = 0.4 # Mnemosyne.aegis[:temperature] || 1.0
+    temperature = Mnemosyne.aegis[:temperature] || 1.0
     # if temperature < 0.34
     #   temperature *= 3.333
     # else

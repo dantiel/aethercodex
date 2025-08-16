@@ -1,20 +1,22 @@
+# frozen_string_literal: true
+
 # Real-time streaming handler for WebSocket responses
 # This ensures status updates appear immediately during AI tool execution
 class Aetherflux
   def self.channel_oracle_divination(params, websocket)
     # Ensure HorologiumAeternum is connected to this WebSocket
     HorologiumAeternum.set_websocket websocket
-    
+
     # Start status updates immediately
-    HorologiumAeternum.divination "Initializing astral connection..."
-    
+    msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
+
     # Build context
     ctx = Arcanum.build params
-    
+
     # Process with real-time streaming and restart handling
     begin
       answer, arts, tool_results =
-        Oracle.divination(params['prompt'], ctx) do |name, args|
+        Oracle.divination(params['prompt'], ctx, msg_uuid:) do |name, args|
           puts "TRY HANDLE TOOL=#{name}, ARGS=#{args.inspect}"
           result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
           puts "TOOL RESULT=#{result}"
@@ -22,54 +24,58 @@ class Aetherflux
           result
         end
     rescue Oracle::RestartException => e
-      HorologiumAeternum.thinking("Restarting oracle process...")
+      HorologiumAeternum.thinking 'Restarting oracle process...'
       retry
     end
-      
+
     raise answer unless answer.is_a? String
 
     logs = []
-    
-    html = Scriptorium.html_with_syntax_highlight(answer.to_s)
-    Mnemosyne.record(params, answer) if params['record']
 
-    HorologiumAeternum.oracle_revelation(answer.to_s) unless answer.to_s.strip.empty?
+    html = Scriptorium.html_with_syntax_highlight answer.to_s
+    Mnemosyne.record params, answer if params['record']
+
+    HorologiumAeternum.oracle_revelation answer.to_s unless answer.to_s.strip.empty?
 
     tool_count = tool_results.length
-    
-    HorologiumAeternum.completed(Scriptorium.html("🎯 Response ready with **#{tool_count}** tools executed"))
+
+    HorologiumAeternum.completed Scriptorium.html("🎯 Response ready with **#{tool_count}** tools executed")
 
     {
       method: 'answer',
       result: {
-        answer: answer,
-        html: html,
-        patch: arts[:patch],
-        tasks: arts[:tasks],
-        tools: arts[:tools],
+        answer:       answer,
+        html:         html,
+        patch:        arts[:patch],
+        tasks:        arts[:tasks],
+        tools:        arts[:tools],
         tool_results: tool_results,
-        logs: logs,
-        next_step: arts[:next_step]
+        logs:         logs,
+        next_step:    arts[:next_step]
       }
     }
   rescue TypeError => e
     puts "[AETHER FLUX][TYPE ERROR]: #{e.inspect}"
-    { method: 'answer', result: 'error', error: e.full_message || e.message, backtrace: e.backtrace }
-  rescue => e
+    { method:    'answer',
+      result:    'error',
+      error:     e.full_message || e.message,
+      backtrace: e.backtrace }
+  rescue StandardError => e
     puts "[AETHER FLUX][ERROR]: #{e.inspect}"
     { method: 'answer', result: 'error', error: e.message || e.message[:error] }
   end
 
 
-  def self.channel_oracle_conjuration(params, context: nil, &exec)
-    HorologiumAeternum.divination "Initializing astral connection..."
-    
+  def self.channel_oracle_conjuration(params, context: nil)
+    puts "[AETHER FLUX][ORACLE CONJURATION]: #{params.inspect}"
+    msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
+
     ctx = Arcanum.build params
-    
+
     # Handle restarts during conjuration
     begin
       answer, arts, tool_results =
-        Oracle.conjuration(params['prompt'], ctx) do |name, args|
+        Oracle.conjuration(params['prompt'], ctx, msg_uuid:) do |name, args|
           puts "TRY HANDLE TOOL=#{name}"
           puts "ARGS=#{args.inspect}"
           result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
@@ -78,40 +84,40 @@ class Aetherflux
           result
         end
     rescue Oracle::RestartException => e
-      HorologiumAeternum.thinking("Restarting oracle process due to temperature change...")
+      HorologiumAeternum.thinking 'Restarting oracle process due to temperature change...'
       retry
     end
-        
+
     logs = []
     arts ||= []
     tool_results ||= []
-    
-    html = Scriptorium.html_with_syntax_highlight(answer.to_s)
+
+    html = Scriptorium.html_with_syntax_highlight answer.to_s
     # Mnemosyne.record(params, answer) if params['record']
 
-    HorologiumAeternum.oracle_revelation(answer.to_s) unless answer.to_s.strip.empty?
+    HorologiumAeternum.oracle_revelation answer.to_s unless answer.to_s.strip.empty?
 
     tool_count = tool_results.length
-    
-    HorologiumAeternum.completed("🎯 Response ready with **#{tool_count}** tools executed")
-    
+
+    HorologiumAeternum.completed "🎯 Response ready with **#{tool_count}** tools executed"
+
     {
       method: 'answer',
       result: {
-        reasoning: arts[:reasoning],
-        answer: answer,
-        html: html,
-        patch: arts[:patch],
-        tasks: arts[:tasks],
-        tools: arts[:tools],
-        tool_results: tool_results, 
-        logs: logs,
-        next_step: arts[:next_step]
+        reasoning:    arts[:reasoning],
+        answer:       answer,
+        html:         html,
+        patch:        arts[:patch],
+        tasks:        arts[:tasks],
+        tools:        arts[:tools],
+        tool_results: tool_results,
+        logs:         logs,
+        next_step:    arts[:next_step]
       }
     }
-  rescue => e
-    puts "#{e.inspect}"
-    HorologiumAeternum.server_error("Oracle reasoning stream failed: #{e.message}")
+  rescue StandardError => e
+    puts e.inspect
+    HorologiumAeternum.server_error "Oracle reasoning stream failed: #{e.message}"
     { error: "Oracle reasoning stream failed: #{e.message}" }
   end
 end

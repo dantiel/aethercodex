@@ -122,7 +122,11 @@ body {
   color: var(--argonaut-shadow);
   font-style: italic;
   margin:-1em 0 0 0!important;
-  position: relative ;top:-0.3em;
+  position: relative ;
+  top:-0.3em;
+  text-overflow: ellipsis ;
+  overflow: hidden ;
+  white-space: nowrap ;
 }
 
 #chat-input:focus {
@@ -451,17 +455,26 @@ ul, ol {
     padding:0 0 0 1.6em;
 }
 
-
 a.file-link {
   transition: all 0.2s ease;
   background: color-mix(in srgb, var(--argonaut-azure) 20%, transparent);
   padding: 2px 6px;
   border-radius: 4px;
-  color: #f8f9fa;
+  color: var(--ethereal-white);
   text-decoration: none
 }
 
 a.file-link:hover {
+  background: color-mix(in srgb, var(--argonaut-azure) 40%, transparent);
+}
+
+span.info a.file-link {
+  color: color-mix(in srgb, var(--ethereal-white) 40%, transparent);
+  background: color-mix(in srgb, var(--argonaut-azure) 20%, transparent);
+}
+
+span.info a.file-link:hover {
+  color: color-mix(in srgb, var(--ethereal-white) 80%, transparent);
   background: color-mix(in srgb, var(--argonaut-azure) 40%, transparent);
 }
 

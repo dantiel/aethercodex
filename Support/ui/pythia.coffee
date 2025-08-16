@@ -9,42 +9,49 @@ baseReconnectDelay = 1000  # 1 second
 lastPongTime = null
 attachment_context = null
 # console.log = ->
-  
+# Throttled logging for handleMessage
+lastLogTime = 0
+messageBuffer = []
+MESSAGE_THROTTLE_TIME = 1700
 
-connectWebSocket = ->
+
+connectWebSocket = (uuid) ->
+  console.log "connectWebSocket#{uuid}"
   try
     if ws?.readyState == WebSocket.OPEN or ws?.readyState == WebSocket.CONNECTING
       do ws.close
       ws = null
-
-    log 'system', "🔮 Initiating connection ritual to ws://127.0.0.1:#{port}/ws..."
+    
+    uuid ||= do crypto.randomUUID
+    log 'system', uuid, "🔮 Initiating connection ritual to ws://127.0.0.1:#{port}/ws..."
     ws = new WebSocket "ws://127.0.0.1:#{port}/ws"
-    do setupWebSocketHandlers
+    setupWebSocketHandlers uuid
   catch e
-    log 'error', "🔮 Connection ritual failed: #{e.message}"
-    do scheduleReconnect
+    log 'error', uuid, "🔮 Connection ritual failed: #{e.message}"
+    setTimeout (-> scheduleReconnect uuid), 1500
 
 
-setupWebSocketHandlers = ->
+setupWebSocketHandlers = (uuid) ->
   ws.onopen = ->
     lastPongTime = do Date.now
-    log 'system', '🗝️ Gate opened.'
+    log 'system', uuid, '🗝️ Gate opened.'
+    uuid = do crypto.randomUUID
     reconnectAttempts = 0  # Reset on successful connection
     
   ws.onerror = (e) ->
     console.log e
-    log 'error', "🔮 Dimensional breach detected: #{e.message ? e.type ? 'connection error'}"
+    log 'error', uuid, "🔮 Dimensional breach detected: #{e.message ? e.type ? 'connection error'}"
   
   ws.onclose = (e) ->
-    log 'error', "🌀 Gate sealed code=#{e.code} reason=#{e.reason}"
-    do scheduleReconnect
+    log 'error', uuid, "🌀 Gate sealed code=#{e.code} reason=#{e.reason}"
+    scheduleReconnect uuid
     
   # Check for missed pongs every 30 seconds and close stale connections
   setInterval ->
     if lastPongTime and (do Date.now - lastPongTime) > 42000
       console.log 'missing pong detected, closing stale connection'
       do ws.close
-      do scheduleReconnect
+      scheduleReconnect uuid
   , 42000
   
   ws.onmessage = (e) ->
@@ -59,19 +66,19 @@ setupWebSocketHandlers = ->
 connectWebSocketTimeout = null
 
 
-scheduleReconnect = (immediate = false) ->
+scheduleReconnect = (uuid, immediate = false) ->
   return if reconnectAttempts >= maxReconnectAttempts
   
   if reconnectAttempts >= maxReconnectAttempts
-    log 'error', '🔮 Maximum reconnection attempts reached. Gateway sealed.'
+    log 'error', uuid, '🔮 Maximum reconnection attempts reached. Gateway sealed.'
     return
   
   delay = baseReconnectDelay * Math.pow(2, Math.min(reconnectAttempts, 5))
   reconnectAttempts++
   
-  log 'system', "🔮 Attempting dimensional reconnection #{reconnectAttempts}/#{maxReconnectAttempts} in #{if immediate then 0 else delay}ms..."
+  log 'system', uuid, "🔮 Attempting dimensional reconnection #{reconnectAttempts}/#{maxReconnectAttempts} in #{if immediate then 0 else delay}ms..."
   clearTimeout connectWebSocketTimeout
-  connectWebSocketTimeout = setTimeout connectWebSocket, delay
+  connectWebSocketTimeout = setTimeout (-> connectWebSocket uuid), delay
 
 
 # Message persistence
@@ -108,15 +115,36 @@ loadMessagesDone = ->
   do connectWebSocket
 
 
-log = (cls, html) ->
+# Throttled logging interval (1 second)
+setInterval ->
+  now = do Date.now
+  if messageBuffer.length > 0 and now - lastLogTime >= MESSAGE_THROTTLE_TIME
+    do messageBuffer.shift()
+    # console.log "[Pythia] Throttled log:", message
+    lastLogTime = now
+, 100 # Check every 100ms
+
+
+log = (cls, uuid, html) ->
   console.log "logging #{cls}", html
-  el = document.createElement 'div'
-  el.className = cls
-  el.innerHTML = html
-  m = document.getElementById 'messages'
-  m.appendChild el
-  m.scrollTop = m.scrollHeight
-  saveMessages()
+  
+  messageBuffer.push ->
+    existingElement = document.getElementById uuid unless null is uuid 
+  
+    # TODO add highlight animation when appearing
+    if existingElement
+      existingElement.className = cls
+      existingElement.innerHTML = html
+    else
+      el = document.createElement 'div'
+      el.className = cls
+      el.innerHTML = html
+      el.id = uuid
+      m = document.getElementById 'messages'
+      m.appendChild el
+      m.scrollTop = m.scrollHeight
+    
+    do saveMessages
 
 
 renderTools = (tools) ->
@@ -126,11 +154,11 @@ renderTools = (tools) ->
     btn.textContent = "Consecrate #{t.tool}"
     btn.onclick = ->
       ws.send JSON.stringify method: 'tool', params: t
-    log 'system', "Proposed tool ##{idx+1}: <pre>#{JSON.stringify(t,null,2)}</pre>"
+    log 'system', null, "Proposed tool ##{idx+1}: <pre>#{JSON.stringify(t,null,2)}</pre>"
     document.getElementById('messages').appendChild btn
 
 
-# Enhanced status display with live feedback
+# Enhanced status display with data.task_id feedback
 renderTaskProgress = (task) ->
   """
   <div class=\"task-progress\">
@@ -153,206 +181,217 @@ renderTaskProgress = (task) ->
     </div>
   </div>
   """
+  
 
-showStatus = (type, data) ->
+showStatus = (type, data, uuid) ->
   timestamp = new Date(data.timestamp * 1000).toLocaleTimeString() if data.timestamp
   
   console.log "showStatus", timestamp, type, data
   
   switch type
-    when 'task_created'
-      log 'system', "📋 New task created: #{data.title} <small>#{timestamp || ''}</small>"
-      log 'system', renderTaskProgress data
-    when 'task_updated'
-      log 'system', "🔄 Task updated: #{data.title} <small>#{timestamp || ''}</small>"
-      log 'system', renderTaskProgress data
     when 'thinking'
       if data.content
-        log 'system', """
+        log 'system', uuid, """
           <details>
             <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
             #{data.content}
           </details>"""
       else
-        log 'status', "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
+        log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
     when 'file_reading'
-      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
+      log 'status', uuid, "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
     when 'divination'
-      log 'status', "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
     when 'file_read_complete'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.content}
         </details>"""
     when 'file_read_fail'
-      log 'status', "#{replaceFileTags data.message}: #{error} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{replaceFileTags data.message}: #{error} <small>#{timestamp || ''}</small>"
     when 'file_creating'
-      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
     when 'file_created'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.content}
         </details>"""
     when 'tool_starting'
-      log 'status', "⚡ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "⚡ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
       if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
-        log 'status', "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
+        log 'status', uuid, "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
     when 'file_patching'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.diff}
         </details>"""
     when 'file_patched'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.diff}
         </details>"""
     when 'file_patched_fail'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{data.diff}
         </details>"""
     when 'command_executing'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'command_completed'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           <pre>#{data.content}</pre>
         </details>"""
     when 'file_renaming'
-      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"
     when 'file_renamed'
-      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"      
+      log 'status', uuid, "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"      
     when 'memory_storing'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'memory_stored'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'memory_searching'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'memory_found'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           <pre>#{data.content}</pre>
         </details>"""
     when 'info'
-      log 'status', "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
+      log 'status', uuid, "#{replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
     when 'tool_completed'
       if data.result?.error
-        log 'status', "❌ Tool <code>#{data.tool}</code> failed: #{data.result.error} <small>#{timestamp || ''}</small>"
+        log 'status', uuid, "❌ Tool <code>#{data.tool}</code> failed: #{data.result.error} <small>#{timestamp || ''}</small>"
         if data.result.error
-          log 'system', "<details><summary>❌ Error details</summary><pre>#{data.result.error}</pre></details>"
+          log 'system', uuid, "<details><summary>❌ Error details</summary><pre>#{data.result.error}</pre></details>"
       else
-        log 'status', "✅ Tool <code>#{data.tool}</code> completed <small>#{timestamp || ''}</small>"
+        log 'status', uuid, "✅ Tool <code>#{data.tool}</code> completed <small>#{timestamp || ''}</small>"
       if data.result and Object.keys(data.result).length > 0 and not data.result?.error
         resultJson = JSON.stringify data.result, null, 2
         if resultJson.length > 200
-          log 'system', "<details><summary>📋 #{data.tool} result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
+          log 'system', uuid, "<details><summary>📋 #{data.tool} result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
         else
-          log 'system', "&nbsp;&nbsp;↳ Result: <pre style='display:inline; background:none;'>#{resultJson}</pre>"
+          log 'system', uuid, "&nbsp;&nbsp;↳ Result: <pre style='display:inline; background:none;'>#{resultJson}</pre>"
     when 'oracle_revelation'
       if data.content
-        log 'ai', replaceFileTags data.content
+        log 'ai', uuid, replaceFileTags data.content
       else
-        log 'status', "💭 AI responding... <small>#{timestamp || ''}</small>"
+        log 'status', uuid, "💭 AI responding... <small>#{timestamp || ''}</small>"
     when 'oracle_conjuration_revelation'
-      log 'system', """
+      log 'system', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.content}
         </details>"""
     when 'oracle_conjuration'
-      log 'status', """
+      log 'status', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.content}
         </details>"""
     when 'plan_announced'
-      log 'status', "📋Plan: #{data.steps?.join ' → '} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "📋Plan: #{data.steps?.join ' → '} <small>#{timestamp || ''}</small>"
     when 'processing'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'completed'
-      log 'status', "#{data.summary || 'Completed'} <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "#{data.summary || 'Completed'} <small>#{timestamp || ''}</small>"
     when 'server_error'
-      log 'error', "#{data.error} <small>#{timestamp || ''}</small>"
+      log 'error', uuid, "#{data.error} <small>#{timestamp || ''}</small>"
     when 'system_message'
-      log 'system', "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'note_added'
-      log 'system', """
+      log 'system', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.content}
         </details>"""
     when 'note_updated'
-      log 'system', """
+      log 'system', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.content}
         </details>"""
     when 'notes_recalled'
-      log 'system', """
+      log 'system', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.notes}
         </details>"""
     when 'file_overview'
-      log 'system', """
+      log 'system', uuid, """
         <details>
           <summary>#{replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.content}
         </details>"""
-    when 'task_completed'
-      log 'system', "✅ Task completed: #{data.title} <small>#{timestamp || ''}</small>"
-      log 'system', renderTaskProgress data
     when 'aegis_unveiled'
-      log 'system', """
+      log 'system', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{replaceFileTags data.content}
         </details>"""
+    when 'task_started'
+      log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', data.task_id, renderTaskProgress data
+    when 'task_completed'
+      log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', data.task_id, renderTaskProgress data
+    when 'task_created'
+      log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', data.task_id, renderTaskProgress data
+    when 'task_updated'
+      log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', data.task_id, renderTaskProgress data
+    when 'task_list'
+      log 'system', uuid, """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <div class="task-list">#{replaceFileTags data.content}</div>
+        </details>"""
       
 
 handleMessage = (e) ->
-  console.log "handleMessage", e.data
+  console.debug "[Pythia] Handling message:", e.data
+  data = JSON.parse e.data
   
   data = JSON.parse e.data
 
   switch data.method
     when 'status'
-      showStatus data.result.type, data.result.data
+      showStatus data.result.type, data.result.data, data.result.uuid
     when 'answer'
       isThinking = false
       do updateSendButton
       if data.result.logs?
         data.result.logs.forEach (l) ->
           switch l.type
-            when 'prelude' then log 'ai', l.data s
-            when 'say'     then log 'ai', l.data.message      
+            when 'prelude' then log 'ai', null, l.data s
+            when 'say'     then log 'ai', null, l.data.message      
       # if data.result.tools? and data.result.tools.length > 0
       #   toolsJson = JSON.stringify(data.result.tools, null, 2)
       #   if toolsJson.length > 300
-      #     log 'system', "<details><summary>🔧 Tools (#{toolsJson.length} chars)</summary><pre>#{toolsJson}</pre></details>"
+      #     log 'system', uuid, "<details><summary>🔧 Tools (#{toolsJson.length} chars)</summary><pre>#{toolsJson}</pre></details>"
       #   else
-      #     log 'system', "<pre>#{toolsJson}</pre>"
+      #     log 'system', uuid, "<pre>#{toolsJson}</pre>"
       #   renderTools data.result.tools
     when 'toolResult'
       resultJson = JSON.stringify data.result, null, 2
       if resultJson.length > 300
-        log 'system', "<details><summary>🔧 Tool Result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
+        log 'system', null, "<details><summary>🔧 Tool Result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
       else
-        log 'system', "<pre>#{resultJson}</pre>"    
+        log 'system', null, "<pre>#{resultJson}</pre>"    
     when 'completion'
-      log 'ai', "<pre>#{data.result.snippet}</pre>"
+      log 'ai', null, "<pre>#{data.result.snippet}</pre>"
     when 'error'
-      log 'error', "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
+      log 'error', null, "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
     when 'fileContent'
-      log 'system', """
+      log 'system', null, """
         <details>
           <summary>📄 File Content</summary>
           <pre>#{data.result}</pre>
@@ -360,7 +399,7 @@ handleMessage = (e) ->
     when 'attach'
       renderAttachmentPreview(data.result.data)
     else
-      log 'system', "<pre>#{JSON.stringify data, null, 2}</pre>"
+      log 'system', null, "<pre>#{JSON.stringify data, null, 2}</pre>"
       
       
       
@@ -436,17 +475,17 @@ askAI = ->
   { file, selection } = attachment_context || {}
   ws.send JSON.stringify method: 'askAI', params: { 
     prompt: text, record: true, file, selection }
-  log 'user', escapeHtml text
+  log 'user', null, escapeHtml text
   document.getElementById('chat-input').value = ''
   isThinking = true
   do updateSendButton
-  
-  
+
+
 stopThinking = ->
   ws.send JSON.stringify method: 'stopThinking'
   isThinking = false
   do updateSendButton
-  
+
 
 updateSendButton = ->
   if isThinking
@@ -455,16 +494,16 @@ updateSendButton = ->
   else
     sendBtnGlyph.textContent = '⚡'
     sendBtn.classList.remove 'thinking'
-    
-    
+
+
 replaceFileTags = (content) ->
   match_file = RegExp "<file(?: path=\"([^\"]+)\")?(?: line=\"([^\"]+)\")?" +
               "(?: column=\"([^\"]+)\")?>([^<]+)<\\/file>", 'g'
   match_file_html = 
-    RegExp "\&lt;file(?: path=\&quot;((?!.*\&quot;).*)\&quot;)?" +
-           "(?: line=\&quot;((?!.*\&quot;).*)\&quot;)?" +
-           "(?: column=\&quot;((?!.*\&quot;).*)\&quot;)?\&gt;" +
-           "(.*(?<!\&lt;))\&lt;\\/file\&gt;", 'g'
+    RegExp "\&lt;file(?: path=\&quot;((?!.*?\&quot;).*?)\&quot;)?" +
+           "(?: line=\&quot;((?!.*?\&quot;).*?)\&quot;)?" +
+           "(?: column=\&quot;((?!.*?\&quot;).*?)\&quot;)?\&gt;" +
+           "(.*?(?<!\&lt;))\&lt;\\/file\&gt;", 'g'
            
   replace_matches = (match, path, line, column, displayName) ->
     path ||= displayName
@@ -523,7 +562,3 @@ history.pushState null, null, location.href
 
 window.onpopstate = ->
   history.go 1
-
-
-
-

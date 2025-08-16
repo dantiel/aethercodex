@@ -39,3 +39,6 @@ gem "htmldiff", git: "https://github.com/myobie/htmldiff.git"
 gem "dotenv", "~> 3.1"
 
 gem "dotenvx", "~> 0.0.2"
+
+
+gem "concurrent-ruby", "~> 1.3"

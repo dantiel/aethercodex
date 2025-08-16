@@ -2,6 +2,8 @@
 
 # Support/task_engine.rb
 require 'timeout'
+require 'json'
+require_relative 'horologium_aeternum'
 
 
 # The TaskEngine orchestrates hermetic workflows, weaving:
@@ -10,6 +12,7 @@ require 'timeout'
 # - **Dynamic State Transitions**: Task states mirroring alchemical phases (nigredo, albedo, rubedo).
 # - **Oracle Integration**: Conjuring responses via `aetherflux` for step execution.
 class TaskEngine
+  puts '[DEBUG] TaskEngine module loaded (FIXED)'
   STATES = %i[pending active paused failed completed invalid cancelled].freeze
   WORKFLOW_STEPS = 10
 
@@ -75,7 +78,15 @@ class TaskEngine
 
 
   def generate_solution_options(task_id); end
-  def evaluate_alternatives(task_id); end
+
+
+  def evaluate_task(task_id)
+    puts "[DEBUG] Evaluating task ID: #{task_id}"
+    puts "[DEBUG] Updating task ID: #{task_id} with new plan"
+    puts "[DEBUG] Executing task ID: #{task_id}"
+  end
+
+
   def choose_best_option(task_id); end
   def analyze_files(task_id); end
   def apply_patches(task_id); end
@@ -120,7 +131,9 @@ class TaskEngine
 
   # Executes a task, supporting recursive sub-tasks
   def execute_task(task_id, max_loops: 10)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    puts "[DEBUG] Starting execution of task #{task_id} (max_loops=#{max_loops})"
+    task = @mnemosyne.get_task task_id
+    puts "[DEBUG] Task status: #{task[:status]}"
 
     unless task && 'pending' == task[:status]
       if task && !%w[pending active].include?(task[:status])
@@ -150,6 +163,7 @@ class TaskEngine
         end
 
         update_progress task_id, step + 1
+        @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'progress' => step + 1 })
       end
 
       # Execute sub-tasks recursively, respecting max_loops
@@ -177,37 +191,45 @@ class TaskEngine
   private
 
 
-  # Removed hardcoded oracle_conjuration stub
-
-
   # Execute a workflow step, invoking the oracle for hermetic guidance.
   #
   # @param [Integer] task_id The task's alchemical identifier.
   # @param [Integer] step_index The phase of the magnum opus (1..10).
   # @raise [RuntimeError] If the oracle's response is invalid or times out.
   def execute_step(task_id, step_index)
+    puts "[DEBUG] Executing step #{step_index} for task #{task_id}"
     task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    puts "[DEBUG] Task description: #{task[:description]}"
     prompt = "Execute step #{step_index} for task #{task_id}: #{task[:description]}"
 
     begin
-      response = @aetherflux.channel_oracle_conjuration prompt: prompt
+      # Step-specific context for hermetic execution
+      context = {
+        step: step_index,
+        purpose: STEP_PURPOSES[step_index - 1],
+        task_id: task_id
+      }
 
+      response = @aetherflux.channel_oracle_conjuration({ prompt: prompt, context: context })
+      log_message task_id, "TASK CONJURATION RESPONSE=#{response.inspect}"
+      
       case response[:status]
       when :failure
-        raise response[:response].to_s # Raise just the response message
+        raise response[:response].to_s
       when :timeout
         raise Timeout::Error, 'Step timed out'
       when :success
         log_message(task_id, "Step #{step_index} completed: #{response[:response]}")
+        update_progress(task_id, step_index)
       else
         raise "Unknown status: #{response[:status]}"
       end
     rescue StandardError => e
       log_message task_id, "Step #{step_index} failed: #{e.message}"
-      raise # Propagate the error up
+      update_state(task_id, :failed)
+      raise
     end
 
-    # Only log step purpose - actual implementation handled by conjuration
     log_message task_id, "Executing step #{step_index}: #{STEP_PURPOSES[step_index - 1]}"
   end
 
@@ -227,12 +249,22 @@ class TaskEngine
 
 
   def broadcast_update(task_id)
-    # Send update to Pythia UI via WebSocket
+    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    return unless task
+
+    HorologiumAeternum.task_updated(
+      task_id,
+      title: task[:description],
+      progress: task[:progress] || 0,
+      max_steps: WORKFLOW_STEPS
+    )
   end
 
 
   def halted?(task_id)
+    puts "[DEBUG] Checking halt status for task #{task_id}"
     task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    puts "[DEBUG] Current task status: #{task[:status]}"
     return false unless task
 
     case task[:status]
