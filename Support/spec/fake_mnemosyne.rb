@@ -63,9 +63,12 @@ class FakeMnemosyne
         'status' => 'pending',
         'progress' => 0,
         'max_loops' => params['max_loops'] || 10,
-        'parent_task_id' => params['parent_task_id']
+        'parent_task_id' => params['parent_task_id'],
+        'title' => params['title'],
+        'plan' => params['plan'],
+        'max_steps' => params['max_steps']
       }
-      { 'id' => task_id }
+      { 'ok' => true, 'id' => task_id }
     else
       []
     end
@@ -82,9 +85,19 @@ class FakeMnemosyne
   def max_loops(task_id)
     @tasks[task_id]['max_loops'] || 10
   end
+  
+  def get_task(task_id)
+    task = @tasks[task_id]
+    return nil unless task
+    
+    # Convert to symbol keys for consistent access
+    task.transform_keys(&:to_sym)
+  end
 
   def recall_notes(query, limit: 10)
-    []
+    [
+      { id: 1, content: "Test note for #{query}", tags: ["test"], links: [], created_at: Time.now }
+    ].first(limit)
   end
 
   def remember(content, tags: nil, links: nil, meta: nil)

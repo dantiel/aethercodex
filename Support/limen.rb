@@ -143,7 +143,7 @@ def startThinkingThread(ws, req)
   @ask_thread = Thread.new do
     warn "[WS] message: #{req['params'].inspect}"
 
-    res = Aetherflux.channel_oracle_divination req['params'], ws
+    res = Aetherflux.channel_oracle_divination req['params'].transform_keys!(&:to_sym), ws
     raise res[:error] if 'error' == res[:result]
 
     warn "[WS][DEBUG] #{res.inspect}"

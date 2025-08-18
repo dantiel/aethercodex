@@ -173,7 +173,7 @@ INSTRUMENTA = [
           links:   { type: 'array', items: { type: 'string' } },
           tags: { type: 'array', items: { type: 'string' } }
         },
-        required: ['key','body']
+        required: ['content']
       }
     }
   },

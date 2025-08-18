@@ -282,8 +282,8 @@ module PrimaMateria
 
     def oracle_conjuration(prompt:, context: nil)
       params = {
-        'prompt'  => prompt,
-        'context' => context
+        prompt:  prompt,
+        context: context
       }
       HorologiumAeternum.oracle_conjuration prompt
 
@@ -323,7 +323,9 @@ module PrimaMateria
 
 
     def create_task(title:, plan:, max_steps:)
-      result = Mnemosyne.create_task(title:, plan:, max_steps:)
+      engine = TaskEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
+
+      result = engine.create_task(title:, plan:, max_steps:)
 
       uuid = HorologiumAeternum.task_created title, plan, max_steps, result[:id]
 
@@ -353,10 +355,11 @@ module PrimaMateria
     end
 
 
-    def update_task(task_id:, plan:, title:, progress:)
-      task = Mnemosyne.update_task(task_id, plan:, title:, progress:)
+    def update_task(task_id:, new_plan:, title: nil, progress: nil)
+      task = Mnemosyne.update_task(task_id, plan: new_plan, title:, progress:)
       uuid = HorologiumAeternum.task_updated(task_id,
-                                             title: title || task[:title], plan: plan || task[:plan],
+                                             title: title || task[:title],
+                                             plan: new_plan || task[:plan],
                                              progress:, max_steps: task[:max_steps])
       { ok: true }
     rescue StandardError => e
@@ -368,6 +371,8 @@ module PrimaMateria
     def evaluate_task(task_id:)
       task = Mnemosyne.get_task task_id
       raise 'Task not found' unless task
+
+      task[:progress] ||= 0
 
       result = if task[:progress] >= task[:max_steps]
                  { status: :completed, result: 'Task successfully executed' }

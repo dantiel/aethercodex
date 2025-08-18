@@ -116,8 +116,8 @@ module HorologiumAeternum
     # TODO: add linenumbers
     if range
       send_status('file_read_complete', {
-                    message: Scriptorium.html("✅📖 Read #{display_bytes bytes_read} from #{create_file_link path,
-                                                                                                             nil, range[0]}"),
+                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from #{create_file_link path,
+                                                                                                              nil, range[0]}"),
                     path:    path,
                     bytes:   bytes_read,
                     range:   range,
@@ -125,7 +125,7 @@ module HorologiumAeternum
                   }, uuid:)
     else
       send_status('file_read_complete', {
-                    message: Scriptorium.html("✅📖 Read #{display_bytes bytes_read} from #{create_file_link path}"),
+                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from #{create_file_link path}"),
                     path:    path,
                     bytes:   bytes_read,
                     content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
@@ -156,7 +156,7 @@ module HorologiumAeternum
   def self.file_created(path, bytes, content = '', uuid: nil)
     type = Scriptorium.language_tag_from_path path
     send_status('file_created', {
-                  message: Scriptorium.html("✅✏️ Created #{create_file_link path} (#{display_bytes bytes} written)"),
+                  message: Scriptorium.html("✅ ✏️ Created #{create_file_link path} (#{display_bytes bytes} written)"),
                   path:    path,
                   bytes:   bytes,
                   content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
@@ -178,7 +178,7 @@ module HorologiumAeternum
     html_diff_content = Scriptorium.hunk_based_character_diff old_content, new_content, path
 
     send_status('file_patched', {
-                  message:    Scriptorium.html("✅🔧 Patch applied to #{create_file_link path}"),
+                  message:    Scriptorium.html("✅ 🔧 Patch applied to #{create_file_link path}"),
                   path:       path,
                   diff:       "<pre class=\"diff\"><code>#{html_diff_content}</code></pre>",
                   expandable: true
@@ -215,7 +215,7 @@ module HorologiumAeternum
 
 
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
-    symbol = if exit_status.zero? then '✅⚡' else '❌⚡' end
+    symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
     send_status('command_completed', {
                   message:       Scriptorium.html("#{symbol} Command complete: `#{cmd}` (#{output_length} chars output)"),
                   command:       cmd,
@@ -224,8 +224,8 @@ module HorologiumAeternum
                 }, uuid:)
   end
 
-  # Task lifecycle events
 
+  # Task lifecycle events
   def self.task_created(title, plan, max_steps, task_id, uuid: nil)
     send_status('task_created', {
                   message:   Scriptorium.html("📋 Task created: #{title} (max steps: #{max_steps})"),
@@ -294,7 +294,7 @@ module HorologiumAeternum
 
   def self.file_renamed(from, to, uuid: nil)
     send_status('file_renamed', {
-                  message: Scriptorium.html("✅📝 Renamed #{create_file_link from} → #{create_file_link to}"),
+                  message: Scriptorium.html("✅ 📝 Renamed #{create_file_link from} → #{create_file_link to}"),
                   from:    from,
                   to:      to
                 }, uuid:)
@@ -312,7 +312,7 @@ module HorologiumAeternum
 
   def self.memory_stored(key, uuid: nil)
     send_status('memory_stored', {
-                  message: Scriptorium.html("✅🧠 Memory stored: `#{key}`"),
+                  message: Scriptorium.html("✅ 🧠 Memory stored: `#{key}`"),
                   key:     key
                 }, uuid:)
   end
@@ -339,7 +339,7 @@ module HorologiumAeternum
 
   def self.memory_found(query, count, notes, uuid: nil)
     send_status('memory_found', {
-                  message: Scriptorium.html("✅🔍 Found **#{count}** memories for: *\"#{query}\"*"),
+                  message: Scriptorium.html("✅ 🔍 Found **#{count}** memories for: *\"#{query}\"*"),
                   query:   query,
                   count:   count,
                   content: notes

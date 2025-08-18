@@ -2,6 +2,7 @@
 
 projectDirectory      = "$CWD"
 # windowTitle         = "$TM_DISPLAYNAME — ${CWD/^.*\///}"
+spellingLanguage = "en_GB"
 
 
 # Includes

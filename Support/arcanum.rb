@@ -16,6 +16,7 @@ require_relative 'argonaut'
 
 
 
+
 # The Arcanum module orchestrates symbolic computation for the oracle, weaving together:
 # - **Contextual Threads**: Dynamic binding of files, selections, and Aegis states.
 # - **Token Alchemy**: Encoding/decoding with Tiktoken for precise LLM interactions.
@@ -33,9 +34,9 @@ module Arcanum
 
   class << self
     def build(params)
-      inject_tm_env params['tm_env'] if params['tm_env']
+      inject_tm_env params[:tm_env] if params[:tm_env]
 
-      file, selection = params.values_at 'file', 'selection'
+      file, selection = params.values_at :file, :selection
       project_files = Argonaut.list_project_files
       history = fetch_and_format_history
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
@@ -48,9 +49,7 @@ module Arcanum
     end
 
 
-
     private
-
 
 
     def inject_tm_env(tm_env)
@@ -58,10 +57,13 @@ module Arcanum
     end
 
 
-    def fetch_and_format_history
-      Mnemosyne.fetch_history(limit: 7, max_tokens: MAX_HISTORY_TOKENS)
-               .flat_map(&method(:format_history_entry))
+    def fetch_and_format_history(task_history: nil)
+      history = task_history || Mnemosyne.fetch_history(limit: 7, max_tokens: 2200)
+      history.map { |entry| format_history_entry(entry) }
     end
+
+
+    private
 
 
     def format_history_entry(entry)

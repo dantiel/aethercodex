@@ -12,10 +12,13 @@ require_relative 'horologium_aeternum'
 # - **Dynamic State Transitions**: Task states mirroring alchemical phases (nigredo, albedo, rubedo).
 # - **Oracle Integration**: Conjuring responses via `aetherflux` for step execution.
 class TaskEngine
+  class TaskStateError < StandardError; end
+  class TaskCancelledError < StandardError; end
+  class TaskCreationError < StandardError; end
+
   puts '[DEBUG] TaskEngine module loaded (FIXED)'
   STATES = %i[pending active paused failed completed invalid cancelled].freeze
   WORKFLOW_STEPS = 10
-
   # Step purposes for logging, aligned with hermetic principles
   STEP_PURPOSES = [
     'Nigredo: Understanding the prima materia (business need)',
@@ -81,6 +84,8 @@ class TaskEngine
 
 
   def evaluate_task(task_id)
+    task = @mnemosyne.get_task task_id
+    task[:progress] ||= 0
     puts "[DEBUG] Evaluating task ID: #{task_id}"
     puts "[DEBUG] Updating task ID: #{task_id} with new plan"
     puts "[DEBUG] Executing task ID: #{task_id}"
@@ -112,40 +117,50 @@ class TaskEngine
 
 
   # Creates a new task with optional sub-tasks
-  def create_task(prompt, parent_task_id: nil)
+  def create_task(title:, plan:, max_steps:, parent_task_id: nil)
     response = @mnemosyne.manage_tasks({
                                          'action'         => 'create',
-                                         'description'    => prompt,
-                                         'parent_task_id' => parent_task_id
+                                         'title'          => title,
+                                         'plan'           => plan,
+                                         'parent_task_id' => parent_task_id,
+                                         'status'         => 'pending',
+                                         'max_steps'      => max_steps
                                        })
 
     unless response && response['ok']
       error_msg = "Task creation failed: #{response['error'] || 'Unknown error'}"
       log_message nil, error_msg
-      raise error_msg.to_s
+      raise TaskCreationError, error_msg
     end
 
-    response['id']
+    { id: response['id'] }
   end
 
 
   # Executes a task, supporting recursive sub-tasks
   def execute_task(task_id, max_loops: 10)
-    puts "[DEBUG] Starting execution of task #{task_id} (max_loops=#{max_loops})"
     task = @mnemosyne.get_task task_id
-    puts "[DEBUG] Task status: #{task[:status]}"
 
-    unless task && 'pending' == task[:status]
-      if task && !%w[pending active].include?(task[:status])
-        if 'cancelled' == task[:status]
-          log_message task_id, 'Task was cancelled'
-          raise 'Task cancelled'
-        else
-          log_message task_id, "Invalid state: #{task[:status]}"
-          raise "Invalid state: #{task[:status]}"
-        end
+    raise TaskStateError, "Task not found: #{task_id}" unless task
+
+    log_message task_id, "Starting execution of task #{task_id} (max_loops=#{max_loops})"
+    log_message task_id, "Task status: #{task[:status]}"
+
+    unless %w[pending active].include? task[:status]
+      case task[:status]
+      when 'cancelled'
+        log_message task_id, 'Task was cancelled'
+        update_state task_id, :cancelled
+        raise TaskCancelledError, 'Task cancelled'
+      when 'paused', 'failed'
+        log_message task_id, "Task is #{task[:status]}"
+        update_state task_id, task[:status].to_sym
+        raise TaskStateError, "Task is #{task[:status]}"
+      else
+        log_message task_id, "Invalid state: #{task[:status]}"
+        update_state task_id, :failed
+        raise TaskStateError, "Invalid state: #{task[:status]}"
       end
-      return
     end
 
     update_state task_id, :active
@@ -154,23 +169,25 @@ class TaskEngine
       WORKFLOW_STEPS.times do |step|
         break if halted? task_id
 
+
         begin
-          Timeout.timeout(30) { execute_step task_id, step + 1 }
-        rescue Timeout::Error => e
+          execute_step task_id, step + 1
+        rescue StandardError => e
           update_state task_id, :failed
           log_message task_id, "Timeout in step #{step + 1}: #{e.message}"
-          raise
+          raise Timeout::Error, "Timeout in step #{step + 1}"
         end
+
 
         update_progress task_id, step + 1
         @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'progress' => step + 1 })
       end
 
       # Execute sub-tasks recursively, respecting max_loops
-      if max_loops.positive?
-        @mnemosyne.manage_tasks({ 'action'         => 'list',
-                                  'parent_task_id' => task_id }).each do |sub_task|
-          next if halted?(sub_task[:id]) || 0 >= max_loops
+      if 1 < max_loops
+        sub_tasks = @mnemosyne.manage_tasks({ 'action' => 'list', 'parent_task_id' => task_id })
+        sub_tasks.each do |sub_task|
+          next if halted?(sub_task[:id]) || 1 >= max_loops
 
           execute_task sub_task[:id], max_loops: max_loops - 1
         end
@@ -198,35 +215,42 @@ class TaskEngine
   # @raise [RuntimeError] If the oracle's response is invalid or times out.
   def execute_step(task_id, step_index)
     puts "[DEBUG] Executing step #{step_index} for task #{task_id}"
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    task = @mnemosyne.get_task task_id
     puts "[DEBUG] Task description: #{task[:description]}"
     prompt = "Execute step #{step_index} for task #{task_id}: #{task[:description]}"
 
     begin
       # Step-specific context for hermetic execution
       context = {
-        step: step_index,
+        step:    step_index,
         purpose: STEP_PURPOSES[step_index - 1],
         task_id: task_id
       }
 
-      response = @aetherflux.channel_oracle_conjuration({ prompt: prompt, context: context })
+      response = @aetherflux.channel_oracle_conjuration({ prompt: }, context: {})
       log_message task_id, "TASK CONJURATION RESPONSE=#{response.inspect}"
-      
+
       case response[:status]
       when :failure
-        raise response[:response].to_s
+        update_state task_id, :failed
+        raise TaskStateError, response[:response].to_s
       when :timeout
+        update_state task_id, :failed
         raise Timeout::Error, 'Step timed out'
       when :success
-        log_message(task_id, "Step #{step_index} completed: #{response[:response]}")
-        update_progress(task_id, step_index)
+        log_message task_id, "Step #{step_index} completed: #{response[:response]}"
+        update_progress task_id, step_index
       else
-        raise "Unknown status: #{response[:status]}"
+        update_state task_id, :failed
+        raise TaskStateError, "Unknown status: #{response[:status]}"
       end
+    rescue Timeout::Error => e
+      log_message task_id, "Step #{step_index} timed out: #{e.message}"
+      update_state task_id, :failed
+      raise
     rescue StandardError => e
       log_message task_id, "Step #{step_index} failed: #{e.message}"
-      update_state(task_id, :failed)
+      update_state task_id, :failed
       raise
     end
 
@@ -237,6 +261,7 @@ class TaskEngine
   def log_message(task_id, message)
     @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'log' => message })
     broadcast_update task_id
+    puts "[DEBUG] #{message}" # Add debug output for test visibility
   end
 
 
@@ -274,8 +299,14 @@ class TaskEngine
     when 'cancelled'
       log_message task_id, 'Task was cancelled'
       raise 'Task cancelled'
+    when 'failed'
+      log_message task_id, 'Task failed'
+      raise 'Invalid state: failed'
+    when 'paused'
+      log_message task_id, 'Task paused'
+      raise 'Invalid state: paused'
     else
-      %w[paused failed].include? task[:status]
+      false
     end
   end
 
