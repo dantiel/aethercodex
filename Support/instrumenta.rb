@@ -24,10 +24,11 @@ INSTRUMENTA = [
     function: {
       name:        'oracle_conjuration',
       description: <<~DESCRIPTION,
-        Invoke the reasoning model to generate responses based on a prompt and filtered tools. Make
-        sure to provide a meaningful and profound prompt as invocation to the high oracle and give a
-        rich context as sacred offerings like files and other tools output, however the oracle may
-        call tools on its own, too.
+        Invoke the reasoning model to generate responses and actions based on advanced reasoning. 
+        Make sure to provide a meaningful and profound prompt as invocation to the high oracle and 
+        give a rich context as sacred offerings like files and other tools output, this higher
+        oracle will call tools on its own, too. Whenever a task is difficult or you're asked to 
+        reason or meditate or something similar, use this function to have a higher intelligence.
       DESCRIPTION
       parameters:  {
         type:       'object',

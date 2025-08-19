@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-
+require_relative 'arcanum'
+require_relative 'oracle'
 
 # Real-time streaming handler for WebSocket responses
 # This ensures status updates appear immediately during AI tool execution

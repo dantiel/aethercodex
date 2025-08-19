@@ -309,6 +309,7 @@ reasoning: reasoning
     rescue Faraday::ConnectionFailed => e
       raise "Connection Failed: #{e.wrapped_exception}"
     rescue Faraday::UnprocessableEntityError => e
+      puts "[POST][ERROR]: #{e.inspect}"
       raise "Unprocessable Entity Error: #{e.wrapped_exception}"
     #    { type: 'Unprocessable Entity Error', error: e.response && e.response[:body] }
     rescue Faraday::Error => e
