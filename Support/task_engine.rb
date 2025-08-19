@@ -6,12 +6,14 @@ require 'json'
 require_relative 'horologium_aeternum'
 
 
+
 # The TaskEngine orchestrates hermetic workflows, weaving:
 # - **Alchemical Steps**: 10-stage transmutation of tasks (as above, so below).
 # - **Recursive Sub-Tasks**: Nested operations respecting `max_loops` like fractal iterations.
 # - **Dynamic State Transitions**: Task states mirroring alchemical phases (nigredo, albedo, rubedo).
 # - **Oracle Integration**: Conjuring responses via `aetherflux` for step execution.
 class TaskEngine
+  # Patched to include dynamic task tools
   class TaskStateError < StandardError; end
   class TaskCancelledError < StandardError; end
   class TaskCreationError < StandardError; end
@@ -118,14 +120,12 @@ class TaskEngine
 
   # Creates a new task with optional sub-tasks
   def create_task(title:, plan:, max_steps:, parent_task_id: nil)
-    response = @mnemosyne.manage_tasks({
-                                         'action'         => 'create',
+    response = @mnemosyne.manage_tasks({ 'action'         => 'create',
                                          'title'          => title,
                                          'plan'           => plan,
                                          'parent_task_id' => parent_task_id,
                                          'status'         => 'pending',
-                                         'max_steps'      => max_steps
-                                       })
+                                         'max_steps'      => max_steps })
 
     unless response && response['ok']
       error_msg = "Task creation failed: #{response['error'] || 'Unknown error'}"
@@ -227,7 +227,14 @@ class TaskEngine
         task_id: task_id
       }
 
-      response = @aetherflux.channel_oracle_conjuration({ prompt: }, context: {})
+      response = @aetherflux.channel_oracle_conjuration(
+        prompt: "Execute task step #{step_index}",
+        context: { task_id: task_id, step_index: step_index },
+        tools: {
+          reject_step:   ->(reason) { { status: :failed, reason: reason } },
+          complete_step: ->(result) { { status: :completed, result: result } }
+        }
+      )
       log_message task_id, "TASK CONJURATION RESPONSE=#{response.inspect}"
 
       case response[:status]

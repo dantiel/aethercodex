@@ -13,10 +13,20 @@ require 'open3'
 require 'cgi'
 require 'dotenv'
 require 'securerandom'
+require_relative 'instrumenta'
 
 
 
 module PrimaMateria
+  def self.reject_step(reason, task_id = nil)
+    task_id ||= current_execution_context.task_id
+    { status: :failed, reason: reason, task_id: task_id }
+  end
+
+  def self.complete_step(result, task_id = nil)
+    task_id ||= current_execution_context.task_id
+    { status: :completed, result: result, task_id: task_id }
+  end
   ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/,
                   /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/,
                   /^bundle exec irb\b/, /^ruby\b/, /^irb\b/, /^cd\b/, /^curl\b/, /^ag\b/].freeze
@@ -24,24 +34,26 @@ module PrimaMateria
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
   SCHEMA = {
-    'create_file'        => { req: %i[path content],         forbid: %i[diff] },
-    'patch_file'         => { req: %i[path diff],            forbid: %i[content] },
-    'read_file'          => { req: %i[path],                 forbid: [] },
-    'rename_file'        => { req: %i[from to],              forbid: [] },
-    'run_command'        => { req: %i[cmd],                  forbid: [] },
-    'tell_user'          => { req: %i[message],              forbid: [] },
-    'recall_history'     => { req: %i[],                     forbid: [] },
-    'remember'           => { req: %i[content],              forbid: [] },
-    'recall_notes'       => { req: %i[],                     forbid: [] },
-    'remove_note'        => { req: %i[id],                   forbid: [] },
-    'file_overview'      => { req: %i[path],                 forbid: [] },
-    'oracle_conjuration' => { req: %i[prompt],               forbid: %i[recursive] },
-    'aegis'              => { req: %i[],                     forbid: %i[] },
-    'create_task'        => { req: %i[plan max_steps title], forbid: [] },
-    'execute_task'       => { req: %i[task_id],              forbid: [] },
-    'update_task'        => { req: %i[task_id new_plan],     forbid: [] },
-    'evaluate_task'      => { req: %i[task_id],              forbid: [] },
-    'list_tasks'         => { req: %i[],                     forbid: [] }
+    'create_file'        => { req: %i[path content],          forbid: %i[diff] },
+    'patch_file'         => { req: %i[path diff],             forbid: %i[content] },
+    'read_file'          => { req: %i[path],                  forbid: [] },
+    'rename_file'        => { req: %i[from to],               forbid: [] },
+    'run_command'        => { req: %i[cmd],                   forbid: [] },
+    'tell_user'          => { req: %i[message],               forbid: [] },
+    'recall_history'     => { req: %i[],                      forbid: [] },
+    'remember'           => { req: %i[content],               forbid: [] },
+    'recall_notes'       => { req: %i[],                      forbid: [] },
+    'remove_note'        => { req: %i[id],                    forbid: [] },
+    'file_overview'      => { req: %i[path],                  forbid: [] },
+    'oracle_conjuration' => { req: %i[prompt],                forbid: %i[recursive] },
+    'aegis'              => { req: %i[],                      forbid: %i[] },
+    'create_task'        => { req: %i[plan max_steps title],  forbid: [] },
+    'execute_task'       => { req: %i[task_id],               forbid: [] },
+    'update_task'        => { req: %i[task_id new_plan],      forbid: [] },
+    'evaluate_task'      => { req: %i[task_id],               forbid: [] },
+    'list_tasks'         => { req: %i[],                      forbid: [] },
+    'reject_step'        => { req: %i[reiterate_step reason], forbid: [] },
+    'complete_step'      => { req: %i[evaluation_notes],      forbid: [] }
   }.freeze
   TOOL_ALIASES = {
     'readfile'          => 'read_file',
@@ -50,7 +62,9 @@ module PrimaMateria
     'runcommand'        => 'run_command',
     'renamefile'        => 'rename_file',
     'telluser'          => 'tell_user',
-    'oracleconjuration' => 'oracle_conjuration'
+    'oracleconjuration' => 'oracle_conjuration',
+    'rejectstep'        => 'reject_step',
+    'completestep'      => 'complete_step'
   }.freeze
 
 
@@ -287,7 +301,9 @@ module PrimaMateria
       }
       HorologiumAeternum.oracle_conjuration prompt
 
-      result = Aetherflux.channel_oracle_conjuration params
+      result = Aetherflux.channel_oracle_conjuration params, tools: INSTRUMENTA.reject do |tool|
+        'oracle_conjuration' == tool[:name]
+      end
 
       raise result[:error] if result[:error]
 
@@ -296,12 +312,10 @@ module PrimaMateria
         content = result[:result][:answer]
 
         unless reasoning.to_s.empty?
-          HorologiumAeternum.oracle_conjuration_revelation 'Oracle Reasoning',
-                                                           reasoning
+          HorologiumAeternum.oracle_conjuration_revelation 'Oracle Reasoning', reasoning
         end
         unless content.to_s.empty?
-          HorologiumAeternum.oracle_conjuration_revelation 'Oracle Answer',
-                                                           content
+          HorologiumAeternum.oracle_conjuration_revelation 'Oracle Answer', content
         end
       end
 

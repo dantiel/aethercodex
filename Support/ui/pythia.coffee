@@ -12,7 +12,7 @@ attachment_context = null
 # Throttled logging for handleMessage
 lastLogTime = 0
 messageBuffer = []
-MESSAGE_THROTTLE_TIME = 1700
+MESSAGE_THROTTLE_TIME = 1300
 
 
 connectWebSocket = (uuid) ->

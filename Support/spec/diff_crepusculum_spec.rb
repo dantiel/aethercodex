@@ -36,22 +36,22 @@ RSpec.describe DiffCrepusculum::ChrysopoeiaDiff do
   describe "perform_fuzzy_search" do
     it "finds exact matches" do
       content = "def foo\n  bar\nend".split(/\r?\n/)
-      expect(strategy.perform_fuzzy_search(content, "bar", 1)[:success]).to eq(true)
+      expect(strategy.perform_fuzzy_search(content, ["bar"], 1)[:success]).to eq(true)
     end
 
     it "finds approximate matches" do
       content = "def foo\n  baz\nend".split(/\r?\n/)
-      expect(strategy.perform_fuzzy_search(content, "bar", 1)[:success]).to eq(true)
+      expect(strategy.perform_fuzzy_search(content, ["bar"], 1)[:success]).to eq(true)
     end
 
     it "ignores indentation for scoring" do
       content = "def foo\n    deeply_indented\nend".split(/\r?\n/)
-      expect(strategy.perform_fuzzy_search(content, "deeply_indented", 1)[:success]).to eq(true)
+      expect(strategy.perform_fuzzy_search(content, ["deeply_indented"], 1)[:success]).to eq(true)
     end
 
     it "handles low thresholds conservatively" do
       content = "def foo\n  barely_matching\nend\nend2\nend3\nend4".split(/\r?\n/)
-      expect(strategy.perform_fuzzy_search(content, "def foo\r\n  barely_matching", 1)[:success]).to eq(true)
+      expect(strategy.perform_fuzzy_search(content, "def foo\n  barely_matching".split(/\r?\n/), 1)[:success]).to eq(true)
     end
   end
   

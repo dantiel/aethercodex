@@ -25,6 +25,8 @@ require_relative 'verbum'
 require_relative 'prima_materia'
 require_relative 'scriptorium'
 require_relative 'aetherflux'
+require_relative 'instrumenta'
+
 
 
 CFG_PATH = File.expand_path '.aethercodex', __dir__
@@ -142,8 +144,8 @@ def startThinkingThread(ws, req)
 
   @ask_thread = Thread.new do
     warn "[WS] message: #{req['params'].inspect}"
-
-    res = Aetherflux.channel_oracle_divination req['params'].transform_keys!(&:to_sym), ws
+    
+    res = Aetherflux.channel_oracle_divination( req['params'].transform_keys!(&:to_sym), ws, tools: INSTRUMENTA)
     raise res[:error] if 'error' == res[:result]
 
     warn "[WS][DEBUG] #{res.inspect}"

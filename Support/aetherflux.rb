@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
+
+
 # Real-time streaming handler for WebSocket responses
 # This ensures status updates appear immediately during AI tool execution
 class Aetherflux
   class << self
-    def channel_oracle_divination(params, websocket)
+    def channel_oracle_divination(params, websocket, tools:)
       # Ensure HorologiumAeternum is connected to this WebSocket
       HorologiumAeternum.set_websocket websocket
 
@@ -17,7 +19,7 @@ class Aetherflux
       # Process with real-time streaming and restart handling
       begin
         answer, arts, tool_results =
-          Oracle.divination(params[:prompt], ctx, msg_uuid:) do |name, args|
+          Oracle.divination(params[:prompt], ctx, tools:, msg_uuid:) do |name, args|
             puts '[AETHER FLUX][CHANNEL ORACLE DIVINATION]: ' \
                  "TRY HANDLE TOOL=#{name}, ARGS=#{args.inspect}"
             result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
@@ -70,8 +72,8 @@ class Aetherflux
     end
 
 
-    def channel_oracle_conjuration(params, context: nil)
-      puts "[AETHER FLUX][ORACLE CONJURATION]: #{params.inspect}"
+    def channel_oracle_conjuration(params, tools:, context: nil)
+      puts "[AETHER FLUX][ORACLE CONJURATION]: #{params.inspect} tools=#{tools}"
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
 
       ctx = Arcanum.build params
@@ -79,7 +81,7 @@ class Aetherflux
       # Handle restarts during conjuration
       begin
         answer, arts, tool_results =
-          Oracle.conjuration(params[:prompt], ctx, msg_uuid:) do |name, args|
+          Oracle.conjuration(params[:prompt], ctx, tools:, msg_uuid:) do |name, args|
             puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION]: TRY HANDLE TOOL=#{name}"
             puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION]: ARGS=#{args.inspect}"
             result = PrimaMateria.handle({ 'tool' => name, 'args' => args })

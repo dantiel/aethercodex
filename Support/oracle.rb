@@ -6,7 +6,6 @@ require 'json'
 require 'time'
 require 'fileutils'
 require_relative 'mnemosyne'
-require_relative 'instrumenta'
 require_relative 'horologium_aeternum'
 require_relative 'scriptorium'
 
@@ -59,7 +58,7 @@ class Oracle
     end
 
 
-    def divination(prompt, ctx, max_depth: 50, reasoning: false, msg_uuid: nil, &exec)
+    def divination(prompt, ctx, tools:, max_depth: 50, reasoning: false, msg_uuid: nil, &exec)
       # Capture initial temperature for restart checks
       initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
 
@@ -85,7 +84,8 @@ class Oracle
           raise RestartException, 'Temperature change detected. Restarting oracle.'
         end
 
-        body = build_body_with_messages_and_tools msgs, want_json: false, reasoning: reasoning
+        body = build_body_with_messages_and_tools msgs, tools:, want_json: false,
+reasoning: reasoning
         raw = post body, if reasoning then 300 else 120 end
         raise raw[:error] unless raw.is_a? String || raw[:error].nil?
 
@@ -177,17 +177,25 @@ class Oracle
     rescue StandardError => e
       log_json(error: e.message || e, backtrace: e.backtrace, info: e.inspect)
       puts "[ORACLE][DIVINATION][ERROR]: #{e.inspect}"
-      HorologiumAeternum.server_error e.message, e.message
+      if e.message.is_a? String
+        HorologiumAeternum.server_error e.message
+      else
+        error_type = case e.message[:error][:type]
+                     when 'invalid_request_error' then 'Invalid Request'
+                     else 'Server Error' end
+        HorologiumAeternum.server_error error_type, e.message[:error][:message]
+      end
       [{ error: e.message || e }, { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
     end
 
 
-    def conjuration(prompt, context, msg_uuid:, &)
+    def conjuration(prompt, context, tools:, msg_uuid:, &)
       # Capture initial temperature for restart checks
       initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
 
       # Delegate tool calls to Oracle.reason with the provided block
-      answer, arts, tool_results = divination(prompt, context, reasoning: true, msg_uuid:, &)
+      answer, arts, tool_results = divination(prompt, context, tools:, reasoning: true, msg_uuid:,
+                                              &)
 
       # Return the structured output
       [answer, arts, tool_results]
@@ -224,19 +232,14 @@ class Oracle
     end
 
 
-    def build_body_with_messages_and_tools(messages, want_json: false, reasoning: false)
+    def build_body_with_messages_and_tools(messages, tools: [], want_json: false, reasoning: false)
       cfg = load_cfg
 
-      model, max_tokens, instrumenta =
+      model, max_tokens =
         if reasoning
-          filtered_instrumenta = INSTRUMENTA.reject do |tool|
-            'oracle_conjuration' == tool[:name]
-          end
-
-          [cfg['reasoning-model'] || 'deepseek-reasoner', 64_000,
-           filtered_instrumenta]
+          [cfg['reasoning-model'] || 'deepseek-reasoner', 64_000]
         else
-          [cfg['model'] || 'deepseek-chat', 8192, INSTRUMENTA]
+          [cfg['model'] || 'deepseek-chat', 8192]
         end
 
       temperature = Mnemosyne.aegis[:temperature] || 1.0
@@ -248,7 +251,7 @@ class Oracle
       # temperature = [temperature, 0, 1.7].sort[1]
       puts "USING TEMPERATURE=#{temperature}"
 
-      { model:, messages:, max_tokens:, tools: instrumenta, temperature: }
+      { model:, messages:, max_tokens:, tools:, temperature: }
     end
 
 
@@ -281,6 +284,7 @@ class Oracle
 
 
     def post(body, timeout = 120)
+      puts "POST body=#{body.inspect} timeout#{timeout}"
       cfg = load_cfg
 
       key = cfg['api-key'] || ENV.fetch('DEEPSEEK_API_KEY', nil)

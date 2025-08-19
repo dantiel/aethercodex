@@ -38,7 +38,7 @@ module Arcanum
 
       file, selection = params.values_at :file, :selection
       project_files = Argonaut.list_project_files
-      history = fetch_and_format_history
+      history = fetch_and_format_history task_history: params[:history]
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
 
       ctx = { history:       prepend_summaries(history),
@@ -58,12 +58,9 @@ module Arcanum
 
 
     def fetch_and_format_history(task_history: nil)
-      history = task_history || Mnemosyne.fetch_history(limit: 7, max_tokens: 2200)
-      history.map { |entry| format_history_entry(entry) }
+      (task_history || Mnemosyne.fetch_history(limit: 7, max_tokens: 2200))
+        .flat_map(&method(:format_history_entry))
     end
-
-
-    private
 
 
     def format_history_entry(entry)
