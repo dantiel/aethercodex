@@ -90,8 +90,6 @@ module PrimaMateria
     TOOLS.each do |name, tool|
       # Get the original schema entry for detailed descriptions and structure
       tool_name = name.to_s
-      puts name
-      puts tool_name
       original_schema = SCHEMA[tool_name] || SCHEMA[TOOL_ALIASES.key(tool_name)]
 
       schema_entry = {
@@ -170,11 +168,12 @@ module PrimaMateria
 
   register_tool :oracle_conjuration,
                 description: <<~DESC,
-                  Invoke the reasoning model to generate responses and actions based on advanced reasoning.
-                  Make sure to provide a meaningful and profound prompt as invocation to the high oracle and
-                  give a rich context as sacred offerings like files and other tools output, this higher
-                  oracle will call tools on its own, too. Whenever a task is difficult or you're asked to
-                  reason or meditate or something similar, use this function to have a higher intelligence.
+                  Invoke the reasoning model to generate responses and actions based on advanced
+                  reasoning. Make sure to provide a meaningful and profound prompt as invocation to
+                  the high oracle and give a rich context as sacred offerings like files and other
+                  tools output, this higher oracle will call tools on its own, too. Whenever a task
+                  is difficult or you're asked to reason or meditate or something similar, use this
+                  function to have a higher intelligence.
                 DESC
                 params: { prompt: { type:        String,
                                     required:    true,
@@ -212,9 +211,10 @@ module PrimaMateria
 
   register_tool :run_command,
                 description: <<~DESC,
-                  Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`, `git`, `ls`,
-                  `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`, `bundle exec irb`, `ruby`,
-                  `irb`, `cd`, `curl`, `ag`. Please suggest to add more cmds to this list if you like.
+                  Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`,
+                  `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`,
+                  `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`. Please suggest to add more
+                  cmds to this list if you like.
                 DESC
                 params: { cmd: { type: String, required: true } },
                 returns: { ok:          Boolean,
@@ -328,7 +328,7 @@ module PrimaMateria
   register_tool :file_overview,
                 description: <<~DESC,
                   Fetch all information associated with a file (e.eof_part1
-                  Fetch all information associated with a file (e.g., ai notes metadata and related#{' '}
+                  Fetch all information associated with a file (e.g., ai notes metadata and related
                   file metadata, size, number of line, last modified).
                 DESC
                 params: { path: { type: String, required: true } },
@@ -349,11 +349,12 @@ module PrimaMateria
 
   register_tool :remember,
                 description: <<~DESC,
-                  Store a note in Mnemosyne memory. To overwrite existing note use id, otherwise a#{' '}
-                  new note will be created. Remove redundant notes with remove_note. links is an array
-                  of linked paths, these are used by file_overview tool. These can be many or only one
-                  file, thus reflecting on multifile relations and significatives. When links are#{' '}
-                  empty or null the note will be stored in a global context and always be present.
+                  Store a note in Mnemosyne memory. To overwrite existing note use id, otherwise a
+                  new note will be created. Remove redundant notes with remove_note. links is an
+                  array of linked paths, these are used by file_overview tool. These can be many or
+                  only one file, thus reflecting on multifile relations and significatives. When
+                  links are empty or null the note will be stored in a global context and always be
+                  present.
                 DESC
                 params: { id:      { type: Integer, required: false },
                           content: { type: String, required: true },
@@ -388,30 +389,31 @@ module PrimaMateria
 
   register_tool :patch_file,
                 description: <<~DESC,
-                  Request to apply PRECISE, TARGETED modifications to an existing file by searching for
-                  specific sections of content and replacing them. This tool is for SURGICAL EDITS ONLY -
-                  specific changes to existing code.
+                  Request to apply PRECISE, TARGETED modifications to an existing file by searching
+                  for specific sections of content and replacing them. This tool is for SURGICAL EDITS
+                  ONLY - specific changes to existing code.
 
                   You can perform multiple distinct search and replace operations within a single
-                  `patch_file` call by providing multiple SEARCH/REPLACE blocks in the `diff` parameter.
-                  This is the preferred way to make several targeted changes efficiently.
+                  `patch_file` call by providing multiple SEARCH/REPLACE blocks in the `diff`
+                  parameter. This is the preferred way to make several targeted changes efficiently.
 
-                  The SEARCH section must exactly match existing content including whitespace and indentation.
+                  The SEARCH section must exactly match existing content including whitespace and
+                  indentation.
 
-                  If you're not confident in the exact content to search for, use the `read_file` tool first
-                  to get the exact content.
+                  If you're not confident in the exact content to search for, use the `read_file` tool
+                  first to get the exact content.
 
-                  When applying the diffs, be extra careful to remember to change any closing brackets or
-                  other syntax that may be affected by the diff farther down in the file.
+                  When applying the diffs, be extra careful to remember to change any closing brackets
+                  or other syntax that may be affected by the diff farther down in the file.
 
-                  ALWAYS make as many changes in a single 'patch_file' request as possible using multiple
-                  SEARCH/REPLACE blocks.
+                  ALWAYS make as many changes in a single 'patch_file' request as possible using
+                  multiple SEARCH/REPLACE blocks.
 
                   If a patch fails it may be that the line number was too wrong.
                 DESC
-                          params: { path: { type: String, required: true },
-                                    diff: { type: String, required: true } },
-                          returns: { ok: Boolean, error: String } do |path:, diff:|
+                params: { path: { type: String, required: true },
+                          diff: { type: String, required: true } },
+                returns: { ok: Boolean, error: String } do |path:, diff:|
     return { error: 'missing :path or :diff' } unless path && diff
 
     diff_lines = diff.lines.count
@@ -430,10 +432,10 @@ module PrimaMateria
 
   register_tool :aegis,
                 description:  <<~DESC,
-                  The Aegis tool is for enabling an active context from Mnemosyne during#{' '}
-                  conversations. When topic in current conversation changes you have to change or#{' '}
-                  refine its state, ensuring relevance and precision in context note recall. Use it#{' '}
-                  to refine the oracle's focus. The Aegis tool will immediately return notes like#{' '}
+                  The Aegis tool is for enabling an active context from Mnemosyne during
+                  conversations. When topic in current conversation changes you have to change or
+                  refine its state, ensuring relevance and precision in context note recall. Use it
+                  to refine the oracle's focus. The Aegis tool will immediately return notes like
                   `recall_notes` and keep them in context unlike `recall_notes` which only retrieves
                   note for current interaction.
                 DESC
@@ -460,8 +462,11 @@ module PrimaMateria
 
 
   register_tool :create_task,
-                description: 'Generate a task for complex prompts with fields for plan, progress, and max_steps.',
-                params: { title:     { type: String, required: true, description: 'The title of the plan.' },
+                description: 'Generate a task for complex prompts with fields for plan, progress, ' \
+                             'and max_steps.',
+                params: { title:     { type:        String,
+                                       required:    true,
+                                       description: 'The title of the plan.' },
                           plan:      { type:        String,
                                        required:    true,
                                        description: 'The task execution plan.' },
@@ -484,7 +489,8 @@ module PrimaMateria
 
 
   register_tool :execute_task,
-                description: 'Run the task loop with minimal intervention, updating status and progress.',
+                description: 'Run the task loop with minimal intervention, updating status and ' \
+                             'progress.',
                 params: { task_id:     { type: Integer, required: true },
                           description: 'The ID of the task to execute.' },
                 returns: { ok: Boolean, error: String } do |task_id:|
