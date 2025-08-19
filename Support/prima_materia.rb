@@ -39,7 +39,6 @@ module PrimaMateria
       returns.merge(task_id: { type: Integer, description: 'Task ID for traceability' }),
       implementation
     )
-
     # Define the method dynamically
     define_singleton_method name do |*args, **kwargs|
       # Validate parameters using SCHEMA
@@ -52,10 +51,10 @@ module PrimaMateria
 
         # Convert args to kwargs for validation
         actual_kwargs = args.empty? ? kwargs : {}
-        if args.any? && tool.params.keys.any?
+        if args.any? && TOOLS[name].params.keys.any?
           # Map positional args to named parameters
-          param_names = tool.params.keys
-          args.each_with index do |arg, index|
+          param_names = TOOLS[name].params.keys
+          args.each_with_index do |arg, index|
             actual_kwargs[param_names[index]] = arg if index < param_names.size
           end
           actual_kwargs.merge! kwargs
@@ -109,7 +108,7 @@ module PrimaMateria
       properties = {}
       tool.params.each do |param_name, param_spec|
         properties[param_name.to_s] = if param_spec.is_a? Hash
-                                        param_spec.to_h.except :required do |key, value|
+                                        param_spec.to_h.except(:required).map do |key, value|
                                           case key
                                           when :type
                                             [key, value.to_s.downcase]
@@ -593,18 +592,23 @@ module PrimaMateria
   DENY_PATHS   = [/\.aethercodex$/, /\.env$/, %r{\.git/}].freeze
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
-
-  # Generate SCHEMA dynamically from registered tools
+  # Generate SCHEMA dynamically from registered tools with complete validation specs
   SCHEMA = TOOLS.each_with_object({}) do |(name, tool), schema|
     tool_name = name.to_s
+
+    # Extract required parameters
+    required_params = tool.params.select do |_, spec|
+      spec.is_a?(Hash) && spec[:required]
+    end.keys.map(&:to_sym)
+
+    # Extract forbidden parameters (none by default, can be extended)
+    forbidden_params = []
+
     schema[tool_name] = {
-      req:    tool.params.select do |_, spec|
-        spec.is_a?(Hash) && spec[:required]
-      end.keys.map(&:to_sym),
-      forbid: [] # Forbidden params can be added to tool definition if needed
+      req:    required_params,
+      forbid: forbidden_params
     }
   end.freeze
-
   # Generate TOOL_ALIASES dynamically (can be extended with tool-specific aliases)
   TOOL_ALIASES = {
     'readfile'          => 'read_file',
@@ -615,9 +619,18 @@ module PrimaMateria
     'telluser'          => 'tell_user',
     'oracleconjuration' => 'oracle_conjuration',
     'rejectstep'        => 'reject_step',
-    'completestep'      => 'complete_step'
+    'completestep'      => 'complete_step',
+    'recallnotes'       => 'recall_notes',
+    'recallhistory'     => 'recall_history',
+    'fileoverview'      => 'file_overview',
+    'removenote'        => 'remove_note',
+    'aegis'             => 'aegis',
+    'createtask'        => 'create_task',
+    'executetask'       => 'execute_task',
+    'updatetask'        => 'update_task',
+    'evaluatetask'      => 'evaluate_task',
+    'listtasks'         => 'list_tasks'
   }.freeze
-
 
   class << self
     def validate!(tool, args)
@@ -647,28 +660,12 @@ module PrimaMateria
       rescue StandardError => e
         return { error: "invalid_args: #{e.message}", got: call }
       end
-      case tool
-      when 'read_file'          then read_file(**args)
-      when 'patch_file'         then patch_file(**args)
-      when 'create_file'        then create_file(**args)
-      when 'rename_file'        then rename_file(**args)
-      when 'run_command'        then run_command(**args)
-      when 'remember'           then remember(**args)
-      when 'recall_history'     then recall_history(**args)
-      when 'tell_user'          then tell_user(**args)
-      # when 'add_note'           then add_note(**args)
-      when 'recall_notes'       then recall_notes(**args)
-      # when 'update_note'        then update_note(**args)
-      when 'remove_note'        then remove_note(**args)
-      when 'file_overview'      then file_overview(**args)
-      when 'oracle_conjuration' then oracle_conjuration(**args)
-      when 'aegis'              then aegis(**args)
-      when 'create_task'        then create_task(**args)
-      when 'execute_task'       then execute_task(**args)
-      when 'update_task'        then update_task(**args)
-      when 'evaluate_task'      then evaluate_task(**args)
-      when 'list_tasks'         then list_tasks(**args)
-      else { error: "Unknown tool #{tool}" }
+
+      # Generic tool invocation using dynamic method lookup
+      if TOOLS.key? tool.to_sym
+        send(tool.to_sym, **args)
+      else
+        { error: "Unknown tool #{tool}" }
       end
     rescue ArgumentError => e
       { error: "Bad args for #{tool}: #{e.message}", got: call }
