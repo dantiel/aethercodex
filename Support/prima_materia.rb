@@ -111,7 +111,7 @@ module PrimaMateria
       properties = {}
       tool.params.each do |param_name, param_spec|
         properties[param_name.to_s] = if param_spec.is_a? Hash
-                                        param_spec.to_h.except(:required) do |key, value|
+                                        param_spec.to_h.except :required do |key, value|
                                           case key
                                           when :type
                                             [key, value.to_s.downcase]
