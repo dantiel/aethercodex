@@ -127,6 +127,7 @@ reasoning: reasoning
             tool_results << { id: tc['id'], name: name, result: res }
             msgs << { role: 'tool', tool_call_id: tc['id'], content: res.to_json }
           end
+          # TODO make an optional 'continue' mechanism e.g. using a button or some repetition recognition, the problem is that by too many tools the context will be full or the ai might be stuck in a loop for some stupid reason.
           break if depth >= max_depth
 
           next
@@ -276,7 +277,7 @@ reasoning: reasoning
                       { role: 'user', content: prompt },
                       { role: 'user', content: "Context: #{ctx.to_json}" }],
         # response_format: { type: 'json_object' },
-        tools:       INSTRUMENTA,
+        tools:       Instrumenta.instrumenta_schema,
         max_tokens:  2048,
         temperature: 0.7
       }

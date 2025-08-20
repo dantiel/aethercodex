@@ -116,8 +116,9 @@ module HorologiumAeternum
     # TODO: add linenumbers
     if range
       send_status('file_read_complete', {
-                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from #{create_file_link path,
-                                                                                                              nil, range[0]}"),
+                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from "\
+                                              "#{create_file_link path, nil, range[0]} "\
+                                              "(lines #{range[0]}-#{range[1]})"),
                     path:    path,
                     bytes:   bytes_read,
                     range:   range,
@@ -125,7 +126,8 @@ module HorologiumAeternum
                   }, uuid:)
     else
       send_status('file_read_complete', {
-                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from #{create_file_link path}"),
+                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from "\
+                                              "#{create_file_link path}"),
                     path:    path,
                     bytes:   bytes_read,
                     content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")

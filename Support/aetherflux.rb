@@ -23,7 +23,7 @@ class Aetherflux
           Oracle.divination(params[:prompt], ctx, tools:, msg_uuid:) do |name, args|
             puts '[AETHER FLUX][CHANNEL ORACLE DIVINATION]: ' \
                  "TRY HANDLE TOOL=#{name}, ARGS=#{args.inspect}"
-            result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
+            result = tools.handle({ 'tool' => name, 'args' => args })
             puts "[AETHER FLUX][CHANNEL ORACLE DIVINATION]: TOOL RESULT=#{result}"
             sleep 0.1
             result
@@ -85,7 +85,7 @@ class Aetherflux
           Oracle.conjuration(params[:prompt], ctx, tools:, msg_uuid:) do |name, args|
             puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION]: TRY HANDLE TOOL=#{name}"
             puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION]: ARGS=#{args.inspect}"
-            result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
+            result = tools.handle({ 'tool' => name, 'args' => args })
             puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION]: TOOL RESULT=#{result}"
             sleep 0.1
             result
