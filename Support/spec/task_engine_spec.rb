@@ -31,7 +31,7 @@ RSpec.describe TaskEngine do
 
   describe '#oracle_conjuration_failure' do
     it 'handles :failure responses' do
-      aetherflux.configure_response('Step 1', { status: :failure, response: 'Task execution failed' })
+      aetherflux.configure_response('CURRENT STEP: 1', { status: :failure, response: 'Task execution failed' })
 
       expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Step 1 failed: Task execution failed')
 
@@ -40,7 +40,7 @@ RSpec.describe TaskEngine do
     end
 
     it 'logs the failure response' do
-      aetherflux.configure_response('Step 1', { status: :failure, response: 'Task execution failed' })
+      aetherflux.configure_response('CURRENT STEP: 1', { status: :failure, response: 'Task execution failed' })
 
       expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Step 1 failed: Task execution failed')
 
@@ -51,7 +51,7 @@ RSpec.describe TaskEngine do
 
   describe '#oracle_conjuration_timeout' do
     it 'handles timeout errors' do
-      aetherflux.configure_response('Step 1', -> { raise Timeout::Error, 'Request timed out' })
+      aetherflux.configure_response('CURRENT STEP: 1', -> { raise Timeout::Error, 'Request timed out' })
 
       expect { subject.execute_task(1) }.to raise_error(Timeout::Error)
 
@@ -60,7 +60,7 @@ RSpec.describe TaskEngine do
     end
 
     it 'logs the timeout error' do
-      aetherflux.configure_response('Step 1', -> { raise Timeout::Error, 'Request timed out' })
+      aetherflux.configure_response('CURRENT STEP: 1', -> { raise Timeout::Error, 'Request timed out' })
 
       expect { subject.execute_task(1) }.to raise_error(Timeout::Error)
 

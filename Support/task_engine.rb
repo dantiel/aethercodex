@@ -6,47 +6,49 @@ require 'json'
 require_relative 'horologium_aeternum'
 require_relative 'task_tools'
 
+
+
 # Task System Prompt for comprehensive context in oracle conjuration
 TASK_SYSTEM_PROMPT = <<~PROMPT
-You are executing a task step in the AetherCodex task engine...
+  You are executing a task step in the AetherCodex task engine...
 
-# TASK SYSTEM ARCHITECTURE
-- Tasks have titles, plans, and multiple steps
-- Each step has a purpose and extended purpose for detailed guidance
-- Use task-specific tools (task_read_file, task_patch_file, etc.) that automatically include task_id
-- Step management: task_reject_step(reason, restart_from_step) and task_complete_step(result)
+  # TASK SYSTEM ARCHITECTURE
+  - Tasks have titles, plans, and multiple steps
+  - Each step has a purpose and extended purpose for detailed guidance
+  - Use task-specific tools (task_read_file, task_patch_file, etc.) that automatically include task_id
+  - Step management: task_reject_step(reason, restart_from_step) and task_complete_step(result)
 
-# STEP PURPOSES:
-- read_file: Read and analyze file content
-- patch_file: Make surgical edits to files
-- run_command: Execute system commands
-- recall_notes: Query memory for relevant information
-- oracle_conjuration: Complex reasoning and tool execution
-- update_progress: Report progress and status updates
+  # STEP PURPOSES:
+  - read_file: Read and analyze file content
+  - patch_file: Make surgical edits to files
+  - run_command: Execute system commands
+  - recall_notes: Query memory for relevant information
+  - oracle_conjuration: Complex reasoning and tool execution
+  - update_progress: Report progress and status updates
 
-# CURRENT STEP GUIDANCE:
-%{step_guidance}
+  # CURRENT STEP GUIDANCE:
+  %<step_guidance>s
 PROMPT
 
 # Extended Step Guidance - 3 paragraph detailed instructions for each step
 EXTENDED_STEP_GUIDANCE = {
-  1 => <<~GUIDANCE,
-    **Nigredo Phase - Understanding the Prima Materia**: Begin by thoroughly analyzing the task 
-    requirements and business context. Read all relevant files to understand the current state and 
-    identify what needs to be transformed. This is the blackening phase where you confront the raw, 
+  1  => <<~GUIDANCE,
+    **Nigredo Phase - Understanding the Prima Materia**: Begin by thoroughly analyzing the task
+    requirements and business context. Read all relevant files to understand the current state and
+    identify what needs to be transformed. This is the blackening phase where you confront the raw,
     unrefined material and understand its inherent nature and limitations.
 
     **Comprehensive Analysis**: Examine the codebase structure, dependencies, and existing patterns.
-    Look for similar implementations or patterns that can inform your approach. Document any 
+    Look for similar implementations or patterns that can inform your approach. Document any
     constraints, edge cases, or potential pitfalls that might affect the transformation process.
 
     **Strategic Planning**: Formulate an initial understanding of how the prima materia (current
     state) can be transmuted into the desired state. Consider multiple approaches and evaluate their
     feasibility before proceeding to the purification phase.
   GUIDANCE
-  
-  2 => <<~GUIDANCE,
-    **Albedo Phase - Defining the Purified Solution**: In this whitening phase, focus on clarifying 
+
+  2  => <<~GUIDANCE,
+    **Albedo Phase - Defining the Purified Solution**: In this whitening phase, focus on clarifying
     and refining the solution approach. Define the clean, purified state that should emerge from the
     transformation. This involves specifying requirements, interfaces, and expected behaviors with
     precision.
@@ -60,8 +62,8 @@ EXTENDED_STEP_GUIDANCE = {
     Specify input/output formats, error handling, and validation rules. This phase establishes the
     foundation for the golden implementation that follows.
   GUIDANCE
-  
-  3 => <<~GUIDANCE,
+
+  3  => <<~GUIDANCE,
     **Citrinitas Phase - Exploring Golden Implementation Paths**: This yellowing phase involves
     exploring multiple implementation approaches and selecting the most optimal one. Research best
     practices, patterns, and existing solutions that align with the purified architecture.
@@ -74,8 +76,8 @@ EXTENDED_STEP_GUIDANCE = {
     practicality. Document the rationale for the selected approach and prepare for the rubedo phase
     where the chosen path will be implemented.
   GUIDANCE
-  
-  4 => <<~GUIDANCE,
+
+  4  => <<~GUIDANCE,
     **Rubedo Phase - Selecting the Philosopher's Stone**: In this reddening phase, finalize the
     implementation details and prepare for actual coding. This is where you select the specific
     techniques, libraries, and patterns that will serve as your philosopher's stone - the key to
@@ -89,8 +91,8 @@ EXTENDED_STEP_GUIDANCE = {
     Define the order of implementation, dependencies between components, and any parallel work that
     can be done. Prepare for the solve phase where actual code changes begin.
   GUIDANCE
-  
-  5 => <<~GUIDANCE,
+
+  5  => <<~GUIDANCE,
     **Solve Phase - Identifying Required Dissolutions**: Begin the actual transformation by
     identifying what needs to be dissolved or removed from the current state. This involves
     analyzing existing code to determine what can be refactored, replaced, or removed entirely.
@@ -103,8 +105,8 @@ EXTENDED_STEP_GUIDANCE = {
     which methods to refactor, which patterns to introduce. Create a detailed change plan that
     minimizes disruption while maximizing the transformation's effectiveness.
   GUIDANCE
-  
-  6 => <<~GUIDANCE,
+
+  6  => <<~GUIDANCE,
     **Coagula Phase - Implementing Solid Transformations**: Execute the planned code changes with
     surgical precision. This phase involves actual coding, refactoring, and implementation of the
     purified solution. Work methodically and test each change as you go.
@@ -117,8 +119,8 @@ EXTENDED_STEP_GUIDANCE = {
     conventions. Ensure proper error handling, input validation, and edge case coverage. Maintain
       high coding standards throughout the implementation process.
   GUIDANCE
-  
-  7 => <<~GUIDANCE,
+
+  7  => <<~GUIDANCE,
     **Test Phase - Probing the Elixir's Purity**: Begin comprehensive testing of the implemented
     changes. Focus on functional testing to ensure the basic requirements are met and the
     transformation produces the expected results.
@@ -131,8 +133,8 @@ EXTENDED_STEP_GUIDANCE = {
     Ensure that interfaces work correctly and that data flows properly between different parts of
     the system.
   GUIDANCE
-  
-  8 => <<~GUIDANCE,
+
+  8  => <<~GUIDANCE,
     **Test Phase - Edge Cases as Alchemical Impurities**: Focus on testing edge cases, boundary
     conditions, and error scenarios. These are the impurities that must be identified and purified
     from the elixir to ensure its perfection.
@@ -145,8 +147,8 @@ EXTENDED_STEP_GUIDANCE = {
     outages, invalid inputs, resource constraints. Ensure that error messages are clear and that the
     system fails gracefully without data loss or corruption.
   GUIDANCE
-  
-  9 => <<~GUIDANCE,
+
+  9  => <<~GUIDANCE,
     **Validate Phase - Ensuring the Elixir's Perfection**: Perform final validation to ensure the
     solution meets all quality standards including security, performance, and maintainability. This
     is the final purification before documentation.
@@ -159,8 +161,8 @@ EXTENDED_STEP_GUIDANCE = {
     requirements. Profile critical paths, optimize bottlenecks, and verify that resource usage is
     within acceptable limits.
   GUIDANCE
-  
-  10 => <<~GUIDANCE,
+
+  10 => <<~GUIDANCE
     **Document Phase - Inscribing the Magnum Opus**: Create comprehensive documentation that
     captures the entire transformation process, the final solution, and how to maintain it. This
     documentation serves as the permanent record of the magnum opus.
@@ -173,10 +175,13 @@ EXTENDED_STEP_GUIDANCE = {
     maintain, and extend the solution. Include examples, best practices, and lessons learned from
     the transformation process.
   GUIDANCE
-}
+}.freeze
 
 DEBUG = false
-def debug(msg); puts msg if DEBUG end
+def debug(msg)
+  puts msg if DEBUG
+end
+
 
 # The TaskEngine orchestrates hermetic workflows, weaving:
 # - **Alchemical Steps**: 10-stage transmutation of tasks (as above, as below).
@@ -221,12 +226,14 @@ class TaskEngine
     @mnemosyne = mnemosyne
     @aetherflux = aetherflux
   end
-  
+
+
   # Create dynamic task tools for a specific task
   def create_task_tools(task_id)
-    @task_tools_registry[task_id] ||= TaskTools.build_task_tools(Instrumenta::PRIMA_MATERIA, task_id, self)
+    @task_tools_registry[task_id] ||= TaskTools.build_task_prima task_id, self
   end
-  
+
+
   # Get task tools schema for oracle conjuration
   def task_tools_schema(task_id)
     create_task_tools(task_id).instrumenta_schema
@@ -397,10 +404,10 @@ class TaskEngine
 
   def log_message(task_id, message)
     @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'log' => message })
-    broadcast_update task_id
-    debug "#{message}" # Add debug output for test visibility
+    # broadcast_update task_id
+    debug message.to_s # Add debug output for test visibility
   end
-  
+
 
   private
 
@@ -414,7 +421,7 @@ class TaskEngine
     debug "Executing step #{step_index} for task #{task_id}"
     task = @mnemosyne.get_task task_id
     debug "Task description: #{task[:description]}"
-    
+
     # Enhanced context with comprehensive task information
     step_guidance = if task[:steps] && task[:steps][step_index - 1]
                       step_data = task[:steps][step_index - 1]
@@ -426,41 +433,41 @@ class TaskEngine
                     end
 
     # Comprehensive system prompt with task context
-    system_prompt = TASK_SYSTEM_PROMPT % { step_guidance: step_guidance }
-    
+    system_prompt = format TASK_SYSTEM_PROMPT, step_guidance: step_guidance
+
     # Enhanced prompt with complete task context
     prompt = <<~PROMPT
       # TASK EXECUTION CONTEXT
       TASK TITLE: #{task[:title] || task[:description]}
       TASK PLAN: #{task[:plan] || 'No detailed plan provided.'}
       CURRENT STEP: #{step_index}/#{WORKFLOW_STEPS}
-      
+
       # STEP GUIDANCE
       #{step_guidance}
-      
+
       # EXECUTION INSTRUCTIONS
       - Use task-specific tools (prefixed with 'task_') for all operations
       - After completing step actions, call task_complete_step to advance
       - If you need to backtrack, use task_reject_step with optional restart_from_step
       - All task tools automatically include the task_id context
-      
+
       Execute the step actions based on the guidance above.
     PROMPT
 
     begin
       # Comprehensive context for hermetic execution
       context = {
-        task_id: task_id,
-        task_title: task[:title] || task[:description],
-        task_plan: task[:plan],
-        step_index: step_index,
-        total_steps: WORKFLOW_STEPS,
-        step_purpose: STEP_PURPOSES[step_index - 1],
+        task_id:          task_id,
+        task_title:       task[:title] || task[:description],
+        task_plan:        task[:plan],
+        step_index:       step_index,
+        total_steps:      WORKFLOW_STEPS,
+        step_purpose:     STEP_PURPOSES[step_index - 1],
         extended_purpose: step_guidance,
-        progress: "#{step_index}/#{WORKFLOW_STEPS}"
+        progress:         "#{step_index}/#{WORKFLOW_STEPS}"
       }
-      
-      response = Aetherflux.channel_oracle_conjuration(
+
+      response = @aetherflux.channel_oracle_conjuration(
         {
           prompt: prompt,
           system: system_prompt
@@ -502,9 +509,7 @@ class TaskEngine
     end
 
     # Clean up task tools after step execution
-    if step_index == WORKFLOW_STEPS
-      @task_tools_registry.delete(task_id)
-    end
+    @task_tools_registry.delete task_id if WORKFLOW_STEPS == step_index
 
     log_message task_id, "Executing step #{step_index}: #{STEP_PURPOSES[step_index - 1]}"
   end
@@ -519,15 +524,15 @@ class TaskEngine
 
 
   def broadcast_update(task_id)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
-    return unless task
+    # task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    # return unless task
 
-    HorologiumAeternum.task_updated(
-      task_id,
-      title: task[:description],
-      progress: task[:progress] || 0,
-      max_steps: WORKFLOW_STEPS
-    )
+    # HorologiumAeternum.task_updated(
+    #   task_id,
+    #   title: task[:description],
+    #   progress: task[:progress] || 0,
+    #   max_steps: WORKFLOW_STEPS
+    # )
   end
 
 
@@ -544,40 +549,46 @@ class TaskEngine
       false
     end
   end
-    # Reject current step and optionally restart from specific step
-    def reject_step(task_id, reason = nil, restart_from_step = nil)
-      log_message(task_id, "Step rejected: #{reason}") if reason
-      
-      if restart_from_step
-        # Set progress to restart from specific step
-        update_progress(task_id, restart_from_step - 1)
-        log_message(task_id, "Restarting from step #{restart_from_step}")
+
+
+  # Reject current step and optionally restart from specific step
+  def reject_step(task_id, reason = nil, restart_from_step = nil)
+    log_message task_id, "Step rejected: #{reason}" if reason
+
+    if restart_from_step
+      # Set progress to restart from specific step
+      update_progress task_id, restart_from_step - 1
+      log_message task_id, "Restarting from step #{restart_from_step}"
+    else
+      # Default: go back to previous step
+      current_progress = current_step task_id
+      if 1 < current_progress
+        update_progress task_id, current_progress - 1
+        log_message task_id, "Returning to previous step #{current_progress - 1}"
       else
-        # Default: go back to previous step
-        current_progress = current_step(task_id)
-        if current_progress > 1
-          update_progress(task_id, current_progress - 1)
-          log_message(task_id, "Returning to previous step #{current_progress - 1}")
-        else
-          log_message(task_id, "Cannot go back from first step")
-        end
+        log_message task_id, 'Cannot go back from first step'
       end
-      
-      { ok: true, task_id: task_id, restart_from_step: restart_from_step || (current_step(task_id) - 1) }
     end
-  
-    # Complete current step with optional result
-    def complete_step(task_id, result = nil)
-      current_step = current_step(task_id)
-      log_message(task_id, "Step #{current_step} completed: #{result.inspect}") if result
-      update_progress(task_id, current_step + 1)
-      { ok: true, task_id: task_id, completed_step: current_step, result: result }
-    end
-  
-    # Get current step number for task
-    def current_step(task_id)
-      task = @mnemosyne.get_task(task_id)
-      task[:progress] || 0
+
+    { ok:                true,
+      task_id:           task_id,
+      restart_from_step: restart_from_step || (current_step(task_id) - 1) }
+  end
+
+
+  # Complete current step with optional result
+  def complete_step(task_id, result = nil)
+    current_step = current_step task_id
+    log_message task_id, "Step #{current_step} completed: #{result.inspect}" if result
+    update_progress task_id, current_step + 1
+    { ok: true, task_id: task_id, completed_step: current_step, result: result }
+  end
+
+
+  # Get current step number for task
+  def current_step(task_id)
+    task = @mnemosyne.get_task task_id
+    task[:progress] || 0
   end
 
 
