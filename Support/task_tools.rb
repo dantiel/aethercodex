@@ -3,8 +3,8 @@
 # Support/task_tools.rb
 # Dynamic task-specific tools that automatically include task_id context
 
-require_relative 'minimal_instrumenta'
-require_relative 'minimal_prima_materia'
+require_relative 'instrumenta'
+require_relative 'prima_materia'
 
 
 
