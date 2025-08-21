@@ -23,6 +23,7 @@ Hermetic Coding Paradigm & File Naming
 ◯ save many aegis state and include old summaries when changed
 ◯ add a syntax tree to file_overview. Notes should be able to connect directly to methods (instead of line number). When a file, or method disappears or is moved the reference in memory need also be migrated.
 ◯ IMPORTANT: revise msgs about feeding back to the model formatted html instead of markdown
+◯ ability to intervene: when ai is acting in a loop it should be possible to pause and add remarks
 
 Website:
   ✧ Hermetic Symbolism

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'sqlite3'
+require 'sqlite3' 
 require 'fileutils'
 require 'yaml'
 require 'set'

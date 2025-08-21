@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require 'redcarpet'
-require 'rouge'
-require 'diffy'
-require 'htmldiff'
+require 'rouge' 
+require 'diffy' 
+require 'htmldiff' 
 
 
 

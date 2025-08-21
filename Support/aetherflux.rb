@@ -74,11 +74,12 @@ class Aetherflux
 
 
     def channel_oracle_conjuration(params, tools:, context: nil)
-      puts "[AETHER FLUX][ORACLE CONJURATION]: #{params.inspect} tools=#{tools}"
+      puts "[AETHER FLUX][ORACLE CONJURATION]: #{params.inspect} tools=#{tools.schema}"
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
-
+      puts "ARCANUM BGEGIN ##{context}"
+      
       ctx = Arcanum.build params
-
+      puts "ARCANUM DONE #{ctx}"
       # Handle restarts during conjuration
       begin
         answer, arts, tool_results =

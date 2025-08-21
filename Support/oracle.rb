@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Support/oracle.rb
-require 'faraday'
+require 'faraday' 
 require 'json'
 require 'time'
 require 'fileutils'
@@ -58,7 +58,7 @@ class Oracle
     end
 
 
-    def divination(prompt, ctx, tools:, max_depth: 50, reasoning: false, msg_uuid: nil, &exec)
+    def divination(prompt, ctx, tools:, max_depth: 80, reasoning: false, msg_uuid: nil, &exec)
       # Capture initial temperature for restart checks
       initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
 
@@ -84,8 +84,10 @@ class Oracle
           raise RestartException, 'Temperature change detected. Restarting oracle.'
         end
 
-        body = build_body_with_messages_and_tools msgs, tools:, want_json: false,
-reasoning: reasoning
+        body = build_body_with_messages_and_tools msgs,
+                                                  tools: tools.instrumenta_schema,
+                                                  want_json: false,
+                                                  reasoning: reasoning
         raw = post body, if reasoning then 300 else 120 end
         raise raw[:error] unless raw.is_a? String || raw[:error].nil?
 
@@ -127,7 +129,7 @@ reasoning: reasoning
             tool_results << { id: tc['id'], name: name, result: res }
             msgs << { role: 'tool', tool_call_id: tc['id'], content: res.to_json }
           end
-          # TODO make an optional 'continue' mechanism e.g. using a button or some repetition recognition, the problem is that by too many tools the context will be full or the ai might be stuck in a loop for some stupid reason.
+          # TODO: make an optional 'continue' mechanism e.g. using a button or some repetition recognition, the problem is that by too many tools the context will be full or the ai might be stuck in a loop for some stupid reason.
           break if depth >= max_depth
 
           next
@@ -178,13 +180,16 @@ reasoning: reasoning
     rescue StandardError => e
       log_json(error: e.message || e, backtrace: e.backtrace, info: e.inspect)
       puts "[ORACLE][DIVINATION][ERROR]: #{e.inspect}"
-      if e.message.is_a? String
+      response = safe_parse e.message
+      
+      if response.empty?
         HorologiumAeternum.server_error e.message
       else
-        error_type = case e.message[:error][:type]
+        response = deep_symbolize response
+        error_type = case response[:error][:code]
                      when 'invalid_request_error' then 'Invalid Request'
                      else 'Server Error' end
-        HorologiumAeternum.server_error error_type, e.message[:error][:message]
+        HorologiumAeternum.server_error response[:error][:message], error_type
       end
       [{ error: e.message || e }, { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
     end
@@ -223,6 +228,7 @@ reasoning: reasoning
 
 
     def base_messages(prompt, ctx)
+      #INTRODUCE NEW SECONDARY CUSTOM SYSTEM PROMPT AFTER SYSTEMPROMPT FOR EXAMPLE (E.G. VIA PARAMETER)
       [
         { role: 'system', content: SYSTEM_PROMPT },
         *ctx[:history],
@@ -285,7 +291,7 @@ reasoning: reasoning
 
 
     def post(body, timeout = 120)
-      puts "POST body=#{body.inspect} timeout#{timeout}"
+      # puts "POST body=#{body.inspect} timeout#{timeout}"
       cfg = load_cfg
 
       key = cfg['api-key'] || ENV.fetch('DEEPSEEK_API_KEY', nil)
@@ -311,7 +317,7 @@ reasoning: reasoning
       raise "Connection Failed: #{e.wrapped_exception}"
     rescue Faraday::UnprocessableEntityError => e
       puts "[POST][ERROR]: #{e.inspect}"
-      raise "Unprocessable Entity Error: #{e.wrapped_exception}"
+      raise "Unprocessable Entity Error: #{e.response[:body] || e.wrapped_exception}"
     #    { type: 'Unprocessable Entity Error', error: e.response && e.response[:body] }
     rescue Faraday::Error => e
       # { error:  }

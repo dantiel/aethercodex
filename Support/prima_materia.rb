@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'task_engine'
+# require_relative 'task_engine'
 require_relative 'argonaut'
 require_relative 'verbum'
 require_relative 'scriptorium'
@@ -11,7 +11,7 @@ require 'json'
 require 'timeout'
 require 'open3'
 require 'cgi'
-require 'dotenv'
+require 'dotenv' 
 require 'securerandom'
 
 # Define Boolean type for schema compatibility
@@ -31,6 +31,130 @@ class PrimaMateria
 
 
   attr_reader :tools
+  
+  # Merge tools from another PrimaMateria instance (destructive)
+  def merge_tools!(other_prima)
+    other_prima.tools.each do |name, tool|
+      @tools[name] = tool
+      # Define the method dynamically for the merged tool
+      define_singleton_method name do |*args, **kwargs|
+        tool_name = name.to_s
+        tool_spec = @tools[name]
+
+        # Convert args to kwargs for validation
+        actual_kwargs = args.empty? ? kwargs : {}
+        if args.any? && tool_spec.params.keys.any?
+          # Map positional args to named parameters
+          param_names = tool_spec.params.keys
+          args.each_with_index do |arg, index|
+            actual_kwargs[param_names[index]] = arg if index < param_names.size
+          end
+          actual_kwargs.merge! kwargs
+        else
+          actual_kwargs = kwargs
+        end
+
+        # Apply default values
+        tool_spec.params.each do |param_name, param_spec|
+          unless param_spec.is_a?(Hash) && param_spec.key?(:default) && !actual_kwargs.key?(param_name)
+            next
+          end
+
+          actual_kwargs[param_name] = param_spec[:default]
+        end
+
+        # Validate parameters against tool specification
+        validated_kwargs = {}
+        tool_spec.params.each do |param_name, param_spec|
+          value = actual_kwargs[param_name]
+
+          # Check required parameters
+          if param_spec.is_a?(Hash) && param_spec[:required] && !actual_kwargs.key?(param_name)
+            raise ArgumentError, "missing required parameter: #{param_name}"
+          end
+
+          # Skip validation for missing optional parameters
+          next unless actual_kwargs.key? param_name
+
+          # Type validation
+          if param_spec.is_a?(Hash) && param_spec[:type]
+            validate_type param_name, value, param_spec[:type]
+          end
+
+          # Range validation for numbers
+          if param_spec.is_a?(Hash) && value.is_a?(Numeric)
+            validate_range param_name, value, param_spec
+          end
+
+          # String length validation
+          if param_spec.is_a?(Hash) && value.is_a?(String)
+            validate_string_length param_name, value, param_spec
+          end
+
+          # Array validation
+          validate_array param_name, value, param_spec if param_spec.is_a?(Hash) && value.is_a?(Array)
+
+          # Enum validation
+          if param_spec.is_a?(Hash) && param_spec[:enum]
+            validate_enum param_name, value, param_spec[:enum]
+          end
+
+          validated_kwargs[param_name] = value
+        end
+
+        # Validate forbidden parameters from SCHEMA
+        schema_entry = schema[tool_name] || schema[tool_aliases.key(tool_name)]
+        if schema_entry
+          forbidden_params = schema_entry[:forbid].map(&:to_sym)
+          forbidden_present = forbidden_params & actual_kwargs.keys
+          unless forbidden_present.empty?
+            raise ArgumentError, "forbidden parameters present: #{forbidden_present.join ', '}"
+          end
+        end
+
+        tool_spec.implementation.call(**validated_kwargs)
+      end
+    end
+    self
+  end
+  
+  # Create a copy of tool definitions for reuse
+  def clone_tools
+    cloned = PrimaMateria.new
+    @tools.each do |name, tool|
+      cloned.add_instrument(name,
+        description: tool.description,
+        params: tool.params,
+        returns: tool.returns,
+        &tool.implementation
+      )
+    end
+    cloned
+  end
+  
+  # Merge tools from another PrimaMateria instance (non-destructive version)
+  def merge_tools(other_prima)
+    merged = PrimaMateria.new
+    # First add our own tools
+    @tools.each do |name, tool|
+      merged.add_instrument(name,
+        description: tool.description,
+        params: tool.params,
+        returns: tool.returns,
+        &tool.implementation
+      )
+    end
+    # Then add tools from the other prima (overwriting if needed)
+    other_prima.tools.each do |name, tool|
+      merged.add_instrument(name,
+        description: tool.description,
+        params: tool.params,
+        returns: tool.returns,
+        &tool.implementation
+      )
+    end
+    merged
+  end
   
 
   # Add instrument with validation schema integration
@@ -211,8 +335,7 @@ class PrimaMateria
           parameters:  {
             type:       'object',
             properties: {},
-            # required:   []
-            required:   original_schema ? original_schema[:req].map(&:to_s) : []
+            required:   []
           }
         }
       }
@@ -222,11 +345,15 @@ class PrimaMateria
       tool.params.each do |param_name, param_spec|
         properties[param_name.to_s] = if param_spec.is_a? Hash
                                         param_spec.to_h.except(:required).each_with_object({}) do |(key, value), hash|
-                                          case key
+                                          hash[key] = case key
                                           when :type
-                                            hash[key] = value.to_s.downcase
+                                            case value.to_s
+                                            when 'TrueClass' then 'boolean'
+                                            when 'Numeric' then 'number'
+                                            else value.to_s.downcase
+                                            end
                                           else
-                                            hash[key] = value
+                                            value
                                           end
                                         end
                                       else

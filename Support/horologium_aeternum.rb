@@ -451,7 +451,7 @@ module HorologiumAeternum
 
   def self.server_error(error, type = 'Server Error', uuid: nil)
     send_status('server_error', {
-                  error: Scriptorium.html("❌ #{type}#{': ' if error}`#{error}`")
+                  error: Scriptorium.html("❌ **#{type}#{':' if error}** `#{error}`")
                 }, uuid:)
   end
 

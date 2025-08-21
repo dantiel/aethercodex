@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'tiktoken_ruby'
+require 'tiktoken_ruby' 
 require_relative 'mnemosyne'
 require_relative 'argonaut'
 # TM_TAB_SIZE
@@ -37,7 +37,9 @@ module Arcanum
       inject_tm_env params[:tm_env] if params[:tm_env]
 
       file, selection = params.values_at :file, :selection
+      puts "TEST#{file}"
       project_files = Argonaut.list_project_files
+      puts "PROJECT_FILES#{project_files}"
       history = fetch_and_format_history task_history: params[:history]
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
 

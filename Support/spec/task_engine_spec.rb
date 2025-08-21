@@ -3,12 +3,14 @@
 require_relative '../task_engine'
 require_relative '../mnemosyne'
 require_relative 'fake_mnemosyne'
+require_relative '../fake_aetherflux'
 require 'rspec'
 require 'timeout'
 
+
 RSpec.describe TaskEngine do
   let(:mnemosyne) { FakeMnemosyne.new }
-  let(:aetherflux) { double 'Aetherflux' }
+  let(:aetherflux) { FakeAetherflux.new }
   subject { described_class.new mnemosyne: mnemosyne, aetherflux: aetherflux }
 
   before do
@@ -18,10 +20,8 @@ RSpec.describe TaskEngine do
     # Initialize task state before relevant tests
     mnemosyne.manage_tasks({ 'action' => 'update', 'id' => 1, 'status' => 'pending' })
 
-    # Default mock
-    allow(aetherflux).to receive(:channel_oracle_conjuration) do |_prompt|
-      { status: :success, response: 'Simulated response' }
-    end
+    # Configure fake aetherflux with default response
+    aetherflux.set_default_response({ status: :success, response: 'Simulated response' })
   end
 
   after do
@@ -31,20 +31,18 @@ RSpec.describe TaskEngine do
 
   describe '#oracle_conjuration_failure' do
     it 'handles :failure responses' do
-      allow(aetherflux).to receive(:channel_oracle_conjuration).and_return({ status:   :failure,
-                                                                             response: 'Task execution failed' })
+      aetherflux.configure_response('Step 1', { status: :failure, response: 'Task execution failed' })
 
-      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Task execution failed')
+      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Step 1 failed: Task execution failed')
 
       task_state = mnemosyne.task_state 1
       expect(task_state['status']).to eq('failed')
     end
 
     it 'logs the failure response' do
-      allow(aetherflux).to receive(:channel_oracle_conjuration).and_return({ status:   :failure,
-                                                                             response: 'Task execution failed' })
+      aetherflux.configure_response('Step 1', { status: :failure, response: 'Task execution failed' })
 
-      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Task execution failed')
+      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Step 1 failed: Task execution failed')
 
       logs = mnemosyne.task_logs 1
       expect(logs.join).to match(/Step 1 failed: Task execution failed/)
@@ -53,8 +51,7 @@ RSpec.describe TaskEngine do
 
   describe '#oracle_conjuration_timeout' do
     it 'handles timeout errors' do
-      allow(aetherflux).to receive(:channel_oracle_conjuration).and_raise(Timeout::Error,
-                                                                          'Request timed out')
+      aetherflux.configure_response('Step 1', -> { raise Timeout::Error, 'Request timed out' })
 
       expect { subject.execute_task(1) }.to raise_error(Timeout::Error)
 
@@ -63,8 +60,7 @@ RSpec.describe TaskEngine do
     end
 
     it 'logs the timeout error' do
-      allow(aetherflux).to receive(:channel_oracle_conjuration).and_raise(Timeout::Error,
-                                                                          'Request timed out')
+      aetherflux.configure_response('Step 1', -> { raise Timeout::Error, 'Request timed out' })
 
       expect { subject.execute_task(1) }.to raise_error(Timeout::Error)
 
@@ -89,8 +85,7 @@ RSpec.describe TaskEngine do
 
   describe '#execute_task' do
     before do
-      allow(aetherflux).to receive(:channel_oracle_conjuration).and_return({ status:   :success,
-                                                                             response: 'Simulated response' })
+      aetherflux.set_default_response({ status: :success, response: 'Simulated response' })
     end
 
     context 'when task is paused' do
