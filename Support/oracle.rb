@@ -89,7 +89,7 @@ class Oracle
                                                   want_json: false,
                                                   reasoning: reasoning
         raw = post body, if reasoning then 300 else 120 end
-        raise raw[:error] unless raw.is_a? String || raw[:error].nil?
+        raise StandardError, raw[:error] unless raw.is_a? String || raw[:error].nil?
 
         json = ensure_json raw
         log_json json: json
@@ -139,7 +139,7 @@ class Oracle
         # parsed = safe_parse msg['content']
         # tools_from_content = extract_tools_from_content parsed
         tools_from_content = extract_tool_calls_from_content content
-        puts "tools_from_content=#{tools_from_content}"
+        # puts "tools_from_content=#{tools_from_content}"
         # arts[:plan] = parsed['plan'] if parsed.is_a?(Hash) && parsed['plan']
 
         if tools_from_content.any?
@@ -206,7 +206,7 @@ class Oracle
       # Return the structured output
       [answer, arts, tool_results]
     rescue StandardError => e
-      puts e.inspect
+      # puts e.inspect
       HorologiumAeternum.system_error 'Conjuration failed', e.message
       { error: "Conjuration failed: #{e.message}" }
     end
@@ -338,7 +338,7 @@ class Oracle
       jsons = text.scan(/^\s*```json\s*\n(.*?)^\s*```/m)
       tool_calls = jsons.reduce [] do |tool_calls, json|
         obj = JSON.parse json[0]
-        puts "obj=#{obj.inspect}"
+        # puts "obj=#{obj.inspect}"
         if obj['tool_calls']
           tool_calls + obj['tool_calls'].map do |tool|
             tool.transform_keys { |key| TOOL_CALLS_ALIASES[key] || key }

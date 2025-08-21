@@ -6,6 +6,24 @@ class FakeAetherflux
     @responses = {}
     @default_response = { status: :success, response: "Simulated oracle response" }
     @conjuration_count = 0
+    @capture_mode = false
+    @captured_conjurations = []
+  end
+
+  # Enable capture mode to store conjuration parameters
+  def set_capture_mode(enabled = true)
+    @capture_mode = enabled
+    @captured_conjurations.clear if enabled
+  end
+
+  # Get captured conjuration parameters
+  def captured_conjurations
+    @captured_conjurations.dup
+  end
+
+  # Clear captured conjurations
+  def clear_captured_conjurations
+    @captured_conjurations.clear
   end
 
   # Configure responses for specific prompts
@@ -22,6 +40,16 @@ class FakeAetherflux
   def channel_oracle_conjuration(params, tools: nil, context: nil)
     prompt = params[:prompt]
     system_prompt = params[:system]
+    
+    # Capture conjuration parameters if in capture mode
+    if @capture_mode
+      @captured_conjurations << {
+        prompt: prompt,
+        system: system_prompt,
+        tools: tools,
+        context: context
+      }
+    end
     
     # Find matching response or use default
     response = find_matching_response(prompt) || @default_response

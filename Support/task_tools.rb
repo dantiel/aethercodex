@@ -12,7 +12,7 @@ class TaskTools
   # Build a PrimaMateria instance with task-specific tools
   def self.build_task_tools(base_prima, task_id, task_engine)
     # Create a fresh instance with base tools
-    task_prima = base_prima.clone_tools
+    task_prima = base_prima.clone_tools.reject(:oracle_conjuration)
     # Merge in task-specific tools
     task_prima.merge_tools! build_task_prima(task_id, task_engine)
     task_prima
@@ -78,16 +78,16 @@ class TaskTools
       { ok: true, task_id: task_id, progress: progress }
     end
 
-
-    # Task-specific oracle conjuration
-    task_prima.add_instrument :task_oracle_conjuration,
-                    description: 'Invoke oracle reasoning with task context.',
-                    params: {
-                      prompt: { type: 'string', required: true }
-                    } do |prompt:|
-      enhanced_prompt = "[Task #{task_id}] #{prompt}"
-      Instrumenta::PRIMA_MATERIA.oracle_conjuration prompt: enhanced_prompt
-    end
+    #
+    # # Task-specific oracle conjuration
+    # task_prima.add_instrument :task_oracle_conjuration,
+    #                 description: 'Invoke oracle reasoning with task context.',
+    #                 params: {
+    #                   prompt: { type: 'string', required: true }
+    #                 } do |prompt:|
+    #   enhanced_prompt = "[Task #{task_id}] #{prompt}"
+    #   Instrumenta::PRIMA_MATERIA.oracle_conjuration prompt: enhanced_prompt
+    # end
 
 
     # Task step rejection with restart capability

@@ -95,6 +95,7 @@ saveMessages = ->
 
 loadMessages = ->
   try
+    m = document.getElementById 'messages'
     stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
     stored.forEach (msg) ->
       console.log "load from storage:", msg
@@ -102,7 +103,6 @@ loadMessages = ->
       el.className = msg.className
       el.innerHTML = msg.innerHTML
       document.getElementById('messages').appendChild el
-    m = document.getElementById('messages')
     m.scrollTop = m.scrollHeight
   catch e
     console.warn 'Failed to load messages:', e
@@ -130,19 +130,23 @@ log = (cls, uuid, html) ->
   
   messageBuffer.push ->
     existingElement = document.getElementById uuid unless null is uuid 
+    m = document.getElementById 'messages'
   
     # TODO add highlight animation when appearing
     if existingElement
       existingElement.className = cls
       existingElement.innerHTML = html
+      m.scrollTop = existingElement.offsetTop
     else
+      is_near_bottom = 
+        (m.scrollHeight - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
       el = document.createElement 'div'
       el.className = cls
       el.innerHTML = html
       el.id = uuid
-      m = document.getElementById 'messages'
       m.appendChild el
-      m.scrollTop = m.scrollHeight
+      m.scrollTop = m.scrollHeight if is_near_bottom
+
     
     do saveMessages
 
@@ -343,7 +347,11 @@ showStatus = (type, data, uuid) ->
       log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
       log 'system', data.task_id, renderTaskProgress data
     when 'task_created'
-      log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+      log 'system', uuid, """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <div>#{replaceFileTags data.plan}</div>
+        </details>"""
       log 'system', data.task_id, renderTaskProgress data
     when 'task_updated'
       log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
@@ -354,8 +362,43 @@ showStatus = (type, data, uuid) ->
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           <div class="task-list">#{replaceFileTags data.content}</div>
         </details>"""
+    when 'task_log_added'
+      # Add to existing task log display or create new one
+      taskLogElement = document.getElementById "task-logs-#{data.task_id}"
+      unless taskLogElement
+        # Create task log container if it doesn't exist
+        taskLogElement = document.createElement 'div'
+        taskLogElement.id = "task-logs-#{data.task_id}"
+        taskLogElement.className = 'task-logs'
+        taskLogElement.innerHTML = """
+          <div class="task-log-header">
+            <h4>📋 Task ##{data.task_id} Execution Log</h4>
+            <button onclick="toggleTaskLogs('#{data.task_id}')">📋</button>
+          </div>
+          <div class="task-log-entries"></div>
+        """
+        document.getElementById('messages').appendChild taskLogElement
       
+      logTime = new Date(data.timestamp * 1000).toLocaleTimeString()
+      logEntry = document.createElement 'div'
+      logEntry.className = 'task-log-entry'
+      logEntry.innerHTML = """
+        <span class="log-time">#{logTime}</span>
+        <span class="log-message">#{replaceFileTags data.content}</span>
+      """
+      
+      taskLogElement.querySelector('.task-log-entries').appendChild logEntry
+      # Auto-scroll to new log entry
+      taskLogElement.querySelector('.task-log-entries').scrollTop =
+        log 'system', data.task_id, renderTaskProgress data
+  
 
+toggleTaskLogs = (task_id) ->
+  taskLogElement = document.getElementById "task-logs-#{task_id}"
+  if taskLogElement
+    taskLogElement.classList.toggle 'collapsed'
+        
+  
 handleMessage = (e) ->
   console.debug "[Pythia] Handling message:", e.data
   data = JSON.parse e.data
@@ -372,7 +415,7 @@ handleMessage = (e) ->
         data.result.logs.forEach (l) ->
           switch l.type
             when 'prelude' then log 'ai', null, l.data s
-            when 'say'     then log 'ai', null, l.data.message      
+            when 'say'     then log 'ai', null, l.data.message
       # if data.result.tools? and data.result.tools.length > 0
       #   toolsJson = JSON.stringify(data.result.tools, null, 2)
       #   if toolsJson.length > 300

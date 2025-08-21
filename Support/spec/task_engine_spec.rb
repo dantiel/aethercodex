@@ -3,7 +3,7 @@
 require_relative '../task_engine'
 require_relative '../mnemosyne'
 require_relative 'fake_mnemosyne'
-require_relative '../fake_aetherflux'
+require_relative 'fake_aetherflux'
 require 'rspec'
 require 'timeout'
 

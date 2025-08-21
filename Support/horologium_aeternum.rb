@@ -116,8 +116,8 @@ module HorologiumAeternum
     # TODO: add linenumbers
     if range
       send_status('file_read_complete', {
-                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from "\
-                                              "#{create_file_link path, nil, range[0]} "\
+                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from " \
+                                              "#{create_file_link path, nil, range[0]} " \
                                               "(lines #{range[0]}-#{range[1]})"),
                     path:    path,
                     bytes:   bytes_read,
@@ -126,7 +126,7 @@ module HorologiumAeternum
                   }, uuid:)
     else
       send_status('file_read_complete', {
-                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from "\
+                    message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from " \
                                               "#{create_file_link path}"),
                     path:    path,
                     bytes:   bytes_read,
@@ -228,14 +228,24 @@ module HorologiumAeternum
 
 
   # Task lifecycle events
-  def self.task_created(title, plan, max_steps, task_id, uuid: nil)
-    send_status('task_created', {
-                  message:   Scriptorium.html("📋 Task created: #{title} (max steps: #{max_steps})"),
+  def self.task_updated(task_id, title: nil, plan: nil, progress: nil, max_steps: nil, uuid: nil)
+    send_status('task_updated', {
+                  message:   Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
                   title:,
-                  max_steps:,
-                  progress:  0,
                   task_id:,
-                  plan:
+                  plan:,
+                  progress:,
+                  max_steps:
+                }, uuid:)
+  end
+
+
+  def self.task_log_added(task_id, timestamp:, message:, uuid: nil)
+    send_status('task_log_added', {
+                  message:   Scriptorium.html('📝 Task log updated'),
+                  task_id:,
+                  content:   Scriptorium.html_with_syntax_highlight(message),
+                  timestamp:
                 }, uuid:)
   end
 
@@ -247,6 +257,18 @@ module HorologiumAeternum
                   title:,
                   max_steps:,
                   progress:  0
+                }, uuid:)
+  end
+
+
+  def self.task_created(title, plan, max_steps, task_id, uuid: nil)
+    send_status('task_created', {
+                  message:   Scriptorium.html("📋 Task created: #{title} (max steps: #{max_steps})"),
+                  title:,
+                  max_steps:,
+                  progress:  0,
+                  task_id:,
+                  plan: Scriptorium.html_with_syntax_highlight(plan)
                 }, uuid:)
   end
 

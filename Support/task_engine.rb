@@ -3,7 +3,7 @@
 # Support/task_engine.rb
 require 'timeout'
 require 'json'
-require_relative 'horologium_aeternum'
+# require_relative 'horologium_aeternum'
 require_relative 'task_tools'
 
 
@@ -404,12 +404,12 @@ class TaskEngine
 
   def log_message(task_id, message)
     @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'log' => message })
-    # broadcast_update task_id
+    # Broadcast log update to frontend (commented out for testing)
+    # HorologiumAeternum.task_log_added \
+    #   task_id, timestamp: Time.now.to_f, message: message
+
     debug message.to_s # Add debug output for test visibility
   end
-
-
-  private
 
 
   # Execute a workflow step, invoking the oracle for hermetic guidance.
@@ -438,11 +438,12 @@ class TaskEngine
     # Enhanced prompt with complete task context
     prompt = <<~PROMPT
       # TASK EXECUTION CONTEXT
-      TASK TITLE: #{task[:title] || task[:description]}
-      TASK PLAN: #{task[:plan] || 'No detailed plan provided.'}
+      TASK TITLE: #{task[:title] || '--'}
+      TASK DESCRIPTION: #{task[:description] || '--'}
+      TASK PLAN: #{task[:plan] || '--'}
       CURRENT STEP: #{step_index}/#{WORKFLOW_STEPS}
 
-      # STEP GUIDANCE
+      # CURRENT STEP GUIDANCE
       #{step_guidance}
 
       # EXECUTION INSTRUCTIONS
@@ -458,23 +459,37 @@ class TaskEngine
       # Comprehensive context for hermetic execution
       context = {
         task_id:          task_id,
-        task_title:       task[:title] || task[:description],
+        task_title:       task[:title],
+        task_description: task[:description],
         task_plan:        task[:plan],
         step_index:       step_index,
         total_steps:      WORKFLOW_STEPS,
-        step_purpose:     STEP_PURPOSES[step_index - 1],
-        extended_purpose: step_guidance,
+        step_purpose:     STEP_PURPOSES[step_index - 1],# TODO make this a system instruction
+        extended_purpose: step_guidance, # TODO make this a system instruction
         progress:         "#{step_index}/#{WORKFLOW_STEPS}"
-      }
 
+      }
+      # TODO: some phases should use normal divination instead of reasoning conjuration, but may call conjuration if needed, but conjuration shall not be able to call conjuration
+      # response = @aetherflux.channel_oracle_divination(
+      #   {
+      #     prompt: prompt,
+      #     system: system_prompt
+      #   },
+      #   nil,
+      #   tools: create_task_tools(task_id),
+      #   context: context
+      # )
+      #
       response = @aetherflux.channel_oracle_conjuration(
         {
           prompt: prompt,
           system: system_prompt
         },
+        nil
         tools: create_task_tools(task_id),
         context: context
       )
+      
 
       log_message task_id, "TASK CONJURATION RESPONSE=#{response.inspect}"
 
@@ -524,15 +539,15 @@ class TaskEngine
 
 
   def broadcast_update(task_id)
-    # task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
-    # return unless task
+    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    return unless task
 
-    # HorologiumAeternum.task_updated(
-    #   task_id,
-    #   title: task[:description],
-    #   progress: task[:progress] || 0,
-    #   max_steps: WORKFLOW_STEPS
-    # )
+    HorologiumAeternum.task_updated(
+      task_id,
+      title: task[:description],
+      progress: task[:progress] || 0,
+      max_steps: WORKFLOW_STEPS
+    )
   end
 
 
@@ -576,6 +591,7 @@ class TaskEngine
   end
 
 
+  #TODO complete_step and reject step should terminate the current reasoning otherwise this creates double cycles.
   # Complete current step with optional result
   def complete_step(task_id, result = nil)
     current_step = current_step task_id

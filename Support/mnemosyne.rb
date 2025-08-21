@@ -166,6 +166,7 @@ class Mnemosyne
           title TEXT,
           plan TEXT,
           updates TEXT,
+          logs TEXT,
           status TEXT,
           progress INTEGER DEFAULT 0,
           max_steps INTEGER DEFAULT 10,
@@ -293,9 +294,8 @@ class Mnemosyne
     end
 
 
-
     def record(params, answer)
-      puts "[MNEMOSYNE][RECORD]: recording #{tok_len params.to_json + answer}"
+      puts "[MNEMOSYNE][RECORD]: recording #{tok_len (params.to_json.inspect || '')  + (answer||'')}"
       db.execute \
         'INSERT INTO entries (prompt, answer, tags, file, selection) VALUES (?,?,?,?,?)',
         [params[:prompt], answer, Array(params[:tags]).join(','), params[:file],
@@ -353,8 +353,21 @@ class Mnemosyne
           { 'ok' => false, 'error' => e.message }
         end
       when 'update'
-        db.execute 'UPDATE tasks SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                   [params[:status], params[:progress], params[:id]]
+        if params[:log]
+          # Append to existing logs
+          current_logs = db.execute('SELECT logs FROM tasks WHERE id = ?', [params[:id]]).first
+          logs = if current_logs && current_logs['logs'] && !current_logs['logs'].empty?
+                   JSON.parse(current_logs['logs'])
+                 else
+                   []
+                 end
+          logs << { timestamp: Time.now.to_f, message: params[:log] }
+          db.execute 'UPDATE tasks SET logs = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                     [logs.to_json, params[:id]]
+        else
+          db.execute 'UPDATE tasks SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                     [params[:status], params[:progress], params[:id]]
+        end
         { ok: true }
       when 'activate'
         db.execute 'UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',

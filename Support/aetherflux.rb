@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# Support/aetherflux.rb
 require_relative 'arcanum'
 require_relative 'oracle'
 
@@ -9,7 +10,7 @@ class Aetherflux
   class << self
     def channel_oracle_divination(params, websocket, tools:)
       # Ensure HorologiumAeternum is connected to this WebSocket
-      HorologiumAeternum.set_websocket websocket
+      HorologiumAeternum.set_websocket websocket unless websocket.nil?
 
       # Start status updates immediately
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
@@ -33,12 +34,11 @@ class Aetherflux
         retry
       end
 
-      raise answer unless answer.is_a? String
+      raise StandardError, answer unless answer.is_a? String
 
       logs = []
 
       html = Scriptorium.html_with_syntax_highlight answer.to_s
-      Mnemosyne.record params, answer if params[:record]
 
       HorologiumAeternum.oracle_revelation answer.to_s unless answer.to_s.strip.empty?
 
@@ -47,6 +47,8 @@ class Aetherflux
       HorologiumAeternum.completed Scriptorium.html(
         "🎯 Response ready with **#{tool_count}** tools executed"
       )
+      
+      Mnemosyne.record params, answer if params[:record]
 
       {
         method: 'answer',
@@ -69,6 +71,7 @@ class Aetherflux
         backtrace: e.backtrace }
     rescue StandardError => e
       puts "[AETHER FLUX][ERROR]: #{e.inspect}"
+      Mnemosyne.record params, "Error: #{e.message || e.message[:error]}" if params[:record]
       { method: 'answer', result: 'error', error: e.message || e.message[:error] }
     end
 
@@ -76,10 +79,8 @@ class Aetherflux
     def channel_oracle_conjuration(params, tools:, context: nil)
       puts "[AETHER FLUX][ORACLE CONJURATION]: #{params.inspect} tools=#{tools.schema}"
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
-      puts "ARCANUM BGEGIN ##{context}"
       
       ctx = Arcanum.build params
-      puts "ARCANUM DONE #{ctx}"
       # Handle restarts during conjuration
       begin
         answer, arts, tool_results =
@@ -97,7 +98,7 @@ class Aetherflux
       end
 
       logs = []
-      arts ||= []
+      arts ||= {}
       tool_results ||= []
 
       html = Scriptorium.html_with_syntax_highlight answer.to_s
@@ -109,9 +110,10 @@ class Aetherflux
 
       HorologiumAeternum.completed "🎯 Response ready with **#{tool_count}** tools executed"
 
+      # Return proper status structure for task engine
       {
-        method: 'answer',
-        result: {
+        status: :success,
+        response: {
           reasoning:    arts[:reasoning],
           answer:       answer,
           html:         html,
@@ -126,7 +128,12 @@ class Aetherflux
     rescue StandardError => e
       puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION][ERROR]: #{e.inspect}"
       HorologiumAeternum.server_error "Oracle reasoning stream failed: #{e.message}"
-      { error: "Oracle reasoning stream failed: #{e.message}" }
+      { 
+        status: :failure,
+        response: "Oracle reasoning stream failed: #{e.message}"
+      }
+    ensure
+      Mnemosyne.record params, answer if params[:record]
     end
   end
 end

@@ -1,18 +1,5 @@
 # frozen_string_literal: true
 
-# require_relative 'task_engine'
-require_relative 'argonaut'
-require_relative 'verbum'
-require_relative 'scriptorium'
-require_relative 'mnemosyne'
-require_relative 'horologium_aeternum'
-require_relative 'aetherflux'
-require 'json'
-require 'timeout'
-require 'open3'
-require 'cgi'
-require 'dotenv' 
-require 'securerandom'
 
 # Define Boolean type for schema compatibility
 Boolean = TrueClass
@@ -31,6 +18,25 @@ class PrimaMateria
 
 
   attr_reader :tools
+  
+  def reject(*tool_names)
+    # Create a new PrimaMateria instance with filtered tools
+    filtered_prima = PrimaMateria.new
+    
+    # Add only the tools that are NOT in the reject list
+    @tools.each do |name, tool|
+      next if tool_names.include?(name)
+      
+      filtered_prima.add_instrument(name,
+        description: tool.description,
+        params: tool.params,
+        returns: tool.returns,
+        &tool.implementation
+      )
+    end
+    
+    filtered_prima
+  end
   
   # Merge tools from another PrimaMateria instance (destructive)
   def merge_tools!(other_prima)
