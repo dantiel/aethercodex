@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'sqlite3' 
+require 'sqlite3'
 require 'fileutils'
 require 'yaml'
 require 'set'
@@ -23,12 +23,12 @@ class Mnemosyne
 
   class << self
     attr_reader :aegis
-    
-    # Create a new task with a plan and max steps
-    def create_task(title:, plan:, max_steps:)
+
+    # Create a new task with a plan
+    def create_task(title:, plan:)
       puts "CREATE TASK #{title}:#{plan}"
-      x = db.execute 'INSERT INTO tasks (title, plan, max_steps, status) VALUES (?, ?, ?, ?)',
-                     [title, plan, max_steps, 'pending']
+      x = db.execute 'INSERT INTO tasks (title, plan, status) VALUES (?, ?, ?)',
+                     [title, plan, 'pending']
       puts "x=#{x}, id=#{db.last_insert_row_id}"
       { ok: true, id: db.last_insert_row_id }
     end
@@ -48,7 +48,7 @@ class Mnemosyne
     end
 
 
-    def fetch_history(limit: 30, max_tokens: nil)
+    def fetch_history(limit: 7, max_tokens: nil)
       entries = Mnemosyne.db.execute(
         'SELECT prompt, answer, created_at FROM entries ORDER BY id DESC LIMIT ?', [limit]
       ).map { |entry| entry.transform_keys!(&:to_sym) }
@@ -98,9 +98,17 @@ class Mnemosyne
     end
 
 
-    # Retrieve a task by ID
+    # Retrieve a note by ID
+    def get_note(note_id)
+      note = db.execute('SELECT * FROM project_notes WHERE id = ? LIMIT 1', [note_id]).first
+      note&.transform_keys!(&:to_sym)
+      note
+    end
+
+
+    # Retrieve a note by ID
     def get_task(task_id)
-      task = db.execute('SELECT * FROM tasks WHERE id = ?', [task_id]).first
+      task = db.execute('SELECT * FROM tasks WHERE id = ? LIMIT 1', [task_id]).first
       task&.transform_keys!(&:to_sym)
       task[:status] ||= 'pending' if task
       task
@@ -168,9 +176,8 @@ class Mnemosyne
           updates TEXT,
           logs TEXT,
           status TEXT,
-          progress INTEGER DEFAULT 0,
-          max_steps INTEGER DEFAULT 10,
           current_step INTEGER DEFAULT 0,
+          step_results TEXT DEFAULT '{}',  -- JSON storage for phase results
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -272,7 +279,7 @@ class Mnemosyne
     def recall_aegis_notes(max_tokens: nil)
       tags = @aegis[:tags] || []
       tags = tags.split ',' if tags.is_a? String
-      notes = recall_notes tags.join(' '), limit: 30
+      notes = recall_notes tags.join(' '), limit: 8
 
       # Apply token limit if provided
       unless max_tokens.nil?
@@ -295,7 +302,7 @@ class Mnemosyne
 
 
     def record(params, answer)
-      puts "[MNEMOSYNE][RECORD]: recording #{tok_len (params.to_json.inspect || '')  + (answer||'')}"
+      puts "[MNEMOSYNE][RECORD]: recording #{tok_len (params.to_json.inspect || '') + (answer || '')}"
       db.execute \
         'INSERT INTO entries (prompt, answer, tags, file, selection) VALUES (?,?,?,?,?)',
         [params[:prompt], answer, Array(params[:tags]).join(','), params[:file],
@@ -318,7 +325,9 @@ class Mnemosyne
       links = [links] unless links.is_a? Array
 
       db.execute("SELECT * FROM project_notes WHERE #{(['links LIKE ?'] * links.count).join ' OR '}",
-                 links.map { |link| "%#{link}%" }).each { |note| note.transform_keys!(&:to_sym) }
+                 links.map { |link| "%#{link}%" }).each do |note|
+        note.transform_keys!(&:to_sym)
+      end
     end
 
 
@@ -337,6 +346,11 @@ class Mnemosyne
     end
 
 
+    def remove_task(id)
+      manage_tasks action: 'delete', id:
+    end
+
+
     # Task ledger with states, progress, and dynamic plan updates
     def manage_tasks(params)
       params.transform_keys!(&:to_sym)
@@ -344,10 +358,12 @@ class Mnemosyne
       case action
       when 'create'
         begin
-          db.execute('INSERT INTO tasks (title, plan, updates, status, progress, max_steps, current_step) VALUES (?,?,?,?,?,?,?)',
-                     [params[:title], params[:plan].to_json, '[]', 'pending', 0,
-                      params[:max_steps] || 10, 0])
-          { 'ok' => true, 'id' => db.last_insert_row_id }
+          x = db.execute 'INSERT INTO tasks (title, plan, updates, status, current_step) VALUES (?,?,?,?,?)',
+                         [params[:title], params[:plan].to_json, '[]', 'pending', 0]
+          { 'ok' => true,
+            'id' => db.last_insert_row_id,
+            title: params[:title],
+            plan: params[:plan] }
         rescue SQLite3::Exception => e
           warn "Task creation failed: #{e.message}"
           { 'ok' => false, 'error' => e.message }
@@ -357,16 +373,20 @@ class Mnemosyne
           # Append to existing logs
           current_logs = db.execute('SELECT logs FROM tasks WHERE id = ?', [params[:id]]).first
           logs = if current_logs && current_logs['logs'] && !current_logs['logs'].empty?
-                   JSON.parse(current_logs['logs'])
+                   JSON.parse current_logs['logs']
                  else
                    []
                  end
           logs << { timestamp: Time.now.to_f, message: params[:log] }
           db.execute 'UPDATE tasks SET logs = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
                      [logs.to_json, params[:id]]
+        elsif params[:step_results]
+          # Update step results
+          db.execute 'UPDATE tasks SET step_results = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                     [params[:step_results], params[:id]]
         else
-          db.execute 'UPDATE tasks SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                     [params[:status], params[:progress], params[:id]]
+          db.execute 'UPDATE tasks SET status = ?, current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                     [params[:status], params[:current_step], params[:id]]
         end
         { ok: true }
       when 'activate'
@@ -384,9 +404,36 @@ class Mnemosyne
         db.execute 'UPDATE tasks SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
                    [params[:current_step], params[:id]]
         { ok: true }
+      when 'delete'
+        db.execute 'DELETE FROM tasks WHERE id = ?', [params[:id]]
+        { ok: true }
       else # list
         rows = db.execute 'SELECT * FROM tasks ORDER BY created_at DESC'
-        rows.map { |r| r.transform_keys(&:to_sym) }
+        rows.map { |r| r.transform_keys!(&:to_sym) }
+
+        max_tokens = 1111
+        token_count = 0
+        included_rows = []
+
+        rows.each do |row|
+          row_tokens = tok_len row.to_json
+
+          if row_tokens > max_tokens
+            row[:message] = row[:message].to_s.gsub(/\n\s*```(\w*).*?\n\s*```\s*\n/m,
+                                                    '```\\1[CONTENT EXPIRED]```')
+            row_tokens = tok_len row.to_json
+            next if row_tokens > max_tokens
+          end
+
+          break if token_count + row_tokens > max_tokens
+
+          included_rows << row
+          token_count += row_tokens
+        end
+
+        rows = included_rows
+        puts "ROWS=#{rows}"
+        rows
       end
     end
 

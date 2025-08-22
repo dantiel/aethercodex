@@ -82,6 +82,21 @@ module HorologiumAeternum
   end
 
 
+  def self.history(history, uuid: nil)
+    entries_html = history.map do |entry|
+      {
+        prompt: Scriptorium.html_with_syntax_highlight(entry[:prompt]),
+        answer: Scriptorium.html_with_syntax_highlight(entry[:answer])
+      }
+    end
+
+    send_status('history', {
+                  message: Scriptorium.html("**#{history.count}** history entries found."),
+                  content: entries_html
+                }, uuid:)
+  end
+
+
   def self.tool_completed(tool_name, result, uuid: nil)
     send_status('tool_completed', { tool: tool_name, result: result }, uuid:)
   end
@@ -199,9 +214,22 @@ module HorologiumAeternum
 
 
   def self.command_executing(cmd, uuid: nil)
+    cmd_str = if cmd.include? "\n" then "```#{cmd}```" else "`#{cmd}`" end
     send_status('command_executing', {
-                  message: Scriptorium.html("⚡ Executing: `#{cmd}`"),
+                  message: Scriptorium.html("⚡ Executing: #{cmd_str}"),
                   command: cmd
+                }, uuid:)
+  end
+
+
+  def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
+    symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
+    cmd_str = if cmd.include? "\n" then "```#{cmd}```" else "`#{cmd}`" end
+    send_status('command_completed', {
+                  message:       Scriptorium.html("#{symbol} Command complete: #{cmd_str} (#{output_length} chars output)"),
+                  command:       cmd,
+                  output_length: output_length,
+                  content:       content
                 }, uuid:)
   end
 
@@ -216,26 +244,14 @@ module HorologiumAeternum
   end
 
 
-  def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
-    symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
-    send_status('command_completed', {
-                  message:       Scriptorium.html("#{symbol} Command complete: `#{cmd}` (#{output_length} chars output)"),
-                  command:       cmd,
-                  output_length: output_length,
-                  content:       content
-                }, uuid:)
-  end
-
-
   # Task lifecycle events
-  def self.task_updated(task_id, title: nil, plan: nil, progress: nil, max_steps: nil, uuid: nil)
+  def self.task_updated(uuid: nil, **task)
+    puts "task_updated #{task.inspect}"
+    progress = (task[:current_step] || 0) + 1
+    max_steps = 10
     send_status('task_updated', {
-                  message:   Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
-                  title:,
-                  task_id:,
-                  plan:,
-                  progress:,
-                  max_steps:
+                  message: Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
+                  **task
                 }, uuid:)
   end
 
@@ -250,58 +266,63 @@ module HorologiumAeternum
   end
 
 
-  def self.task_started(task_id, title, max_steps, uuid: nil)
+  def self.task_removed(task_id, uuid: nil)
+    send_status('task_removed', {
+                  message: Scriptorium.html("Removed Task **##{task_id}**"),
+                  task_id:
+                }, uuid:)
+  end
+
+
+  def self.task_started(uuid: nil, **task)
+    max_steps = 10
+    title = task[:title]
     send_status('task_started', {
-                  message:   Scriptorium.html("📦 Task started: #{title} (0/#{max_steps})"),
-                  task_id:,
-                  title:,
-                  max_steps:,
-                  progress:  0
+                  message: Scriptorium.html("📦 Task started: **#{title}** (0/#{max_steps})"),
+                  **task
                 }, uuid:)
   end
 
 
-  def self.task_created(title, plan, max_steps, task_id, uuid: nil)
+  def self.task_created(uuid: nil, **task)
+    max_steps = 10
+    title = task[:title]
     send_status('task_created', {
-                  message:   Scriptorium.html("📋 Task created: #{title} (max steps: #{max_steps})"),
-                  title:,
-                  max_steps:,
-                  progress:  0,
-                  task_id:,
-                  plan: Scriptorium.html_with_syntax_highlight(plan)
+                  message: Scriptorium.html("📋 Task created: **#{title} ##{task[:id]}**"),
+                  **task,
+                  plan:    Scriptorium.html_with_syntax_highlight(task[:plan])
                 }, uuid:)
   end
 
 
-  def self.task_updated(task_id, title: nil, plan: nil, progress: nil, max_steps: nil, uuid: nil)
+  def self.task_updated(uuid: nil, **task)
+    puts "task_updated #{task.inspect}"
+    progress = (task[:current_step] || 0)
+    max_steps = 10
     send_status('task_updated', {
-                  message:   Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
-                  title:,
-                  task_id:,
-                  plan:,
-                  progress:,
-                  max_steps:
+                  message: Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
+                  **task
                 }, uuid:)
   end
 
 
-  def self.task_completed(task_id, title, duration, uuid: nil)
+  # TODO: never called yet
+  def self.task_completed(duration, uuid: nil, **task)
     send_status('task_completed', {
-                  message:  Scriptorium.html("✅ Task completed: #{title} (#{duration.round 2}s)"),
-                  task_id:,
-                  title:,
+                  message:  Scriptorium.html("✅ Task completed: #{task[:title]} (#{duration.round 2}s)"),
+                  **task,
                   duration:
                 }, uuid:)
   end
 
 
-  def self.task_list(tasks, uuid: nil)
+  def self.task_list(tasks, count:, uuid: nil)
     tasks_md = tasks.map do |task|
-      plan = task[:plan].each_line.map { |line| "  #{line}" }.join
+      plan = task[:plan]&.each_line&.map { |line| "  #{line}" }&.join
       "- \\##{task[:id]} **#{task[:title]}:**\n#{plan}\n  _(Status: #{task[:status]})_"
     end.join "\n\n"
     send_status('task_list', {
-                  message: Scriptorium.html("Found **#{tasks.count}** Active Tasks"),
+                  message: Scriptorium.html("Found **#{count}** Active Tasks"),
                   content: Scriptorium.html_with_syntax_highlight(tasks_md)
                 }, uuid:)
   end
@@ -374,6 +395,14 @@ module HorologiumAeternum
   def self.note_added(note, uuid: nil)
     send_status('note_added', {
                   message: '🔒 Note stored',
+                  content: Scriptorium.html_with_syntax_highlight(render_note(note))
+                }, uuid:)
+  end
+
+
+  def self.note_removed(note, uuid: nil)
+    send_status('note_removed', {
+                  message: "Removed Note #{note[:id]}",
                   content: Scriptorium.html_with_syntax_highlight(render_note(note))
                 }, uuid:)
   end
@@ -479,8 +508,8 @@ module HorologiumAeternum
 
 
   def self.system_error(message, error, uuid: nil)
-    send_status('server_error', {
-                  message: Scriptorium.html("❌ #{message}: `#{error}`")
+    send_status('system_error', {
+                  error: Scriptorium.html("❌ #{message}: `#{error}`")
                 }, uuid:)
   end
 

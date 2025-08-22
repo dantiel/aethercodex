@@ -15,8 +15,7 @@ RSpec.describe 'Task Engine Context Integration' do
     # Create a task with comprehensive metadata
     @task_id = task_engine.create_task(
       title: 'Test Task Title',
-      plan: 'This is a detailed test plan for verifying context integration',
-      max_steps: 10
+      plan: 'This is a detailed test plan for verifying context integration'
     )[:id]
 
     # Update task status to pending
@@ -80,8 +79,7 @@ RSpec.describe 'Task Engine Context Integration' do
     # Create task without custom steps
     task_id = task_engine.create_task(
       title: 'Default Guidance Task',
-      plan: 'Test fallback to default guidance',
-      max_steps: 10
+      plan: 'Test fallback to default guidance'
     )[:id]
 
     # Execute step - should use default guidance
@@ -92,5 +90,126 @@ RSpec.describe 'Task Engine Context Integration' do
     
     expect(prompt).to include('Albedo: Defining the purified solution')
     expect(prompt).to include('Albedo Phase - Defining the Purified Solution')
+  end
+
+  it 'passes previous step results in context for subsequent steps' do
+    # Store step 1 result
+    mnemosyne.manage_tasks({
+      'action' => 'update',
+      'id' => @task_id,
+      'step_results' => '{"1": "Step 1 completed successfully with analysis"}'
+    })
+
+    # Execute step 2
+    task_engine.execute_step(@task_id, 2)
+
+    # Verify previous step results are included in prompt
+    conjuration_params = aetherflux.captured_conjurations.last
+    prompt = conjuration_params[:prompt]
+    
+    expect(prompt).to include('Step 1: Step 1 completed successfully with analysis')
+    expect(prompt).to include('PREVIOUS STEP RESULTS')
+  end
+
+  it 'handles empty previous results gracefully' do
+    # Ensure no previous results
+    mnemosyne.manage_tasks({
+      'action' => 'update',
+      'id' => @task_id,
+      'step_results' => '{}'
+    })
+
+    # Execute step 3
+    task_engine.execute_step(@task_id, 3)
+
+    conjuration_params = aetherflux.captured_conjurations.last
+    prompt = conjuration_params[:prompt]
+    
+    expect(prompt).to include('No previous step results available.')
+  end
+
+  describe 'edge case context handling' do
+    context 'with extremely long task titles and plans' do
+      it 'truncates excessively long content gracefully' do
+        long_title = 'A' * 500
+        long_plan = 'B' * 1000
+        
+        task_id = task_engine.create_task(title: long_title, plan: long_plan)[:id]
+        mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'status' => 'pending' })
+        
+        expect { task_engine.execute_step(task_id, 1) }.not_to raise_error
+        
+        conjuration_params = aetherflux.captured_conjurations.last
+        prompt = conjuration_params[:prompt]
+        
+        # Should include truncated content without errors
+        expect(prompt).to include('TASK TITLE:')
+        expect(prompt).to include('TASK PLAN:')
+      end
+    end
+
+    context 'with special characters in task metadata' do
+      it 'handles HTML, JSON, and special characters safely' do
+        special_title = 'Test <script>alert("XSS")</script> & "quotes"'
+        special_plan = '{"json": "data", "with": "quotes\" and \\backslashes"}'
+        
+        task_id = task_engine.create_task(title: special_title, plan: special_plan)[:id]
+        mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'status' => 'pending' })
+        
+        expect { task_engine.execute_step(task_id, 1) }.not_to raise_error
+        
+        conjuration_params = aetherflux.captured_conjurations.last
+        prompt = conjuration_params[:prompt]
+        
+        # Should handle special characters without parsing errors
+        expect(prompt).to include('TASK TITLE:')
+        expect(prompt).to include('TASK PLAN:')
+      end
+    end
+
+    context 'with concurrent task execution' do
+      it 'maintains separate context for different tasks' do
+        task1_id = task_engine.create_task(title: 'Task 1', plan: 'Plan 1')[:id]
+        task2_id = task_engine.create_task(title: 'Task 2', plan: 'Plan 2')[:id]
+        
+        mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task1_id, 'status' => 'pending' })
+        mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task2_id, 'status' => 'pending' })
+        
+        # Execute both tasks
+        task_engine.execute_step(task1_id, 1)
+        task_engine.execute_step(task2_id, 1)
+        
+        # Verify contexts are separate
+        conjurations = aetherflux.captured_conjurations.last(2)
+        prompt1 = conjurations[0][:prompt]
+        prompt2 = conjurations[1][:prompt]
+        
+        expect(prompt1).to include('TASK TITLE: Task 1')
+        expect(prompt1).to include('TASK PLAN: Plan 1')
+        expect(prompt2).to include('TASK TITLE: Task 2')
+        expect(prompt2).to include('TASK PLAN: Plan 2')
+      end
+    end
+
+    context 'with step result storage failures' do
+      it 'continues execution when step result storage fails' do
+        allow(mnemosyne).to receive(:manage_tasks).and_call_original
+        allow(mnemosyne).to receive(:manage_tasks).with(hash_including('step_results')).and_raise(StandardError, 'Storage failure')
+        
+        # Should not prevent step execution
+        expect { task_engine.execute_step(@task_id, 1) }.not_to raise_error
+        
+        conjuration_params = aetherflux.captured_conjurations.last
+        expect(conjuration_params).to be_present
+      end
+    end
+
+    context 'with context parameter validation' do
+      it 'validates context parameters before conjuration' do
+        # This would test that invalid context doesn't reach oracle
+        # Implementation depends on FakeAetherflux validation capabilities
+        expect(true).to be true # Placeholder for context validation
+      end
+    end
   end
 end

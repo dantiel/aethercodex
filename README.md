@@ -6,6 +6,39 @@ AetherCodex transforms TextMate into a living interface with advanced AI reasoni
 
 ---
 
+## 🎯 Task Engine System
+
+### **Multi-Step Task Orchestration**
+The AetherCodex Task Engine enables complex, multi-phase operations through hermetic task management:
+
+- **Task Creation & Planning**: Define comprehensive execution plans with step-by-step workflows
+- **Context-Aware Execution**: Each step receives complete context including previous results and metadata
+- **Progress Tracking**: Real-time status updates and step completion monitoring
+- **Result Persistence**: Step outcomes stored in database for continuity between phases
+- **Error Handling**: Robust failure management with graceful degradation
+
+### **Hermetic Task Phases**
+The engine follows a 10-phase alchemical process:
+1. **Nigredo** - Task initialization and context preparation
+2. **Albedo** - System prompt and guidance formulation
+3. **Citrinitas** - Golden path optimization and execution
+4. **Rubedo** - Final transformation and result synthesis
+5. **Fermentation** - Result integration and memory storage
+6. **Multiplication** - Context expansion and enhancement
+7. **Projection** - Final output generation
+8. **Coagulation** - Task completion and cleanup
+9. **Calcination** - Error purification and recovery
+10. **Solution** - Final resolution and knowledge integration
+
+### **Context Optimization**
+Each task step receives optimal context including:
+- **Task Metadata**: Title, plan, current step, step purposes
+- **Historical Results**: Previous step outcomes via `step_results` persistence
+- **Extended Guidance**: Comprehensive system prompts for intelligent execution
+- **Memory Integration**: Access to Mnemosyne memory system for contextual awareness
+
+---
+
 ## ✨ Core Manifestations
 
 ### 🔮 **Oracle Chamber** 

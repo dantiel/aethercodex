@@ -28,7 +28,7 @@ class PrimaMateria
       next if tool_names.include?(name)
       
       filtered_prima.add_instrument(name,
-        description: tool.description,
+        desc: tool.description,
         params: tool.params,
         returns: tool.returns,
         &tool.implementation
@@ -129,7 +129,7 @@ class PrimaMateria
     cloned = PrimaMateria.new
     @tools.each do |name, tool|
       cloned.add_instrument(name,
-        description: tool.description,
+        desc: tool.description,
         params: tool.params,
         returns: tool.returns,
         &tool.implementation
@@ -144,7 +144,7 @@ class PrimaMateria
     # First add our own tools
     @tools.each do |name, tool|
       merged.add_instrument(name,
-        description: tool.description,
+        desc: tool.description,
         params: tool.params,
         returns: tool.returns,
         &tool.implementation
@@ -153,7 +153,7 @@ class PrimaMateria
     # Then add tools from the other prima (overwriting if needed)
     other_prima.tools.each do |name, tool|
       merged.add_instrument(name,
-        description: tool.description,
+        desc: tool.description,
         params: tool.params,
         returns: tool.returns,
         &tool.implementation
@@ -164,10 +164,13 @@ class PrimaMateria
   
 
   # Add instrument with validation schema integration
-  def add_instrument(name, description: '', params: {}, returns: {}, &implementation)
+  def add_instrument(name, desc: '', description: '', params: {}, returns: {}, &implementation)
+    # Use desc parameter if provided, otherwise fall back to description
+    tool_description = desc.empty? ? description : desc
+    
     @tools[name] = Tool.new(
       name,
-      description,
+      tool_description,
       params.merge(task_id: { type:        Integer,
                               required:    false,
                               description: 'Optional task ID for execution context' }),
@@ -372,18 +375,18 @@ class PrimaMateria
     end
 
     # Add aliases as separate entries
-    tool_aliases.each do |alias_name, real_name|
-      next unless @tools[real_name.to_sym]
-
-      schema << {
-        type:     'function',
-        function: {
-          name:        alias_name,
-          description: @tools[real_name.to_sym].description,
-          parameters:  schema.find { |s| s[:function][:name] == real_name }[:function][:parameters]
-        }
-      }
-    end
+    # tool_aliases.each do |alias_name, real_name|
+    #   next unless @tools[real_name.to_sym]
+    # 
+    #   schema << {
+    #     type:     'function',
+    #     function: {
+    #       name:        alias_name,
+    #       description: @tools[real_name.to_sym].description,
+    #       parameters:  schema.find { |s| s[:function][:name] == real_name }[:function][:parameters]
+    #     }
+    #   }
+    # end
 
     schema
   end
@@ -429,7 +432,8 @@ class PrimaMateria
       'executetask'       => 'execute_task',
       'updatetask'        => 'update_task',
       'evaluatetask'      => 'evaluate_task',
-      'listtasks'         => 'list_tasks'
+      'listtasks'         => 'list_tasks',
+      'removetask'         => 'remove_task'
     }
   end
 

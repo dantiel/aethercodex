@@ -105,13 +105,15 @@ get '/ws' do
 
   ws.on :message do |event|
     begin
-      if '💓' == event.data
+      case event.data
+      when '💓'
         warn 'ping received'
         last_pong = Time.now
       else
         req = JSON.parse event.data
-
         case req['method']
+        when 'history'
+          HorologiumAeternum.history Mnemosyne.fetch_history(limit: 20)
         when 'askAI'
           startThinkingThread ws, req
         when 'stopThinking'
@@ -148,7 +150,7 @@ def startThinkingThread(ws, req)
     res = Aetherflux.channel_oracle_divination( req['params'].transform_keys!(&:to_sym), ws, tools: Instrumenta)
     raise res[:error] if 'error' == res[:result]
 
-    warn "[WS][DEBUG] #{res.inspect}"
+    # warn "[WS][DEBUG] #{res.inspect}"
     ws.send res.to_json
   rescue StandardError => e
     warn "[WS][THREAD][ERROR]#{e.inspect}"

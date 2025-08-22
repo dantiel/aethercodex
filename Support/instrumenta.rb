@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 
-# require_relative 'horologium_aeternum'
+require_relative 'horologium_aeternum'
 require_relative 'prima_materia'
 require_relative 'task_engine'
+require_relative 'argonaut'
 
 
 
@@ -21,24 +22,26 @@ class Instrumenta
     def schema = PRIMA_MATERIA.schema
     def tools = PRIMA_MATERIA.tools
     def handle(...) = PRIMA_MATERIA.handle(...)
-    
+
+
     def reject(*tool_names)
       filtered_prima = PRIMA_MATERIA.reject(*tool_names)
       # Return a new Instrumenta instance that wraps the filtered PrimaMateria
       filtered_instrumenta = Instrumenta.new
-      filtered_instrumenta.instance_variable_set(:@prima_materia, filtered_prima)
+      filtered_instrumenta.instance_variable_set :@prima_materia, filtered_prima
       filtered_instrumenta
     end
   end
 
   # Delegate all methods to the wrapped PrimaMateria instance
-  def method_missing(method_name, *args, &block)
-    if @prima_materia.respond_to?(method_name)
-      @prima_materia.send(method_name, *args, &block)
+  def method_missing(method_name, ...)
+    if @prima_materia.respond_to? method_name
+      @prima_materia.send(method_name, ...)
     else
       super
     end
   end
+
 
   def respond_to_missing?(method_name, include_private = false)
     @prima_materia.respond_to?(method_name) || super
@@ -91,9 +94,9 @@ instrument :oracle_conjuration,
   }
   HorologiumAeternum.oracle_conjuration prompt
 
-  filtered_instrumenta = Instrumenta.reject(:oracle_conjuration, :create_task)
-  
-  result = Aetherflux.channel_oracle_conjuration params, tools: filtered_instrumenta.instrumenta_schema
+  filtered_instrumenta = Instrumenta.reject :oracle_conjuration, :create_task
+
+  result = Aetherflux.channel_oracle_conjuration params, tools: filtered_instrumenta
 
   raise result[:error] if result[:error]
 
@@ -269,7 +272,7 @@ instrument :remember,
   note = { content: content, links: links, tags: tags }
   if id.nil?
     Mnemosyne.create_note(**note)
-    uuid = HorologiumAeternum.note_added(note)
+    uuid = HorologiumAeternum.note_added note
   else
     Mnemosyne.update_note id, **note
     HorologiumAeternum.note_updated(**note, uuid:)
@@ -286,7 +289,9 @@ instrument :remove_note,
            description:  'Remove a note by id.',
            params: { id: { type: Integer, required: true } },
            returns: { ok: Boolean, error: String } do |id:|
+  note = Mnemosyne.get_note id
   Mnemosyne.remove_note id
+  HorologiumAeternum.note_removed(note)
   { ok: true }
 end
 
@@ -371,12 +376,14 @@ instrument :patch_file,
            returns: { ok: Boolean, error: String } do |path:, diff:|
   return { error: 'missing :path or :diff' } unless path && diff
 
+  puts "PATCH #{path} #{diff}"
   diff_lines = diff.lines.count
   uuid = HorologiumAeternum.file_patching path, diff, diff_lines
 
   return { error: 'Diff too big' } if PrimaMateria::MAX_DIFF < diff.lines.count
 
   old_content, new_content = Argonaut.patch path, diff
+  puts "PATCH2 #{old_content} #{new_content}"
 
   HorologiumAeternum.file_patched(path, old_content, new_content, uuid:)
   { ok: true }
@@ -418,23 +425,19 @@ end
 
 
 instrument :create_task,
-           description: 'Generate a task for complex prompts with fields for plan, progress, ' \
-                        'and max_steps.',
-           params: { title:     { type:        String,
-                                  required:    true,
-                                  description: 'The title of the plan.' },
-                     plan:      { type:        String,
-                                  required:    true,
-                                  description: 'The task execution plan.' },
-                     max_steps: { type:        Integer,
-                                  required:    true,
-                                  description: 'Total steps in the task.' } },
-           returns: { id: Integer, error: String } do |title:, plan:, max_steps:|
+           description: 'Generate a task for complex prompts with fields for plan and title.',
+           params: { title: { type:        String,
+                              required:    true,
+                              description: 'The title of the plan.' },
+                     plan:  { type:        String,
+                              required:    true,
+                              description: 'The task execution plan.' } },
+           returns: { id: Integer, error: String } do |title:, plan:|
   engine = TaskEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
 
-  result = engine.create_task(title:, plan:, max_steps:)
+  result = engine.create_task(title:, plan:)
 
-  uuid = HorologiumAeternum.task_created title, plan, max_steps, result[:id]
+  uuid = HorologiumAeternum.task_created(**result)
 
   result
 rescue StandardError => e
@@ -454,11 +457,10 @@ instrument :execute_task,
   task = Mnemosyne.get_task task_id
   return { error: 'Task not found' } unless task
 
-  uuid = HorologiumAeternum.task_started task_id, task[:title], task[:max_steps]
-  
+  uuid = HorologiumAeternum.task_started(**task)
+
   engine = TaskEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
   engine.execute_task task[:id]
-
 
   { ok: true }
 rescue StandardError => e
@@ -478,10 +480,7 @@ instrument :update_task,
                                  description: 'The updated task plan.' } },
            returns: { ok: Boolean, error: String } do |task_id:, new_plan:|
   task = Mnemosyne.update_task task_id, plan: new_plan
-  uuid = HorologiumAeternum.task_updated task_id,
-                                         title: task[:title],
-                                         plan: new_plan,
-                                         progress: task[:progress], max_steps: task[:max_steps]
+  uuid = HorologiumAeternum.task_updated(**task, plan: new_plan)
   { ok: true }
 rescue StandardError => e
   HorologiumAeternum.system_error('Error Updating Task', e.message, uuid:)
@@ -494,19 +493,19 @@ instrument :evaluate_task,
            params: { task_id: { type:        Integer,
                                 required:    true,
                                 description: 'The ID of the task to evaluate.' } },
-           returns: { status:   Symbol,
-                      result:   Object,
-                      progress: Integer,
-                      error:    String } do |task_id:|
+           returns: { status:       Symbol,
+                      result:       Object,
+                      current_step: Integer,
+                      error:        String } do |task_id:|
   task = Mnemosyne.get_task task_id
   raise 'Task not found' unless task
 
-  task[:progress] ||= 0
+  task[:current_step] ||= 0
 
-  result = if task[:progress] >= task[:max_steps]
+  result = if task[:current_step] >= 10 #task[:max_steps]
              { status: :completed, result: 'Task successfully executed' }
            else
-             { status: :in_progress, progress: task[:progress] }
+             { status: :in_progress, current_step: task[:current_step] }
            end
   result
 rescue StandardError => e
@@ -520,32 +519,47 @@ instrument :list_tasks,
            params: {},
            returns: { tasks: Array, error: String } do |*|
   tasks = Mnemosyne.manage_tasks action: 'list'
-  HorologiumAeternum.task_list tasks
-  { tasks: tasks }
+  HorologiumAeternum.task_list tasks[0..10], count: tasks.count
+
+  { tasks: tasks[0..10], count: tasks.count }
 rescue StandardError => e
   { error: e.message }
 end
 
 
-instrument :reject_step,
-           description:  'Rejects the current step with a reason.',
-           params: { reason: { type:        String,
-                               required:    true,
-                               description: 'Reason for rejection' } },
-           returns: { status:  Symbol,
-                      reason:  String,
-                      task_id: Integer } do |reason:, task_id:|
-  { status: :failed, reason: reason, task_id: task_id }
+instrument :remove_task,
+           description: 'Remove a task from the system.',
+           params: {
+             task_id: { type: 'integer', required: true }
+           } do |task_id:|
+  result = Mnemosyne.remove_task task_id
+  HorologiumAeternum.task_removed task_id
+  result
+rescue StandardError => e
+  { error: e.message }
 end
 
 
-instrument :complete_step,
-           description: 'Completes the current step with a result.',
-           params: { result: { type:        Object,
-                               required:    true,
-                               description: 'Result of the step' } },
-           returns: { status:  Symbol,
-                      result:  Object,
-                      task_id: Integer } do |result:, task_id:|
-  { status: :completed, result: result, task_id: task_id }
-end
+#
+# instrument :reject_step,
+#            description:  'Rejects the current step with a reason.',
+#            params: { reason: { type:        String,
+#                                required:    true,
+#                                description: 'Reason for rejection' } },
+#            returns: { status:  Symbol,
+#                       reason:  String,
+#                       task_id: Integer } do |reason:, task_id:|
+#   { status: :failed, reason: reason, task_id: task_id }
+# end
+#
+#
+# instrument :complete_step,
+#            description: 'Completes the current step with a result.',
+#            params: { result: { type:        Object,
+#                                required:    true,
+#                                description: 'Result of the step' } },
+#            returns: { status:  Symbol,
+#                       result:  Object,
+#                       task_id: Integer } do |result:, task_id:|
+#   { status: :completed, result: result, task_id: task_id }
+# end

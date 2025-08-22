@@ -7,6 +7,18 @@ require 'json'
 require_relative 'task_tools'
 
 
+class String
+  def truncate(max_length, omission = '...')
+    if length > max_length
+      truncated_string = self[0...(max_length - omission.length)]
+      truncated_string += omission
+      truncated_string
+    else
+      self
+    end
+  end
+end
+
 
 # Task System Prompt for comprehensive context in oracle conjuration
 TASK_SYSTEM_PROMPT = <<~PROMPT
@@ -17,6 +29,7 @@ TASK_SYSTEM_PROMPT = <<~PROMPT
   - Each step has a purpose and extended purpose for detailed guidance
   - Use task-specific tools (task_read_file, task_patch_file, etc.) that automatically include task_id
   - Step management: task_reject_step(reason, restart_from_step) and task_complete_step(result)
+  - Context Access: Use task_get_previous_results to access historical step outcomes
 
   # STEP PURPOSES:
   - read_file: Read and analyze file content
@@ -25,6 +38,7 @@ TASK_SYSTEM_PROMPT = <<~PROMPT
   - recall_notes: Query memory for relevant information
   - oracle_conjuration: Complex reasoning and tool execution
   - update_progress: Report progress and status updates
+  - get_previous_results: Access historical step outcomes for context continuity
 
   # CURRENT STEP GUIDANCE:
   %<step_guidance>s
@@ -177,7 +191,7 @@ EXTENDED_STEP_GUIDANCE = {
   GUIDANCE
 }.freeze
 
-DEBUG = false
+DEBUG = true
 def debug(msg)
   puts msg if DEBUG
 end
@@ -277,7 +291,7 @@ class TaskEngine
 
   def evaluate_task(task_id)
     task = @mnemosyne.get_task task_id
-    task[:progress] ||= 0
+    progress = (task[:current_step] || 0) + 1
     debug "Evaluating task ID: #{task_id}"
     debug "Updating task ID: #{task_id} with new plan"
     debug "Executing task ID: #{task_id}"
@@ -291,6 +305,51 @@ class TaskEngine
   def validate_edge_scenarios(task_id); end
   def audit_and_optimize(task_id); end
   def update_documentation(task_id); end
+
+
+  # Load step results from database for context continuity
+  def load_step_results(task_id)
+    task = @mnemosyne.get_task task_id
+    return {} unless task && task[:step_results]
+
+    begin
+      JSON.parse(task[:step_results] || '{}')
+    rescue JSON::ParserError
+      {}
+    end
+  end
+
+
+  # Format previous step results for context inclusion
+  def format_previous_results(results, current_step)
+    return 'No previous step results available.' if results.empty? || 1 == current_step
+
+    formatted = []
+    results.each do |step_num, result|
+      next if step_num.to_i >= current_step
+
+      formatted << if current_step - 1 == step_num
+        "Step #{step_num}: #{result.to_s}"
+      else
+        "Step #{step_num}: #{result.to_s.truncate 200}"
+      end
+    end
+
+    formatted.empty? ? 'No previous step results available.' : formatted.join("\n")
+  end
+
+
+  # Store step result for future context
+  def store_step_result(task_id, step_index, result)
+    current_results = load_step_results task_id
+    current_results[step_index.to_s] = result
+
+    @mnemosyne.manage_tasks({
+                              'action'       => 'update',
+                              'id'           => task_id,
+                              'step_results' => current_results.to_json
+                            })
+  end
 
 
   # Execute sub-tasks recursively, respecting max_loops
@@ -309,13 +368,12 @@ class TaskEngine
 
 
   # Creates a new task with optional sub-tasks
-  def create_task(title:, plan:, max_steps:, parent_task_id: nil)
+  def create_task(title:, plan:, parent_task_id: nil)
     response = @mnemosyne.manage_tasks({ 'action'         => 'create',
                                          'title'          => title,
                                          'plan'           => plan,
                                          'parent_task_id' => parent_task_id,
-                                         'status'         => 'pending',
-                                         'max_steps'      => max_steps })
+                                         'status'         => 'pending' })
 
     unless response && response['ok']
       error_msg = "Task creation failed: #{response['error'] || 'Unknown error'}"
@@ -323,7 +381,7 @@ class TaskEngine
       raise TaskCreationError, error_msg
     end
 
-    { id: response['id'] }
+    response
   end
 
 
@@ -359,7 +417,6 @@ class TaskEngine
       WORKFLOW_STEPS.times do |step|
         break if halted? task_id
 
-
         begin
           execute_step task_id, step + 1
         rescue TaskEngine::TaskStateError => e
@@ -368,13 +425,11 @@ class TaskEngine
           raise e
         rescue StandardError => e
           update_state task_id, :failed
-          log_message task_id, "Timeout in step #{step + 1}: #{e.message}"
-          raise Timeout::Error, "Timeout in step #{step + 1}"
+          log_message task_id, "Error in step #{step + 1}: #{e.message}"
+          raise StandardError, "Error in step #{step + 1}: #{e.message}"
         end
 
-
         update_progress task_id, step + 1
-        @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'progress' => step + 1 })
       end
 
       # Execute sub-tasks recursively, respecting max_loops
@@ -405,8 +460,8 @@ class TaskEngine
   def log_message(task_id, message)
     @mnemosyne.manage_tasks({ 'action' => 'update', 'id' => task_id, 'log' => message })
     # Broadcast log update to frontend (commented out for testing)
-    # HorologiumAeternum.task_log_added \
-    #   task_id, timestamp: Time.now.to_f, message: message
+    HorologiumAeternum.task_log_added \
+      task_id, timestamp: Time.now.to_f, message: message
 
     debug message.to_s # Add debug output for test visibility
   end
@@ -422,6 +477,10 @@ class TaskEngine
     task = @mnemosyne.get_task task_id
     debug "Task description: #{task[:description]}"
 
+    # Load previous step results for context continuity
+    previous_results = load_step_results task_id
+    previous_step_context = format_previous_results previous_results, step_index
+
     # Enhanced context with comprehensive task information
     step_guidance = if task[:steps] && task[:steps][step_index - 1]
                       step_data = task[:steps][step_index - 1]
@@ -435,13 +494,16 @@ class TaskEngine
     # Comprehensive system prompt with task context
     system_prompt = format TASK_SYSTEM_PROMPT, step_guidance: step_guidance
 
-    # Enhanced prompt with complete task context
+    # Enhanced prompt with complete task context including previous results
     prompt = <<~PROMPT
       # TASK EXECUTION CONTEXT
       TASK TITLE: #{task[:title] || '--'}
       TASK DESCRIPTION: #{task[:description] || '--'}
       TASK PLAN: #{task[:plan] || '--'}
       CURRENT STEP: #{step_index}/#{WORKFLOW_STEPS}
+
+      # PREVIOUS STEP RESULTS
+      #{previous_step_context}
 
       # CURRENT STEP GUIDANCE
       #{step_guidance}
@@ -451,23 +513,15 @@ class TaskEngine
       - After completing step actions, call task_complete_step to advance
       - If you need to backtrack, use task_reject_step with optional restart_from_step
       - All task tools automatically include the task_id context
+      - Use task_get_previous_results to access historical step outcomes for context continuity
 
-      Execute the step actions based on the guidance above.
+      Execute the step actions based on the guidance above, building upon previous transformations.
     PROMPT
 
     begin
       # Comprehensive context for hermetic execution
       context = {
-        task_id:          task_id,
-        task_title:       task[:title],
-        task_description: task[:description],
-        task_plan:        task[:plan],
-        step_index:       step_index,
-        total_steps:      WORKFLOW_STEPS,
-        step_purpose:     STEP_PURPOSES[step_index - 1],# TODO make this a system instruction
-        extended_purpose: step_guidance, # TODO make this a system instruction
-        progress:         "#{step_index}/#{WORKFLOW_STEPS}"
-
+        task_id: task_id
       }
       # TODO: some phases should use normal divination instead of reasoning conjuration, but may call conjuration if needed, but conjuration shall not be able to call conjuration
       # response = @aetherflux.channel_oracle_divination(
@@ -485,13 +539,12 @@ class TaskEngine
           prompt: prompt,
           system: system_prompt
         },
-        nil
         tools: create_task_tools(task_id),
         context: context
       )
-      
 
-      log_message task_id, "TASK CONJURATION RESPONSE=#{response.inspect}"
+
+      # log_message task_id, "TASK CONJURATION RESPONSE=#{response.inspect}"
 
       case response[:status]
       when :failure
@@ -505,7 +558,13 @@ class TaskEngine
         log_message task_id, error_msg
         raise Timeout::Error, error_msg
       when :success
-        log_message task_id, "Step #{step_index} completed: #{response[:response]}"
+        reasoning = response[:response][:reasoning]
+        reasoning = "\nReasoning: #{reasoning}\nResponse: " if reasoning
+        answer = response[:response][:answer]
+        log_message task_id, "Step #{step_index} completed: #{reasoning}#{answer}"
+
+        # Store step result for future context
+        store_step_result task_id, step_index, answer
         update_progress task_id, step_index
       else
         update_state task_id, :failed
@@ -539,21 +598,16 @@ class TaskEngine
 
 
   def broadcast_update(task_id)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    task = @mnemosyne.get_task task_id
     return unless task
 
-    HorologiumAeternum.task_updated(
-      task_id,
-      title: task[:description],
-      progress: task[:progress] || 0,
-      max_steps: WORKFLOW_STEPS
-    )
+    HorologiumAeternum.task_updated(**task)
   end
 
 
   def halted?(task_id)
     debug "Checking halt status for task #{task_id}"
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
+    task = @mnemosyne.get_task task_id
     debug "Current task status: #{task[:status]}"
     return false unless task
 
@@ -591,7 +645,7 @@ class TaskEngine
   end
 
 
-  #TODO complete_step and reject step should terminate the current reasoning otherwise this creates double cycles.
+  # TODO: complete_step and reject step should terminate the current reasoning otherwise this creates double cycles.
   # Complete current step with optional result
   def complete_step(task_id, result = nil)
     current_step = current_step task_id
@@ -604,18 +658,14 @@ class TaskEngine
   # Get current step number for task
   def current_step(task_id)
     task = @mnemosyne.get_task task_id
-    task[:progress] || 0
+    task[:current_step] || 0
   end
 
 
   def update_progress(task_id, step)
-    task = @mnemosyne.manage_tasks({ 'action' => 'list' }).find { |t| t[:id] == task_id }
-    task[:progress] = step
-    if task[:id]
-      @mnemosyne.manage_tasks({ 'action'   => 'update',
-                                'id'       => task_id,
-                                'progress' => step })
-    end
+    @mnemosyne.manage_tasks({ 'action'       => 'update',
+                              'id'           => task_id,
+                              'current_step' => step })
     broadcast_update task_id
   end
 end

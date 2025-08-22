@@ -38,6 +38,10 @@ setupWebSocketHandlers = (uuid) ->
     uuid = do crypto.randomUUID
     reconnectAttempts = 0  # Reset on successful connection
     
+    if stored.length < 3
+      ws.send JSON.stringify({ method: 'history', params: { limit: 7 }})
+    
+    
   ws.onerror = (e) ->
     console.log e
     log 'error', uuid, "🔮 Dimensional breach detected: #{e.message ? e.type ? 'connection error'}"
@@ -83,16 +87,17 @@ scheduleReconnect = (uuid, immediate = false) ->
 
 # Message persistence
 STORAGE_KEY = 'aether_messages'
-MAX_MESSAGES = 150
+MAX_MESSAGES = 250
 
 
 saveMessages = ->
-  messages = Array.from(document.querySelectorAll('#messages > div:not(.system,.error)')).map (el) ->
+  messages = Array.from(document.querySelectorAll('#messages > div:not(.error)')).map (el) ->
     className: el.className
     innerHTML: el.innerHTML
   localStorage.setItem STORAGE_KEY, JSON.stringify(messages.slice(-MAX_MESSAGES))
 
 
+stored = null
 loadMessages = ->
   try
     m = document.getElementById 'messages'
@@ -126,17 +131,21 @@ setInterval ->
 
 
 log = (cls, uuid, html) ->
-  console.log "logging #{cls}", html
+  console.log "logging #{cls}", uuid, html
   
-  messageBuffer.push ->
-    existingElement = document.getElementById uuid unless null is uuid 
+  add_message = ->
+    existing = document.getElementById uuid unless null is uuid 
     m = document.getElementById 'messages'
   
     # TODO add highlight animation when appearing
-    if existingElement
-      existingElement.className = cls
-      existingElement.innerHTML = html
-      m.scrollTop = existingElement.offsetTop
+    if existing
+      is_near = (existing.offsetTop - m.scrollTop - m.offsetHeight) < 
+        m.offsetHeight * 0.5
+      existing.className = cls
+      existing.innerHTML = html
+      if is_near_bottom
+        m.scrollTop = existing.offsetTop - m.offsetHeight + 
+          existing.offsetHeight
     else
       is_near_bottom = 
         (m.scrollHeight - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
@@ -146,9 +155,12 @@ log = (cls, uuid, html) ->
       el.id = uuid
       m.appendChild el
       m.scrollTop = m.scrollHeight if is_near_bottom
-
-    
+      
     do saveMessages
+    
+  if uuid
+    messageBuffer.push add_message
+  else do add_message
 
 
 renderTools = (tools) ->
@@ -162,28 +174,43 @@ renderTools = (tools) ->
     document.getElementById('messages').appendChild btn
 
 
+toggleTaskProgress = (task_id) ->
+  taskProgress = document.getElementById 'task_progress'
+  taskProgress.classList.toggle('collapsed')
+
+
 # Enhanced status display with data.task_id feedback
 renderTaskProgress = (task) ->
-  """
-  <div class=\"task-progress\">
+  taskProgress = document.getElementById 'task_progress'
+  task_id = task.task_id or task.id
+  
+  unless taskProgress
+    taskProgress = document.createElement 'div'
+    taskProgress.id = "task_progress"
+    taskProgress.className = 'task-progress'
+    
+    inputBar = document.getElementById 'input-bar'
+    inputBar.insertAdjacentElement "beforebegin", taskProgress
+    
+  taskProgress.innerHTML = """
     <div class=\"task-header\">
       <strong>#{task.title}</strong>
-      <span>Step #{task.progress}/#{task.max_steps}</span>
+      <span>Step #{task.current_step}/10</span>
+      <button onclick="toggleTaskProgress('#{task_id}')"></button>
     </div>
     <div class=\"progress-bar\">
-      <div class=\"progress\" style=\"width: #{Math.round(task.progress/task.max_steps*100)}%\"></div>
+      <div class="progress" style="width: #{Math.round(task.current_step/10*100)}%"></div>
     </div>
     <div class=\"task-plan\">
-      #{task.plan?.map((step, i) ->
-        "<div class='step #{if i < task.progress then 'completed' else if i == task.progress then 'current' else ''}'>#{step}</div>"
-      ).join('')}
+      #{[task.plan].map((step, i) ->
+        "<div class='step #{if i < task.current_step then 'completed' else if i == task.current_step then 'current' else ''}'>#{step}</div>"
+      ).join ''}
     </div>
     <div class=\"task-controls\">
-      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'pause', id: #{task.id} }}))\">⏸</button>
-      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'resume', id: #{task.id} }}))\">▶</button>
-      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'cancel', id: #{task.id} }}))\">✕</button>
+      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'pause', id: #{task_id} }}))\">⏸</button>
+      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'resume', id: #{task_id} }}))\">▶</button>
+      <button onclick=\"ws.send(JSON.stringify({ method: 'task', params: { action: 'cancel', id: #{task_id} }}))\">✕</button>
     </div>
-  </div>
   """
   
 
@@ -308,9 +335,17 @@ showStatus = (type, data, uuid) ->
       log 'status', uuid, "#{data.summary || 'Completed'} <small>#{timestamp || ''}</small>"
     when 'server_error'
       log 'error', uuid, "#{data.error} <small>#{timestamp || ''}</small>"
+    when 'system_error'
+      log 'error', uuid, "#{data.error} <small>#{timestamp || ''}</small>"
     when 'system_message'
       log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'note_added'
+      log 'system', uuid, """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          #{replaceFileTags data.content}
+        </details>"""
+    when 'note_removed'
       log 'system', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
@@ -342,20 +377,22 @@ showStatus = (type, data, uuid) ->
         </details>"""
     when 'task_started'
       log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
-      log 'system', data.task_id, renderTaskProgress data
+      renderTaskProgress data
     when 'task_completed'
       log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
-      log 'system', data.task_id, renderTaskProgress data
+      renderTaskProgress data
     when 'task_created'
       log 'system', uuid, """
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           <div>#{replaceFileTags data.plan}</div>
         </details>"""
-      log 'system', data.task_id, renderTaskProgress data
+      renderTaskProgress data
     when 'task_updated'
       log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
-      log 'system', data.task_id, renderTaskProgress data
+      renderTaskProgress data
+    when 'task_removed'
+      log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
     when 'task_list'
       log 'system', uuid, """
         <details>
@@ -363,17 +400,19 @@ showStatus = (type, data, uuid) ->
           <div class="task-list">#{replaceFileTags data.content}</div>
         </details>"""
     when 'task_log_added'
+      task_id = data.id or data.task_id
       # Add to existing task log display or create new one
-      taskLogElement = document.getElementById "task-logs-#{data.task_id}"
+      taskLogElement =
+        document.getElementById "task-logs-#{task_id}"
       unless taskLogElement
         # Create task log container if it doesn't exist
         taskLogElement = document.createElement 'div'
-        taskLogElement.id = "task-logs-#{data.task_id}"
+        taskLogElement.id = "task-logs-#{task_id}"
         taskLogElement.className = 'task-logs'
         taskLogElement.innerHTML = """
           <div class="task-log-header">
-            <h4>📋 Task ##{data.task_id} Execution Log</h4>
-            <button onclick="toggleTaskLogs('#{data.task_id}')">📋</button>
+            <h4>📋 Task ##{task_id} Execution Log</h4>
+            <button onclick="toggleTaskLogs('#{task_id}')"></button>
           </div>
           <div class="task-log-entries"></div>
         """
@@ -386,11 +425,16 @@ showStatus = (type, data, uuid) ->
         <span class="log-time">#{logTime}</span>
         <span class="log-message">#{replaceFileTags data.content}</span>
       """
+      task_log_entries = taskLogElement.querySelector('.task-log-entries')
+      task_log_entries.appendChild logEntry
+      task_log_entries.scrollTop = task_log_entries.scrollHeight
       
-      taskLogElement.querySelector('.task-log-entries').appendChild logEntry
-      # Auto-scroll to new log entry
-      taskLogElement.querySelector('.task-log-entries').scrollTop =
-        log 'system', data.task_id, renderTaskProgress data
+      renderTaskProgress data
+    when 'history'
+      log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+      data.content.forEach (entry) ->
+        log 'ai', null, "#{entry.prompt} <small>#{timestamp || ''}</small>"
+        log 'ai', null, "#{entry.answer} <small>#{timestamp || ''}</small>"
   
 
 toggleTaskLogs = (task_id) ->

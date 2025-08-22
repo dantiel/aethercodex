@@ -95,6 +95,7 @@ details {
   border-radius: 4px;
   padding: 10px;
   margin: 10px 0;
+  margin: 1em;
   background: #1a1a2a;
 }
 
@@ -143,6 +144,25 @@ details {
 }
 
 
+
+/* Collapsible task logs */
+.task-progress.collapsed .task-controls,
+.task-progress.collapsed .task-plan,
+.task-progress.collapsed .task-progress {
+  display: none;
+}
+
+.task-progress.collapsed .task-header button::before {
+  content: '📄';
+}
+
+.task-progress:not(.collapsed) .task-header button::before {
+  content: '📋';
+}
+
+
+
+/* collapsible statuses */
 details summary {
   cursor: pointer;
   padding: 0.0rem 0;
@@ -151,11 +171,9 @@ details summary {
   transition: all 0.2s ease;
 }
 
-
 details summary:hover {
   color: var(--argonaut-azure);
 }
-
 
 details[open] summary {
   margin-bottom: 0.2rem;
