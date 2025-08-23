@@ -433,7 +433,7 @@ showStatus = (type, data, uuid) ->
     when 'history'
       log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
       data.content.forEach (entry) ->
-        log 'ai', null, "#{entry.prompt} <small>#{timestamp || ''}</small>"
+        log 'user', null, "#{entry.prompt} <small>#{timestamp || ''}</small>"
         log 'ai', null, "#{entry.answer} <small>#{timestamp || ''}</small>"
   
 

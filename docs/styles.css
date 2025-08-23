@@ -302,8 +302,19 @@ body {
     background: linear-gradient(135deg, color-mix(in srgb, var(--ethereal-green) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
 }
 
-.card-dimensional h3 {
-    color: var(--ethereal-green);
+.card-hermetic-resonance h3 {
+    color: var(--arcane-teal);
+}
+
+.card-pythia {
+    border-left-color: var(--dimensional-purple);
+    color: color-mix(in srgb, var(--dimensional-purple) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--dimensional-purple) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-pythia h3 {
+    color: var(--dimensional-purple);
 }
 
 .card-shell {
@@ -315,6 +326,39 @@ body {
 
 .card-shell h3 {
     color: var(--divine-crimson);
+}
+
+.card-task-engine {
+    border-left-color: var(--hermetic-gold);
+    color: color-mix(in srgb, var(--hermetic-gold) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--hermetic-gold) 10%, transparent), color-mix(in srgb, var(--dimensional-purple) 10%, transparent));
+}
+
+.card-task-engine h3 {
+    color: var(--hermetic-gold);
+}
+
+.card-aegis {
+    border-left-color: var(--dimensional-purple);
+    color: color-mix(in srgb, var(--dimensional-purple) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--dimensional-purple) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-aegis h3 {
+    color: var(--dimensional-purple);
+}
+
+.card-hermetic-resonance {
+    border-left-color: var(--arcane-teal);
+    color: color-mix(in srgb, var(--arcane-teal) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--arcane-teal) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-hermetic-resonance h3 {
+    color: var(--arcane-teal);
 }
 
 .content h2 {
@@ -404,11 +448,14 @@ li strong {
     border-top: 1px solid rgba(74, 144, 226, 0.3);
 }
 
-.oracle-footer em {
-    color: var(--hermetic-gold);
-    font-size: 1.1rem;
-    display: block;
-    margin-bottom: 1rem;
+.usage h2 {
+    color: var(--mystic-rose);
+    text-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    animation: astral-pulse 3s ease-in-out infinite;
 }
 
 .runes {
@@ -456,6 +503,54 @@ li strong {
 .codex:hover {
     animation: none;
     text-shadow: 0 0 40px var(--argonaut-mystic);
+}
+
+/* Tool Grid Styles */
+.tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.tool-card {
+    background: rgba(26, 26, 26, 0.8);
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    transition: all 0.3s ease;
+    -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
+    border-left: 4px solid var(--mystic-rose);
+}
+
+.tool-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--mystic-rose);
+    box-shadow: 0 10px 30px rgba(231, 76, 60, 0.2);
+    -webkit-backdrop-filter: blur(0.3rem);
+    backdrop-filter: blur(0.3rem);
+}
+
+.tool-card h4 {
+    color: var(--mystic-rose);
+    margin-bottom: 0.8rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+}
+
+.tool-card p {
+    color: color-mix(in srgb, var(--mystic-rose) 50%, var(--ethereal-white));
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.cosmic-glow {
+    color: var(--ethereal-white);
+    font-size: 1.2em;
+    text-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+    margin-bottom: 2rem;
 }
 
 

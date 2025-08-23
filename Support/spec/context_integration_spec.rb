@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../task_engine'
+require_relative '../magnum_opus_engine'
 require_relative '../mnemosyne'
 require_relative 'fake_mnemosyne'
 require_relative 'fake_aetherflux'
@@ -9,7 +9,7 @@ require 'rspec'
 RSpec.describe 'Task Engine Context Integration' do
   let(:mnemosyne) { FakeMnemosyne.new }
   let(:aetherflux) { FakeAetherflux.new }
-  let(:task_engine) { TaskEngine.new(mnemosyne: mnemosyne, aetherflux: aetherflux) }
+  let(:task_engine) { MagnumOpusEngine.new(mnemosyne: mnemosyne, aetherflux: aetherflux) }
 
   before do
     # Create a task with comprehensive metadata

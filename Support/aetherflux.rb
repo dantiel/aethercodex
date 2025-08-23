@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Support/aetherflux.rb
-require_relative 'arcanum'
+require_relative 'coniunctio'
 require_relative 'oracle'
 
 # Real-time streaming handler for WebSocket responses
@@ -16,7 +16,7 @@ class Aetherflux
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
 
       # Build context
-      ctx = Arcanum.build params
+      ctx = Coniunctio.build params
 
       # Process with real-time streaming and restart handling
       begin
@@ -80,7 +80,9 @@ class Aetherflux
       puts "[AETHER FLUX][ORACLE CONJURATION]: #{params.inspect} tools=#{tools.schema}"
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
       
-      ctx = Arcanum.build params
+      # Pass through context to the oracle
+      enhanced_params = params.merge(context: context) if context
+      ctx = Coniunctio.build enhanced_params || params
       # Handle restarts during conjuration
       begin
         answer, arts, tool_results =

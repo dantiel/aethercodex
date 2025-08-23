@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'tiktoken_ruby' 
+require 'tiktoken_ruby'
 require_relative 'mnemosyne'
 require_relative 'argonaut'
 # TM_TAB_SIZE
@@ -17,13 +17,13 @@ require_relative 'argonaut'
 
 
 
-# The Arcanum module orchestrates symbolic computation for the oracle, weaving together:
+# The Coniunctio module orchestrates symbolic computation for the oracle, weaving together:
 # - **Contextual Threads**: Dynamic binding of files, selections, and Aegis states.
 # - **Token Alchemy**: Encoding/decoding with Tiktoken for precise LLM interactions.
 # - **Hermetic Transmutations**: Higher-order transformations of history and summaries.
 #
 # Its logic mirrors the Emerald Tablet: "As above, so below"—bridging code and the arcane.
-module Arcanum
+module Coniunctio
   # Constants for context and token limits
   MAX_CONTEXT_LINES = 120
   MAX_HISTORY_TOKENS = 2200
@@ -36,7 +36,7 @@ module Arcanum
     def build(params)
       inject_tm_env params[:tm_env] if params[:tm_env]
 
-      file, selection = params.values_at :file, :selection
+      file, selection, context = params.values_at :file, :selection, :context
       puts "TEST#{file}"
       project_files = Argonaut.list_project_files
       puts "PROJECT_FILES#{project_files}"
@@ -44,7 +44,7 @@ module Arcanum
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
 
       ctx = { history:       prepend_summaries(history),
-              extra_context: build_extra_context(file, selection, project_files, aegis_notes) }
+              extra_context: build_extra_context(file, selection, project_files, aegis_notes, context) }
 
       update_aegis_orientation ctx, file, selection
       ctx
@@ -91,14 +91,15 @@ module Arcanum
     end
 
 
-    def build_extra_context(file, selection, project_files, aegis_notes)
+    def build_extra_context(file, selection, project_files, aegis_notes, context = nil)
       {
         project_files:,
         file:,
         selection:,
         snippet:           snippet_for(file, selection),
         aegis_orientation: { **Mnemosyne.aegis },
-        aegis_notes:
+        aegis_notes:,
+        tool_context:      context
       }
     end
 

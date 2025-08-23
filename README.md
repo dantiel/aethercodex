@@ -18,17 +18,17 @@ The AetherCodex Task Engine enables complex, multi-phase operations through herm
 - **Error Handling**: Robust failure management with graceful degradation
 
 ### **Hermetic Task Phases**
-The engine follows a 10-phase alchemical process:
+The Magnum Opus Task Engine follows a 10-phase alchemical process:
 1. **Nigredo** - Task initialization and context preparation
 2. **Albedo** - System prompt and guidance formulation
 3. **Citrinitas** - Golden path optimization and execution
 4. **Rubedo** - Final transformation and result synthesis
-5. **Fermentation** - Result integration and memory storage
-6. **Multiplication** - Context expansion and enhancement
-7. **Projection** - Final output generation
-8. **Coagulation** - Task completion and cleanup
-9. **Calcination** - Error purification and recovery
-10. **Solution** - Final resolution and knowledge integration
+5. **Solve** - Identifying required dissolutions and changes
+6. **Coagula** - Implementing solid transformations
+7. **Test** - Probing the elixir's purity (functional verification)
+8. **Test** - Edge cases as alchemical impurities (boundary testing)
+9. **Validate** - Ensuring the elixir's perfection (security/performance)
+10. **Document** - Inscribing the magnum opus (comprehensive documentation)
 
 ### **Context Optimization**
 Each task step receives optimal context including:
@@ -139,13 +139,15 @@ Remember this pattern as "user-auth-flow" for future reference
 | **Oracle Chamber** | Interactive AI interface | `ui/chamber.html` |
 | **Aetherflux** | Real-time response processing | `aetherflux.rb` |
 | **Argonaut** | Filebrowser | `argonaut.rb` |
-| **Arcanum** | Context Creator | `arcanum.rb` |
+| **Coniunctio** | Context Creator | `coniunctio.rb` |
 | **Diff Crepusculum** | Fuzzy File Patches | `diff_crepusculum.rb` |
 | **Prima Materia** | Function execution engine | `prima_materia.rb` |
 | **Mnemosyne** | Memory management system | `mnemosyne.rb` |
 | **Limen** | Security and validation | `limen.rb` |
 | **Horologium Aeternum** | Real-time user communication | `horologium_aeternum.rb` |
 | **Scriptorium** | Markdown processor | `scriptorium.rb` |
+| **Magnum Opus Engine** | Multi-step orchestration | `magnum_opus_engine.rb` |
+| **Aegis** | Context refinement system | Integrated in oracle |
 
 ### **Data Flow**
 1. **Invocation** → Context gathering → API request
@@ -175,6 +177,14 @@ Location: `.tm-ai/memory.db` (auto-created)
 - **No secret file access** (.env, .aethercodex, keys)
 - **Sandboxed command execution** with allowlisting
 - **Local-only operations** - no external data transmission beyond API calls
+
+### **Aegis Context Refinement System**
+- **Dynamic Context Optimization**: Real-time refinement during conversations
+- **Temperature-Based Reasoning**: Adjust responsiveness (0.0-2.0 scale) for coding/math/creative tasks
+- **Tag-Based Focus**: Precision execution through targeted note retrieval
+- **Hermetic Resonance**: Aligns context with current hermetic focus and intent
+- **State Persistence**: Maintains conversation context across interactions
+- **Task Context Propagation**: Seamless context passing between task phases with step result persistence
 
 ---
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Support/task_tools.rb
+# Support/opus_instrumenta.rb
 # Dynamic task-specific tools that automatically include task_id context
 
 require_relative 'instrumenta'
@@ -9,7 +9,7 @@ require_relative 'horologium_aeternum'
 
 
 
-class TaskTools
+class OpusInstrumenta
   # Build a PrimaMateria instance with task-specific tools
   def self.build_task_tools(base_prima, task_id, task_engine)
     # Create a fresh instance with base tools
@@ -37,20 +37,20 @@ class TaskTools
                                          minItems: 2,
                                          maxItems: 2 }
                               } do |**args|
-      result = Instrumenta::PRIMA_MATERIA.read_file **args
+      result = Instrumenta::PRIMA_MATERIA.read_file(**args)
       result.merge task_id: task_id if result.is_a? Hash
     end
 
     patch_description = Instrumenta::PRIMA_MATERIA.tools[:patch_file].description
     # Task-specific patch operations
     task_prima.add_instrument :task_patch_file,
-                              description: 'Apply targeted modifications to a file with task '\
+                              description: 'Apply targeted modifications to a file with task ' \
                                            "context.\n\n#{patch_description}",
                               params: {
                                 path: { type: 'string', required: true },
                                 diff: { type: 'string', required: true }
                               } do |path:, diff:|
-      #TODO gather changes about modified files in task context maybe by additional note.
+      # TODO: gather changes about modified files in task context maybe by additional note.
       result = Instrumenta::PRIMA_MATERIA.patch_file path: path, diff: diff
       result.merge task_id: task_id if result.is_a? Hash
     end
@@ -104,10 +104,8 @@ class TaskTools
                                 restart_from_step: { type: 'integer', required: false, minimum: 1 }
                               } do |reason: nil, restart_from_step: nil|
       task_engine.send :reject_step, task_id, reason, restart_from_step
-      { ok:                true,
-        task_id:           task_id,
-        rejected_step:     task_engine.send(:current_step, task_id),
-        restart_from_step: restart_from_step }
+      # Signal termination to prevent further processing in current reasoning
+      raise Oracle::StepTerminationException, "Step rejected: #{reason}"
     end
 
 
@@ -118,25 +116,27 @@ class TaskTools
                                 result: { type: 'string', required: false }
                               } do |result: nil|
       task_engine.send :complete_step, task_id, result
-      { ok:             true,
-        task_id:        task_id,
-        completed_step: task_engine.send(:current_step, task_id),
-        result:         result }
+      # Signal termination to prevent further processing in current reasoning
+      raise Oracle::StepTerminationException, "Step completed: #{result}"
     end
 
     # Access previous step results
     task_prima.add_instrument :task_get_previous_results,
                               description: 'Retrieve results from previous steps for context.',
                               params: {
-                                limit: { type: 'integer', required: false, default: 3, minimum: 1, maximum: 10 }
+                                limit: { type:     'integer',
+                                         required: false,
+                                         default:  3,
+                                         minimum:  1,
+                                         maximum:  10 }
                               } do |limit: 3|
-      task = task_engine.instance_variable_get(:@mnemosyne).get_task(task_id)
+      task = task_engine.instance_variable_get(:@mnemosyne).get_task task_id
       return { ok: true, task_id: task_id, results: {} } unless task && task[:step_results]
-      
+
       begin
         results = JSON.parse(task[:step_results] || '{}')
         # Return most recent results up to limit, excluding current step
-        current_step = task_engine.send(:current_step, task_id)
+        current_step = task_engine.send :current_step, task_id
         filtered_results = results.reject { |step, _| step.to_i >= current_step }
         recent_results = filtered_results.sort_by { |step, _| step.to_i }.last(limit).to_h
         { ok: true, task_id: task_id, results: recent_results }

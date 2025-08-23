@@ -19,7 +19,7 @@ require 'thin'
 require_relative 'mnemosyne'
 require_relative 'argonaut'
 require_relative 'horologium_aeternum'
-require_relative 'arcanum'
+require_relative 'coniunctio'
 require_relative 'oracle'
 require_relative 'verbum'
 require_relative 'prima_materia'
@@ -189,7 +189,7 @@ end
 
 def do_ask(p)
   uuid = HorologiumAeternum.thinking 'Initializing astral connection...'
-  ctx = Arcanum.build p
+  ctx = Coniunctio.build p
 
   # Enhanced streaming callback for real-time tool feedback
   answer, arts, tool_results =
@@ -270,7 +270,7 @@ end
 
 
 def do_complete(p)
-  ctx = Arcanum.build p
+  ctx = Coniunctio.build p
   snippet = Oracle.complete ctx
   { method: 'completion', result: { snippet: snippet } }
 end

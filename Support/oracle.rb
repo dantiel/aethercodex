@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Support/oracle.rb
-require 'faraday' 
+require 'faraday'
 require 'json'
 require 'time'
 require 'fileutils'
@@ -39,6 +39,9 @@ class Oracle
   # Exception to signal restart needed
   class RestartException < StandardError; end
 
+  # Exception to signal step completion/rejection - terminates current reasoning
+  class StepTerminationException < StandardError; end
+
 
   class << self
     def deep_symbolize(obj)
@@ -60,13 +63,14 @@ class Oracle
 
     def divination(prompt, ctx, tools:, max_depth: 80, reasoning: false, msg_uuid: nil, &exec)
       # Capture initial temperature for restart checks
-      initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
+      initial_temperature = (Mnemosyne.aegis[:temperature] || 1.0).to_f
 
       msgs = base_messages prompt, ctx
       tool_results = []
       arts = { prelude: [] }
       answer = nil
       depth = 0
+      execution_context = { tool_results: tool_results }
 
       # Stream initial status
       if defined? HorologiumAeternum
@@ -78,7 +82,7 @@ class Oracle
         depth += 1
 
         # Check for temperature change and restart if significant
-        current_temperature = Mnemosyne.aegis[:temperature] || 1.0
+        current_temperature = (Mnemosyne.aegis[:temperature] || 1.0).to_f
         if TEMPERATURE_DELTA_THRESHOLD < (current_temperature - initial_temperature).abs
           HorologiumAeternum.thinking 'Temperature change detected. Restarting oracle...'
           raise RestartException, 'Temperature change detected. Restarting oracle.'
@@ -118,16 +122,7 @@ class Oracle
           end
 
           tcalls.each do |tc|
-            name = tc.dig 'function', 'name'
-            args = deep_symbolize safe_parse(tc.dig('function', 'arguments'))
-            if args[:name] and args[:args]
-              name = args[:name]
-              args = args[:args]
-            end
-            res = exec.call name, args
-            sleep 0.05 if defined? HorologiumAeternum
-            tool_results << { id: tc['id'], name: name, result: res }
-            msgs << { role: 'tool', tool_call_id: tc['id'], content: res.to_json }
+            execute_standard_tool_call(tc, msgs, tool_results, execution_context, exec)
           end
           # TODO: make an optional 'continue' mechanism e.g. using a button or some repetition recognition, the problem is that by too many tools the context will be full or the ai might be stuck in a loop for some stupid reason.
           break if depth >= max_depth
@@ -136,11 +131,7 @@ class Oracle
         end
 
         # Fallback: JSON in content
-        # parsed = safe_parse msg['content']
-        # tools_from_content = extract_tools_from_content parsed
         tools_from_content = extract_tool_calls_from_content content
-        # puts "tools_from_content=#{tools_from_content}"
-        # arts[:plan] = parsed['plan'] if parsed.is_a?(Hash) && parsed['plan']
 
         if tools_from_content.any?
           if defined?(HorologiumAeternum) and !content.strip.empty?
@@ -148,23 +139,20 @@ class Oracle
           end
 
           arts[:tools] = tools_from_content
-          # arts[:next_step] = parsed['next_step'] || parsed['nextstep']
-          # answer = parsed['answer'] || ''
 
           # Stream plan if available
           if defined?(HorologiumAeternum) && arts[:plan]
             HorologiumAeternum.thinking "Plan: #{arts[:plan].join ' → '}"
           end
 
+          # Pass execution context to tool calls for awareness of previous results
           tools_from_content.each do |tool_call|
-            res = exec.call tool_call[:name], tool_call[:arguments]
-            tool_results << { name: tool_call[:name], result: res }
+            execute_fallback_tool_call(tool_call, msgs, tool_results, execution_context, exec)
           end
 
           break if depth >= max_depth
 
-          msgs << { role:    'user',
-                    content: "Tool results:\n#{tool_results.to_json}\nContinue." }
+          execution_context[:tool_results] = tool_results
           next
         else
           answer = content
@@ -177,11 +165,15 @@ class Oracle
     rescue Oracle::RestartException => e
       puts "[ORACLE][RESTART_EXCEPTION]: #{e.inspect} passing on"
       raise
+    rescue Oracle::StepTerminationException => e
+      # Normal termination due to step completion/rejection - return current state
+      puts "[ORACLE][STEP_TERMINATION]: #{e.message} - terminating reasoning"
+      [answer || '<<step terminated>>', arts, tool_results]
     rescue StandardError => e
       log_json(error: e.message || e, backtrace: e.backtrace, info: e.inspect)
       puts "[ORACLE][DIVINATION][ERROR]: #{e.inspect}"
       response = safe_parse e.message
-      
+
       if response.empty?
         HorologiumAeternum.server_error e.message
       else
@@ -194,10 +186,58 @@ class Oracle
       [{ error: e.message || e }, { patch: nil, tasks: nil, tools: [], prelude: [] }, tool_results]
     end
 
+    def execute_standard_tool_call(tc, msgs, tool_results, execution_context, exec)
+      name = tc.dig 'function', 'name'
+      args = deep_symbolize safe_parse(tc.dig('function', 'arguments'))
+      if args[:name] and args[:args]
+        name = args[:name]
+        args = args[:args]
+      end
+      begin
+        # Create safe context without circular references for standard tool calls
+        safe_context = {
+          previous_tool_results: tool_results.dup,
+          execution_id: execution_context[:execution_id] || SecureRandom.uuid
+        }
+        enhanced_args = args.merge(context: safe_context) if args.is_a? Hash
+        res = exec.call name, enhanced_args || args
+        tool_results << { id: tc['id'], name: name, result: res }
+        execution_context[:tool_results] = tool_results
+        msgs << { role: 'tool', tool_call_id: tc['id'], content: res.to_json }
+      rescue Oracle::StepTerminationException => e
+        # Step completion/rejection signaled - terminate reasoning immediately
+        puts "[ORACLE][STEP_TERMINATION]: #{e.message}"
+        raise
+      end
+    end
+
+    def execute_fallback_tool_call(tool_call, msgs, tool_results, execution_context, exec)
+      # Pass execution context to tool calls for awareness of previous results
+      # Create safe context without circular references
+      safe_context = {
+        previous_tool_results: tool_results.dup,
+        execution_id: execution_context[:execution_id] || SecureRandom.uuid
+      }
+      
+      # Generate ID for fallback tool calls if missing
+      tool_call_id = tool_call[:id] || SecureRandom.uuid
+      
+      if tool_call[:arguments].is_a? Hash
+        enhanced_args = tool_call[:arguments].merge(context: safe_context)
+      end
+      res = exec.call tool_call[:name], enhanced_args || tool_call[:arguments]
+      tool_results << { id: tool_call_id, name: tool_call[:name], result: res }
+      msgs << { role: 'tool', tool_call_id: tool_call_id, content: res.to_json }
+    rescue Oracle::StepTerminationException => e
+      # Step completion/rejection signaled - terminate reasoning immediately
+      puts "[ORACLE][STEP_TERMINATION]: #{e.message}"
+      raise
+    end
+
 
     def conjuration(prompt, context, tools:, msg_uuid:, &)
       # Capture initial temperature for restart checks
-      initial_temperature = Mnemosyne.aegis[:temperature] || 1.0
+      initial_temperature = (Mnemosyne.aegis[:temperature] || 1.0).to_f
 
       # Delegate tool calls to Oracle.reason with the provided block
       answer, arts, tool_results = divination(prompt, context, tools:, reasoning: true, msg_uuid:,
@@ -228,7 +268,7 @@ class Oracle
 
 
     def base_messages(prompt, ctx)
-      #INTRODUCE NEW SECONDARY CUSTOM SYSTEM PROMPT AFTER SYSTEMPROMPT FOR EXAMPLE (E.G. VIA PARAMETER)
+      # INTRODUCE NEW SECONDARY CUSTOM SYSTEM PROMPT AFTER SYSTEMPROMPT FOR EXAMPLE (E.G. VIA PARAMETER)
       [
         { role: 'system', content: SYSTEM_PROMPT },
         *ctx[:history],
@@ -249,7 +289,7 @@ class Oracle
           [cfg['model'] || 'deepseek-chat', 8192]
         end
 
-      temperature = Mnemosyne.aegis[:temperature] || 1.0
+      temperature = (Mnemosyne.aegis[:temperature] || 1.0).to_f
       # if temperature < 0.34
       #   temperature *= 3.333
       # else

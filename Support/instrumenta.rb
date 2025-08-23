@@ -3,7 +3,7 @@
 
 require_relative 'horologium_aeternum'
 require_relative 'prima_materia'
-require_relative 'task_engine'
+require_relative 'magnum_opus_engine'
 require_relative 'argonaut'
 
 
@@ -13,9 +13,11 @@ require_relative 'argonaut'
 class Instrumenta
   PRIMA_MATERIA = PrimaMateria.new
 
+
   def initialize
     @prima_materia = PRIMA_MATERIA
   end
+  
 
   class << self
     def instrumenta_schema = PRIMA_MATERIA.instrumenta_schema
@@ -32,6 +34,7 @@ class Instrumenta
       filtered_instrumenta
     end
   end
+  
 
   # Delegate all methods to the wrapped PrimaMateria instance
   def method_missing(method_name, ...)
@@ -77,22 +80,27 @@ end
 
 instrument :oracle_conjuration,
            description: <<~DESC,
-             Invoke the reasoning model to generate responses and actions based on advanced
-             reasoning. Make sure to provide a meaningful and profound prompt as invocation to
-             the high oracle and give a rich context as sacred offerings like files and other
-             tools output, this higher oracle will call tools on its own, too. Whenever a task
+             Invoke the reasoning model to generate responses and actions based on a chain of
+             thought reasoning method. Make sure to provide a meaningful and profound prompt as
+             invocation to the high oracle and give a rich context as sacred offerings like files
+             and other tools output, this higher oracle will call tools on its own, too. Whenever a task
              is difficult or you're asked to reason or meditate or something similar, use this
              function to have a higher intelligence.
            DESC
-           params: { prompt: { type:        String,
-                               required:    true,
-                               description: 'The input prompt for reasoning.' } },
-           returns: { reasoning: String, content: String, context: Object } do |prompt:|
+           params: { prompt:  { type:        String,
+                                required:    true,
+                                description: 'The input prompt for reasoning.' },
+                     context: { type:        Object,
+                                required:    false,
+                                description: 'Context object to pass through to oracle' } },
+           returns: { reasoning: String, content: String, context: Object } do |prompt:, context: nil|
   params = {
     prompt:  prompt,
-    context: nil
+    context: context
   }
   HorologiumAeternum.oracle_conjuration prompt
+  
+  puts "CONJURATION TOOL CONTEXT=#{context}"
 
   filtered_instrumenta = Instrumenta.reject :oracle_conjuration, :create_task
 
@@ -112,7 +120,7 @@ instrument :oracle_conjuration,
     end
   end
 
-  { reasoning: reasoning, content: content, context: nil }
+  { reasoning:, content: }
 rescue StandardError => e
   { error: "Reasoning failed: #{e.message}" }
 end
@@ -433,7 +441,7 @@ instrument :create_task,
                               required:    true,
                               description: 'The task execution plan.' } },
            returns: { id: Integer, error: String } do |title:, plan:|
-  engine = TaskEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
+  engine = MagnumOpusEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
 
   result = engine.create_task(title:, plan:)
 
@@ -459,7 +467,7 @@ instrument :execute_task,
 
   uuid = HorologiumAeternum.task_started(**task)
 
-  engine = TaskEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
+  engine = MagnumOpusEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
   engine.execute_task task[:id]
 
   { ok: true }

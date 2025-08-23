@@ -33,7 +33,7 @@ RSpec.describe TaskEngine do
     it 'handles :failure responses' do
       aetherflux.configure_response('CURRENT STEP: 1', { status: :failure, response: 'Task execution failed' })
 
-      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Step 1 failed: Task execution failed')
+      expect { subject.execute_task(1) }.to raise_error(MagnumOpusEngine::TaskStateError, 'Step 1 failed: Task execution failed')
 
       task_state = mnemosyne.task_state 1
       expect(task_state['status']).to eq('failed')
@@ -42,7 +42,7 @@ RSpec.describe TaskEngine do
     it 'logs the failure response' do
       aetherflux.configure_response('CURRENT STEP: 1', { status: :failure, response: 'Task execution failed' })
 
-      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Step 1 failed: Task execution failed')
+      expect { subject.execute_task(1) }.to raise_error(MagnumOpusEngine::TaskStateError, 'Step 1 failed: Task execution failed')
 
       logs = mnemosyne.task_logs 1
       expect(logs.join).to match(/Step 1 failed: Task execution failed/)
@@ -72,7 +72,7 @@ RSpec.describe TaskEngine do
   describe '#invalid_task_state' do
     it 'raises an error for invalid states' do
       mnemosyne.manage_tasks({ 'action' => 'update', 'id' => 1, 'status' => 'invalid' })
-      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Invalid state: invalid')
+      expect { subject.execute_task(1) }.to raise_error(MagnumOpusEngine::TaskStateError, 'Invalid state: invalid')
     end
   end
 
@@ -92,7 +92,7 @@ RSpec.describe TaskEngine do
       before { mnemosyne.manage_tasks({ 'action' => 'update', 'id' => 1, 'status' => 'paused' }) }
 
       it 'halts execution' do
-        expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Task is paused')
+        expect { subject.execute_task(1) }.to raise_error(MagnumOpusEngine::TaskStateError, 'Task is paused')
       end
     end
 
@@ -100,7 +100,7 @@ RSpec.describe TaskEngine do
       before { mnemosyne.manage_tasks({ 'action' => 'update', 'id' => 1, 'status' => 'failed' }) }
 
       it 'halts execution' do
-        expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskStateError, 'Task is failed')
+        expect { subject.execute_task(1) }.to raise_error(MagnumOpusEngine::TaskStateError, 'Task is failed')
       end
     end
 
@@ -113,7 +113,7 @@ RSpec.describe TaskEngine do
 
     context 'with invalid task ID' do
       it 'raises error' do
-        expect { subject.execute_task(999) }.to raise_error(TaskEngine::TaskStateError, /Task not found: 999/)
+        expect { subject.execute_step(-1, 1) }.to raise_error(MagnumOpusEngine::TaskStateError, /Task not found: -1/)
     end
   end
 
@@ -121,7 +121,7 @@ RSpec.describe TaskEngine do
     before { mnemosyne.manage_tasks({ 'action' => 'update', 'id' => 1, 'status' => 'cancelled' }) }
 
     it 'halts execution' do
-      expect { subject.execute_task(1) }.to raise_error(TaskEngine::TaskCancelledError, 'Task cancelled')
+      expect { subject.execute_task(1) }.to raise_error(MagnumOpusEngine::TaskCancelledError, 'Task cancelled')
     end
   end
 

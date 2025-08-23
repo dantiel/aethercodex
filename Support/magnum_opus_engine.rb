@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-# Support/task_engine.rb
+# Support/magnum_opus_engine.rb
 require 'timeout'
 require 'json'
 # require_relative 'horologium_aeternum'
-require_relative 'task_tools'
+require_relative 'opus_instrumenta'
 
 
 class String
@@ -22,7 +22,7 @@ end
 
 # Task System Prompt for comprehensive context in oracle conjuration
 TASK_SYSTEM_PROMPT = <<~PROMPT
-  You are executing a task step in the AetherCodex task engine...
+  You are executing a task step in the AetherCodex Magnum Opus Engine...
 
   # TASK SYSTEM ARCHITECTURE
   - Tasks have titles, plans, and multiple steps
@@ -197,19 +197,19 @@ def debug(msg)
 end
 
 
-# The TaskEngine orchestrates hermetic workflows, weaving:
+# The MagnumOpusEngine orchestrates hermetic workflows, weaving:
 # - **Alchemical Steps**: 10-stage transmutation of tasks (as above, as below).
 # - **Recursive Sub-Tasks**: Nested operations respecting `max_loops` like fractal iterations.
 # - **Dynamic Task Tools**: Tools that automatically include the current task_id for context.
 # - **Dynamic State Transitions**: Task states mirroring alchemical phases (nigredo, albedo, rubedo).
 # - **Oracle Integration**: Conjuring responses via `aetherflux` for step execution.
-class TaskEngine
+class MagnumOpusEngine
   # Patched to include dynamic task tools
   class TaskStateError < StandardError; end
   class TaskCancelledError < StandardError; end
   class TaskCreationError < StandardError; end
 
-  debug 'TaskEngine module loaded (FIXED)'
+  debug 'MagnumOpusEngine module loaded (FIXED)'
   STATES = %i[pending active paused failed completed invalid cancelled].freeze
   WORKFLOW_STEPS = 10
   # Step purposes for logging, aligned with hermetic principles
@@ -227,7 +227,7 @@ class TaskEngine
   ].freeze
 
 
-  # The TaskEngine is the crucible where tasks undergo hermetic transformation.
+  # The MagnumOpusEngine is the crucible where tasks undergo hermetic transformation.
   # It binds Mnemosyne (memory) and Aetherflux (oracle) to alchemize prompts into results.
   def initialize(options = {})
     mnemosyne = options[:mnemosyne]
@@ -244,7 +244,7 @@ class TaskEngine
 
   # Create dynamic task tools for a specific task
   def create_task_tools(task_id)
-    @task_tools_registry[task_id] ||= TaskTools.build_task_prima task_id, self
+    @task_tools_registry[task_id] ||= OpusInstrumenta.build_task_prima task_id, self
   end
 
 
@@ -329,10 +329,10 @@ class TaskEngine
       next if step_num.to_i >= current_step
 
       formatted << if current_step - 1 == step_num
-        "Step #{step_num}: #{result.to_s}"
-      else
-        "Step #{step_num}: #{result.to_s.truncate 200}"
-      end
+                     "Step #{step_num}: #{result}"
+                   else
+                     "Step #{step_num}: #{result.to_s.truncate 200}"
+                   end
     end
 
     formatted.empty? ? 'No previous step results available.' : formatted.join("\n")
@@ -414,22 +414,26 @@ class TaskEngine
     update_state task_id, :active
 
     begin
-      WORKFLOW_STEPS.times do |step|
+      # Get current step from database to resume where we left off
+      current_step = task[:current_step] || 0
+      
+      # Execute from current step to completion
+      (current_step...WORKFLOW_STEPS).each do |step_index|
         break if halted? task_id
 
         begin
-          execute_step task_id, step + 1
-        rescue TaskEngine::TaskStateError => e
+          execute_step task_id, step_index + 1
+        rescue MagnumOpusEngine::TaskStateError, Timeout::Error => e
           update_state task_id, :failed
-          log_message task_id, "Step #{step + 1} failed: #{e.message}"
+          log_message task_id, "Step #{step_index + 1} failed: #{e.message}"
           raise e
         rescue StandardError => e
           update_state task_id, :failed
-          log_message task_id, "Error in step #{step + 1}: #{e.message}"
-          raise StandardError, "Error in step #{step + 1}: #{e.message}"
+          log_message task_id, "Error in step #{step_index + 1}: #{e.message}"
+          raise StandardError, "Error in step #{step_index + 1}: #{e.message}"
         end
 
-        update_progress task_id, step + 1
+        update_progress task_id, step_index + 1
       end
 
       # Execute sub-tasks recursively, respecting max_loops
@@ -446,7 +450,21 @@ class TaskEngine
       end
 
       update_state task_id, :completed unless halted? task_id
-    rescue TaskEngine::TaskStateError, Timeout::Error => e
+
+      # Broadcast task completion with duration
+      task = @mnemosyne.get_task task_id
+      if task && 'completed' == task[:status]
+        created_at = task[:created_at]
+        start_time = if created_at.is_a?(String)
+                      require 'date'
+                      DateTime.parse(created_at).to_time.to_f
+                    else
+                      created_at || Time.now.to_f
+                    end
+        duration = Time.now.to_f - start_time
+        HorologiumAeternum.task_completed(duration, **task)
+      end
+    rescue MagnumOpusEngine::TaskStateError, Timeout::Error => e
       # Re-raise specific error types that should propagate to tests
       raise e
     rescue StandardError => e
@@ -521,27 +539,35 @@ class TaskEngine
     begin
       # Comprehensive context for hermetic execution
       context = {
-        task_id: task_id
+        task_id: task_id,
+        task_title: task[:title],
+        task_description: task[:description],
+        task_plan: task[:plan],
+        step_index: step_index,
+        total_steps: WORKFLOW_STEPS,
+        step_purpose: STEP_PURPOSES[step_index - 1],
+        extended_purpose: step_guidance,
+        progress: "#{step_index}/#{WORKFLOW_STEPS}"
       }
       # TODO: some phases should use normal divination instead of reasoning conjuration, but may call conjuration if needed, but conjuration shall not be able to call conjuration
-      # response = @aetherflux.channel_oracle_divination(
-      #   {
-      #     prompt: prompt,
-      #     system: system_prompt
-      #   },
-      #   nil,
-      #   tools: create_task_tools(task_id),
-      #   context: context
-      # )
-      #
-      response = @aetherflux.channel_oracle_conjuration(
+      response = @aetherflux.channel_oracle_divination(
         {
           prompt: prompt,
           system: system_prompt
         },
+        nil,
         tools: create_task_tools(task_id),
         context: context
       )
+
+      # response = @aetherflux.channel_oracle_conjuration(
+      #   {
+      #     prompt: prompt,
+      #     system: system_prompt
+      #   },
+      #   tools: create_task_tools(task_id),
+      #   context: context
+      # )
 
 
       # log_message task_id, "TASK CONJURATION RESPONSE=#{response.inspect}"

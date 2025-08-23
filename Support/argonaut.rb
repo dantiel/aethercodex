@@ -27,8 +27,14 @@ class Argonaut
     
     result = if range && range.size == 2
       l0, l1 = range
-      lines = src.lines[l0..l1] || []
-      { content: lines.join, range: [l0, l1] }
+      
+      if l0 > src.lines.count 
+        { error: "line range #{l0}-#{l1} exceeds lines in file = #{src.lines.count}" }
+      else
+        lines = src.lines[l0..l1] || []
+      
+        { content: lines.join, range: [l0, l1] }
+      end
     else
       { content: src }
     end
