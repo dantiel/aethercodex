@@ -77,6 +77,7 @@ get '/ws' do
 
   last_pong = Time.now
   ws = Faye::WebSocket.new request.env
+  HorologiumAeternum.set_websocket ws
 
   if defined? EventMachine
     ping_timer = EventMachine.add_periodic_timer 20 do
@@ -93,7 +94,6 @@ get '/ws' do
     warn '[WS] open'
     warn "[WS] open #{ENV.fetch 'TM_PROJECT_DIRECTORY', nil}"
     last_pong = Time.now
-    HorologiumAeternum.set_websocket ws
   end
 
   ws.on :error do |event|
@@ -147,7 +147,7 @@ def startThinkingThread(ws, req)
   @ask_thread = Thread.new do
     warn "[WS] message: #{req['params'].inspect}"
     
-    res = Aetherflux.channel_oracle_divination( req['params'].transform_keys!(&:to_sym), ws, tools: Instrumenta)
+    res = Aetherflux.channel_oracle_divination( req['params'].transform_keys!(&:to_sym), tools: Instrumenta)
     raise res[:error] if 'error' == res[:result]
 
     # warn "[WS][DEBUG] #{res.inspect}"

@@ -1,5 +1,17 @@
 # frozen_string_literal: true
 
+class String
+  def truncate(max_length, omission = '...')
+    if length > max_length
+      truncated_string = self[0...(max_length - omission.length)]
+      truncated_string += omission
+      truncated_string
+    else
+      self
+    end
+  end
+end
+
 # Support/aetherflux.rb
 require_relative 'coniunctio'
 require_relative 'oracle'
@@ -8,14 +20,12 @@ require_relative 'oracle'
 # This ensures status updates appear immediately during AI tool execution
 class Aetherflux
   class << self
-    def channel_oracle_divination(params, websocket, tools:)
-      # Ensure HorologiumAeternum is connected to this WebSocket
-      HorologiumAeternum.set_websocket websocket unless websocket.nil?
-
+    def channel_oracle_divination(params, tools:, context: nil)
       # Start status updates immediately
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
 
       # Build context
+      enhanced_params = params.merge(context: context) if context
       ctx = Coniunctio.build params
 
       # Process with real-time streaming and restart handling
@@ -23,7 +33,7 @@ class Aetherflux
         answer, arts, tool_results =
           Oracle.divination(params[:prompt], ctx, tools:, msg_uuid:) do |name, args|
             puts '[AETHER FLUX][CHANNEL ORACLE DIVINATION]: ' \
-                 "TRY HANDLE TOOL=#{name}, ARGS=#{args.inspect}"
+                 "TRY HANDLE TOOL=#{name}, ARGS=#{args.inspect.truncate 200}"
             result = tools.handle({ 'tool' => name, 'args' => args })
             puts "[AETHER FLUX][CHANNEL ORACLE DIVINATION]: TOOL RESULT=#{result}"
             sleep 0.1
@@ -50,9 +60,11 @@ class Aetherflux
       
       Mnemosyne.record params, answer if params[:record]
 
+      # Return proper status structure for task engine (same format as conjuration)
       {
-        method: 'answer',
-        result: {
+        status: :success,
+        response: {
+          reasoning:    arts[:reasoning],
           answer:       answer,
           html:         html,
           patch:        arts[:patch],
@@ -65,14 +77,44 @@ class Aetherflux
       }
     rescue TypeError => e
       puts "[AETHER FLUX][TYPE ERROR]: #{e.inspect}"
-      { method:    'answer',
-        result:    'error',
-        error:     e.full_message || e.message,
-        backtrace: e.backtrace }
+      {
+        status: :failure,
+        response: "Type error: #{e.full_message || e.message}"
+      }
     rescue StandardError => e
+      error_message = e.message.to_s
       puts "[AETHER FLUX][ERROR]: #{e.inspect}"
-      Mnemosyne.record params, "Error: #{e.message || e.message[:error]}" if params[:record]
-      { method: 'answer', result: 'error', error: e.message || e.message[:error] }
+      Mnemosyne.record params, "Error: #{error_message}" if params[:record]
+      
+      # Classify errors for better handling in task engine
+      # Prioritize specific error types over generic text matching to prevent misclassification
+      status = if e.is_a?(Timeout::Error)
+                 :timeout  # Genuine timeout errors only
+               elsif error_message.include?("maximum context length") ||
+                     error_message.include?("context length") ||
+                     (error_message.include?("invalid_request_error") &&
+                      error_message.include?("context"))
+                 :context_length_error
+               elsif error_message.include?("rate limit") ||
+                     error_message.include?("rate_limit") ||
+                     error_message.include?("rate_limit_exceeded")
+                 :rate_limit_error
+               elsif error_message.include?("network") ||
+                     error_message.include?("connection") ||
+                     e.is_a?(Net::OpenTimeout) ||
+                     e.is_a?(Net::ReadTimeout)
+                 :network_error
+               elsif error_message.include?("read timeout") ||
+                     error_message.include?("Read timed out")
+                 :network_error  # Handle specific timeout messages
+               else
+                 :failure
+               end
+      
+      {
+        status: status,
+        response: "#{status.to_s.humanize}: #{error_message}"
+      }
     end
 
 
@@ -128,7 +170,7 @@ class Aetherflux
         }
       }
     rescue StandardError => e
-      puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION][ERROR]: #{e.inspect}"
+      puts "[AETHER FLUX][CHANNEL ORACLE CONJURATION][ERROR]: #{e.inspect.truncate 200}"
       HorologiumAeternum.server_error "Oracle reasoning stream failed: #{e.message}"
       { 
         status: :failure,

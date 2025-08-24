@@ -214,7 +214,7 @@ module HorologiumAeternum
 
 
   def self.command_executing(cmd, uuid: nil)
-    cmd_str = if cmd.include? "\n" then "```#{cmd}```" else "`#{cmd}`" end
+    cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
     send_status('command_executing', {
                   message: Scriptorium.html("⚡ Executing: #{cmd_str}"),
                   command: cmd
@@ -224,7 +224,7 @@ module HorologiumAeternum
 
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
     symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
-    cmd_str = if cmd.include? "\n" then "```#{cmd}```" else "`#{cmd}`" end
+    cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
     send_status('command_completed', {
                   message:       Scriptorium.html("#{symbol} Command complete: #{cmd_str} (#{output_length} chars output)"),
                   command:       cmd,

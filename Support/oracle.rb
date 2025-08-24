@@ -353,6 +353,9 @@ class Oracle
       end
 
       resp.body
+    rescue Faraday::TimeoutError => e
+      # Convert timeout to specific error type that can be handled gracefully
+      raise Timeout::Error, "API request timed out after #{timeout} seconds: #{e.message}"
     rescue Faraday::ConnectionFailed => e
       raise "Connection Failed: #{e.wrapped_exception}"
     rescue Faraday::UnprocessableEntityError => e

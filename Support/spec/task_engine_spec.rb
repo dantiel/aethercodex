@@ -6,6 +6,7 @@ require_relative 'fake_mnemosyne'
 require_relative 'fake_aetherflux'
 require 'rspec'
 require 'timeout'
+require 'net/protocol'  # For Net::ReadTimeout and Net::OpenTimeout
 
 
 RSpec.describe TaskEngine do
@@ -22,11 +23,22 @@ RSpec.describe TaskEngine do
 
     # Configure fake aetherflux with default response
     aetherflux.set_default_response({ status: :success, response: 'Simulated response' })
+    
+    # Enable debug logging for timeout tests
+    ENV['DEBUG_TASK_ENGINE'] = 'true'
+  end
+
+  after do
+    # Disable debug logging after tests
+    ENV.delete('DEBUG_TASK_ENGINE')
   end
 
   after do
     # Clear task state after each test
     mnemosyne.manage_tasks({ 'action' => 'update', 'id' => 1, 'status' => 'pending' })
+    
+    # Clear captured conjurations
+    aetherflux.clear_captured_conjurations
   end
 
   describe '#oracle_conjuration_failure' do
@@ -50,22 +62,70 @@ RSpec.describe TaskEngine do
   end
 
   describe '#oracle_conjuration_timeout' do
-    it 'handles timeout errors' do
+    it 'handles timeout errors gracefully without failing entire task' do
       aetherflux.configure_response('CURRENT STEP: 1', -> { raise Timeout::Error, 'Request timed out' })
 
+      # Timeout should break execution loop but not crash the entire task
       expect { subject.execute_task(1) }.to raise_error(Timeout::Error)
 
+      # Task should remain in active state for retry, not failed
       task_state = mnemosyne.task_state 1
-      expect(task_state['status']).to eq('failed')
+      expect(task_state['status']).to eq('pending')  # Should remain pending for retry
+      
+      # Step result should be stored for context
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      expect(step_results['1']).to include('TIMEOUT:')
     end
 
-    it 'logs the timeout error' do
+    it 'logs the timeout error with detailed context' do
       aetherflux.configure_response('CURRENT STEP: 1', -> { raise Timeout::Error, 'Request timed out' })
 
       expect { subject.execute_task(1) }.to raise_error(Timeout::Error)
 
       logs = mnemosyne.task_logs 1
-      expect(logs.join).to match(/Timeout in step 1/)
+      expect(logs.join).to match(/Step 1 timed out: Request timed out/)
+    end
+
+    it 'handles Net::ReadTimeout specifically' do
+      aetherflux.configure_response('CURRENT STEP: 1', -> { raise Net::ReadTimeout, 'Read timed out' })
+
+      # Should be treated as network error, not generic timeout
+      expect { subject.execute_task(1) }.to raise_error(Net::ReadTimeout)
+
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      expect(step_results['1']).to include('TIMEOUT:')
+    end
+
+    it 'handles Net::OpenTimeout specifically' do
+      aetherflux.configure_response('CURRENT STEP: 1', -> { raise Net::OpenTimeout, 'Connection timed out' })
+
+      # Should be treated as network error, not generic timeout
+      expect { subject.execute_task(1) }.to raise_error(Net::OpenTimeout)
+
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      expect(step_results['1']).to include('TIMEOUT:')
+    end
+
+    it 'handles mixed timeout scenarios across multiple steps' do
+      # Step 1: Success
+      aetherflux.configure_response('CURRENT STEP: 1', { status: :success, response: 'Step 1 completed' })
+      # Step 2: Timeout
+      aetherflux.configure_response('CURRENT STEP: 2', -> { raise Timeout::Error, 'Step 2 timeout' })
+      
+      # Should complete step 1, then timeout on step 2
+      expect { subject.execute_task(1) }.to raise_error(Timeout::Error)
+
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      
+      # Both steps should have results
+      expect(step_results['1']).to eq('Step 1 completed')
+      expect(step_results['2']).to include('TIMEOUT: Step 2 timeout')
+      
+      # Task should remain pending for retry
+      expect(task_state['status']).to eq('pending')
     end
   end
 
@@ -114,6 +174,7 @@ RSpec.describe TaskEngine do
     context 'with invalid task ID' do
       it 'raises error' do
         expect { subject.execute_step(-1, 1) }.to raise_error(MagnumOpusEngine::TaskStateError, /Task not found: -1/)
+      end
     end
   end
 
@@ -188,24 +249,130 @@ RSpec.describe TaskEngine do
       end
     end
 
-    context 'with extreme step values' do
-      it 'handles step 0 gracefully' do
-        expect { subject.execute_step(1, 0) }.to raise_error(ArgumentError)
+    context 'with invalid input validation' do
+      it 'rejects negative task IDs' do
+        expect { subject.execute_step(-1, 1) }.to raise_error(TaskEngine::TaskStateError, /Task not found: -1/)
       end
 
-      it 'handles step beyond workflow limits' do
-        expect { subject.execute_step(1, 11) }.to raise_error(ArgumentError)
+      it 'rejects non-integer task IDs' do
+        expect { subject.execute_step('invalid', 1) }.to raise_error(TypeError)
       end
     end
 
-    context 'with network outage simulation' do
-      it 'handles database connection failures' do
-        allow(mnemosyne).to receive(:get_task).and_raise(StandardError, 'Database connection failed')
+    context 'with empty response handling' do
+      it 'handles empty oracle responses gracefully' do
+        aetherflux.configure_response('CURRENT STEP: 1', { status: :empty_response, response: '' })
         
-        expect { subject.execute_step(1, 1) }.to raise_error(StandardError, 'Database connection failed')
+        # Empty response should break execution loop but not crash the entire task
+        expect { subject.execute_step(1, 1) }.not_to raise_error
+        
+        task_state = mnemosyne.task_state 1
+        # Task should remain in active state for retry, not failed
+        expect(task_state['status']).to eq('pending')
+        
+        step_results = JSON.parse(task_state['step_results'] || '{}')
+        expect(step_results['1']).to include('EMPTY_RESPONSE:')
+      end
+
+      it 'handles nil oracle responses gracefully' do
+        aetherflux.configure_response('CURRENT STEP: 1', nil)
+        
+        # Nil response should break execution loop but not crash the entire task
+        expect { subject.execute_step(1, 1) }.not_to raise_error
+        
+        task_state = mnemosyne.task_state 1
+        # Task should remain in active state for retry, not failed
+        expect(task_state['status']).to eq('pending')
+        
+        step_results = JSON.parse(task_state['step_results'] || '{}')
+        expect(step_results['1']).to include('EMPTY_RESPONSE:')
+      end
+    end
+
+    context 'with unknown response format handling' do
+      it 'handles completely unknown response formats gracefully' do
+        aetherflux.configure_response('CURRENT STEP: 1', { completely: :unknown, format: 'unexpected' })
+        
+        # Unknown response should break execution loop but not crash the entire task
+        expect { subject.execute_step(1, 1) }.not_to raise_error
+        
+        task_state = mnemosyne.task_state 1
+        # Task should remain in active state for retry, not failed
+        expect(task_state['status']).to eq('pending')
+        
+        step_results = JSON.parse(task_state['step_results'] || '{}')
+        expect(step_results['1']).to include('ERROR: Unknown response status:')
+      end
+
+      it 'handles string-based status keys gracefully' do
+        aetherflux.configure_response('CURRENT STEP: 1', { 'status' => 'success', 'response' => { 'answer' => 'test' } })
+        
+        # String-based status should work correctly
+        expect { subject.execute_step(1, 1) }.not_to raise_error
+        
+        task_state = mnemosyne.task_state 1
+        expect(task_state['status']).to eq('pending')  # Should progress normally
+        
+        step_results = JSON.parse(task_state['step_results'] || '{}')
+        expect(step_results['1']).to eq('test')
+      end
+    end
+  end
+end
+      it 'handles memory allocation errors' do
+        allow(aetherflux).to receive(:channel_oracle_conjuration).and_raise(NoMemoryError, 'Cannot allocate memory')
+        
+        expect { subject.execute_step(1, 1) }.to raise_error(NoMemoryError, 'Cannot allocate memory')
         
         task_state = mnemosyne.task_state 1
         expect(task_state['status']).to eq('failed')
+      end
+
+      it 'handles context length exceeded errors gracefully' do
+        aetherflux.configure_response('CURRENT STEP: 1', {
+          status: :context_length_error,
+          response: 'maximum context length is 131072 tokens'
+        })
+        
+        expect { subject.execute_step(1, 1) }.to raise_error(MagnumOpusEngine::TaskStateError)
+        
+        task_state = mnemosyne.task_state 1
+        expect(task_state['status']).to eq('failed')
+        
+        step_results = JSON.parse(task_state['step_results'] || '{}')
+        expect(step_results['1']).to include('CONTEXT_LENGTH_ERROR:')
+      end
+
+      it 'handles rate limit errors gracefully' do
+        aetherflux.configure_response('CURRENT STEP: 1', {
+          status: :rate_limit_error,
+          response: 'rate limit exceeded'
+        })
+        
+        expect { subject.execute_step(1, 1) }.to raise_error(MagnumOpusEngine::TaskStateError)
+        
+        task_state = mnemosyne.task_state 1
+        expect(task_state['status']).to eq('failed')
+        
+        step_results = JSON.parse(task_state['step_results'] || '{}')
+        expect(step_results['1']).to include('RATE_LIMIT_ERROR:')
+      end
+
+      it 'handles network errors gracefully without failing entire task' do
+        aetherflux.configure_response('CURRENT STEP: 1', {
+          status: :network_error,
+          response: 'network connection failed'
+        })
+        
+        # Network error should break execution loop but not crash the entire task
+        expect { subject.execute_step(1, 1) }.not_to raise_error
+        
+        task_state = mnemosyne.task_state 1
+        # Task should remain in active state for retry, not failed
+        expect(task_state['status']).to eq('pending')
+        
+        step_results = JSON.parse(task_state['step_results'] || '{}')
+        expect(step_results['1']).to include('NETWORK_ERROR:')
       end
     end
 

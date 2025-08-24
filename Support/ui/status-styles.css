@@ -64,10 +64,22 @@ body.fancy-animations .status::before {
   overflow: hidden;
   vertical-align: bottom;
 }
-
 .status summary code:hover {
   white-space: normal;
 }
+
+
+.status summary pre:hover{
+  max-height: 14em;
+}
+.status summary pre code,
+.status summary pre code:hover {
+  white-space: pre;
+}
+.status summary code:hover {
+  white-space: normal;
+}
+
 
 .status pre {
   display: inline;

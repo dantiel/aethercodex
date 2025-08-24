@@ -143,7 +143,7 @@ class Argonaut
   def self.file_overview(path:)
     fullpath = File.join(project_root, path)
     notes = Mnemosyne.fetch_notes_by_links path
-    puts notes.inspect
+    # puts notes.inspect
     raise notes[:error] unless notes.is_a? Array || notes[:error].nil?
     
     line_count = 0
