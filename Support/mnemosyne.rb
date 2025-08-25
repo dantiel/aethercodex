@@ -24,6 +24,30 @@ class Mnemosyne
   class << self
     attr_reader :aegis
 
+    # Maximum content length for notes to prevent context bloat
+    MAX_NOTE_CONTENT_LENGTH = 500
+
+    # Truncate note content to prevent excessive token usage
+    def truncate_note_content(content, max_length: MAX_NOTE_CONTENT_LENGTH)
+      return content if content.to_s.length <= max_length
+      
+      # Preserve structure while truncating
+      if content.include?('```')
+        # For code blocks, truncate the content but preserve the structure
+        content.gsub(/```(\w*)\n.*?\n```/m) do |match|
+          lang = $1
+          inner_content = match[lang.length + 4..-4]
+          if inner_content.length > max_length / 2
+            "```#{lang}\n#{inner_content[0...(max_length / 2)]}...\n```"
+          else
+            match
+          end
+        end
+      else
+        content[0...max_length] + "..."
+      end
+    end
+
     # Create a new task with a plan
     def create_task(title:, plan:)
       puts "CREATE TASK #{title}:#{plan}"
@@ -204,7 +228,7 @@ class Mnemosyne
 
 
     # Search notes with scoring based on content, tags, and links
-    def recall_notes(query, limit: 5)
+    def recall_notes(query, limit: 5, max_content_length: nil)
       query_tokens = tokenize query
 
       sql_query = if query_tokens.empty?
@@ -220,14 +244,26 @@ class Mnemosyne
 
       notes.map do |note|
         note.transform_keys!(&:to_sym)
+        
+        # Apply content length limit if specified
+        if max_content_length && note[:content] && note[:content].length > max_content_length
+          note[:content] = truncate_note_content(note[:content], max_length: max_content_length)
+        end
+        
         score = 0
 
         if query_tokens.empty?
           score = 1
         else
-          score += 3 * (query_tokens & tokenize(note[:content])).size
-          score += 2 * (query_tokens & tokenize(note[:tags])).size
-          score += 1 * (query_tokens & tokenize(note[:links])).size
+          # Enhanced scoring with path matching for better file relevance
+          score += 4 * (query_tokens & tokenize(note[:content])).size
+          score += 3 * (query_tokens & tokenize(note[:tags])).size
+          score += 2 * (query_tokens & tokenize(note[:links])).size
+          
+          # Boost score for exact path matches in links
+          if note[:links] && query_tokens.any? { |token| note[:links].include?(token) }
+            score += 5
+          end
         end
 
         { **note, score: }
@@ -276,10 +312,10 @@ class Mnemosyne
     end
 
 
-    def recall_aegis_notes(max_tokens: nil)
+    def recall_aegis_notes(max_tokens: nil, max_content_length: nil)
       tags = @aegis[:tags] || []
       tags = tags.split ',' if tags.is_a? String
-      notes = recall_notes tags.join(' '), limit: 8
+      notes = recall_notes tags.join(' '), limit: 8, max_content_length: max_content_length
 
       # Apply token limit if provided
       unless max_tokens.nil?
@@ -310,12 +346,13 @@ class Mnemosyne
     end
 
 
-    # Create a note (id auto-generated, links optional)
+    # Create a note (id auto-generated, links optional) with content length limit
     def create_note(content:, links: nil, tags: nil)
+      truncated_content = truncate_note_content(content)
       db.execute "
         INSERT INTO project_notes (content, links, tags, created_at)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
-                 [content, links&.join(','), tags&.join(',')]
+                 [truncated_content, links&.join(','), tags&.join(',')]
       db.last_insert_row_id
     end
 
@@ -324,8 +361,13 @@ class Mnemosyne
     def fetch_notes_by_links(links)
       links = [links] unless links.is_a? Array
 
-      db.execute("SELECT * FROM project_notes WHERE #{(['links LIKE ?'] * links.count).join ' OR '}",
-                 links.map { |link| "%#{link}%" }).each do |note|
+      result = db.execute("SELECT * FROM project_notes WHERE #{(['links LIKE ?'] * links.count).join ' OR '}",
+                 links.map { |link| "%#{link}%" })
+      
+      # Handle nil result gracefully
+      return [] unless result
+      
+      result.each do |note|
         note.transform_keys!(&:to_sym)
       end
     end
@@ -333,9 +375,10 @@ class Mnemosyne
 
     def update_note(id, content: nil, links: nil, tags: nil)
       # TODO: change created_at to updated_at
+      truncated_content = truncate_note_content(content) if content
       db.execute \
         'UPDATE project_notes SET content = ?, links = ?, tags = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?', [
-          content, links&.join(','), tags&.join(','), id
+          truncated_content || content, links&.join(','), tags&.join(','), id
         ]
     end
 

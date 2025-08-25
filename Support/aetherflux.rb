@@ -15,6 +15,9 @@ end
 # Support/aetherflux.rb
 require_relative 'coniunctio'
 require_relative 'oracle'
+require_relative 'scriptorium'
+
+
 
 # Real-time streaming handler for WebSocket responses
 # This ensures status updates appear immediately during AI tool execution

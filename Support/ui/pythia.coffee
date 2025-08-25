@@ -447,14 +447,17 @@ handleMessage = (e) ->
   console.debug "[Pythia] Handling message:", e.data
   data = JSON.parse e.data
   
-  data = JSON.parse e.data
-
+  if'success' is data.status
+    isThinking = false
+    return do updateSendButton  
+  
   switch data.method
     when 'status'
       showStatus data.result.type, data.result.data, data.result.uuid
     when 'answer'
       isThinking = false
       do updateSendButton
+      # TODO remove redundant...
       if data.result.logs?
         data.result.logs.forEach (l) ->
           switch l.type

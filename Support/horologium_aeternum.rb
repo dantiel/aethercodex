@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'scriptorium'
+require_relative 'aether_scopes'
 
 
 
@@ -471,18 +472,59 @@ module HorologiumAeternum
 
 
   def self.file_overview(path, result, uuid: nil)
+    # Use the symbolic overview data already generated in Instrumenta/Argonaut
+    symbolic_data = result[:symbolic_overview] || {}
+    
+    # Get optimized notes metadata - handle nil notes array gracefully
+    notes_metadata = (result[:notes_preview] || []).map do |note|
+      {
+        id: note[:id],
+        tags: note[:tags] || [],
+        excerpt: note[:excerpt] || '',
+        links: note[:links] || []
+      }
+    end
+    
+    # Format the symbolic data properly for display
+    symbolic_summary = if symbolic_data[:structural_summary]
+      "**Classes:** #{symbolic_data[:structural_summary][:classes]}, " \
+      "**Modules:** #{symbolic_data[:structural_summary][:modules]}, " \
+      "**Methods:** #{symbolic_data[:structural_summary][:methods]}, " \
+      "**Constants:** #{symbolic_data[:structural_summary][:constants]}, " \
+      "**Variables:** #{symbolic_data[:structural_summary][:variables]}"
+    else
+      "No symbolic data available"
+    end
+    
+    # Format navigation hints
+    navigation_hints = if symbolic_data[:navigation_hints] && !symbolic_data[:navigation_hints].empty?
+      "\n\n### Navigation Hints:\n" +
+      symbolic_data[:navigation_hints].map do |line, hints|
+        "- **Line #{line}:** #{hints.join(', ')}"
+      end.join("\n")
+    else
+      ""
+    end
+    
     content = <<~MARKDOWN
       **File Size:** #{display_bytes result[:file_info][:size]}
       **Number of Lines:** #{result[:file_info][:lines]}
       **Last Modified:** #{result[:file_info][:last_modified]}
+      **Notes Count:** #{notes_metadata.count}
 
-      ### Notes:
-      #{render_notes result[:notes]}
+      ### Symbolic Overview (AI Vision):
+      #{symbolic_summary}
+      #{navigation_hints}
+
+      ### Notes Metadata:
+      #{notes_metadata.map { |n| "- **ID:** #{n[:id]}, **Tags:** #{n[:tags]&.join(', ')}, **Excerpt:** #{n[:excerpt]}" }.join("\n")}
     MARKDOWN
 
     send_status 'file_overview', {
-      message: Scriptorium.html("💬 Overview: #{create_file_link path}"),
-      content: Scriptorium.html_with_syntax_highlight(content)
+      message: Scriptorium.html("🔍 Overview: #{create_file_link path}"),
+      content: Scriptorium.html_with_syntax_highlight(content),
+      symbolic_data: symbolic_data,
+      notes_metadata: notes_metadata
     }, uuid:
   end
 

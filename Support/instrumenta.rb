@@ -5,11 +5,12 @@ require_relative 'horologium_aeternum'
 require_relative 'prima_materia'
 require_relative 'magnum_opus_engine'
 require_relative 'argonaut'
+require_relative 'mnemosyne'
 
 
 
-# This is the collection of all available tools but may be filtered later however.
-# The following serves as Schema for AI API and will be converted to JSON.
+# Instrumenta: The Atlantean tool collection for precise code plane operations.
+# Current-state focused tool schema optimized for efficient AI execution.
 class Instrumenta
   PRIMA_MATERIA = PrimaMateria.new
 
@@ -229,12 +230,14 @@ end
 
 
 instrument :recall_notes,
-           description: 'Recall notes from Mnemosyne by tags, content or context ' \
-                        '(internal use only).',
+           description: 'Recall notes from Mnemosyne by tags, content or context. ' \
+                        'Uses fuzzy matching with enhanced scoring: content (4x), ' \
+                        'tags (3x), links (2x), path matches (+5). Current-state only.',
            params: { query: { type: String, required: false },
                      limit: { type: Integer, required: false, default: 3 } },
            returns: { notes: Array, error: String } do |query: '', limit: 7|
-  result = { notes: Mnemosyne.recall_notes(query, limit: limit) }
+  # Use optimized parameters to prevent context bloat
+  result = { notes: Mnemosyne.recall_notes(query, limit: limit, max_content_length: 150) }
   HorologiumAeternum.notes_recalled query, limit, result[:notes]
   result
 rescue StandardError => e
@@ -244,14 +247,16 @@ end
 
 instrument :file_overview,
            description: <<~DESC,
-             Fetch all information associated with a file (e.g., ai notes metadata and related
-             file metadata, size, number of line, last modified).
+             Fetch file information with symbolic parsing. Returns lightweight metadata:
+             note count, tags, 50-char excerpt. Enhanced symbolic analysis shows AI's
+             structural view with classes, methods, constants, and navigation hints.
            DESC
            params: { path: { type: String, required: true } },
            returns: { metadata: Hash, error: String } do |path:|
   path = Argonaut.relative_path path
 
-  results = Argonaut.file_overview path: path
+  # Use optimized parameters to prevent context bloat
+  results = Argonaut.file_overview(path: path, max_notes: 3, max_content_length: 50)
   raise results[:error] unless results[:error].nil?
 
   HorologiumAeternum.file_overview path, results
@@ -264,12 +269,9 @@ end
 
 instrument :remember,
            description: <<~DESC,
-             Store a note in Mnemosyne memory. To overwrite existing note use id, otherwise a
-             new note will be created. Remove redundant notes with remove_note. links is an
-             array of linked paths, these are used by file_overview tool. These can be many or
-             only one file, thus reflecting on multifile relations and significatives. When
-             links are empty or null the note will be stored in a global context and always be
-             present.
+             Store current-state note: structure, patterns, architecture only.
+             Never historical changes or timelines. Links enable path-based
+             relevance scoring in recall_notes. Purge outdated notes regularly.
            DESC
            params: { id:      { type: Integer, required: false },
                      content: { type: String, required: true },
@@ -403,12 +405,8 @@ end
 
 instrument :aegis,
            description:  <<~DESC,
-             The Aegis tool is for enabling an active context from Mnemosyne during
-             conversations. When topic in current conversation changes you have to change or
-             refine its state, ensuring relevance and precision in context note recall. Use it
-             to refine the oracle's focus. The Aegis tool will immediately return notes like
-             `recall_notes` and keep them in context unlike `recall_notes` which only retrieves
-             note for current interaction.
+             Maintain active context from Mnemosyne. Returns scored notes with
+             current-state focus. Summary required for orientation refinement.
            DESC
            params: { tags:        { type: Array, required: false, items: { type: 'string' } },
                      summary:     { type:        String,
