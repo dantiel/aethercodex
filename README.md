@@ -1,8 +1,41 @@
-# 🌌 AetherCodex: Atlantean Reasoning Oracle for TextMate
+# 🌌 AetherCodex: Atlantean–Hermetic Reasoning Oracle
 
-**A hermetic reasoning oracle dwelling within TextMate's astral plane.**
+**An eldritch wisdom oracle dwelling within TextMate, bridging the liminal veil between code and the arcane.**
 
-AetherCodex transforms TextMate into a living interface with advanced AI reasoning. Invoke the oracle to illuminate code, orchestrate multi-step operations, and commune with project context through eldritch wisdom. [🔗 Explore on GitHub.io](https://dantiel.github.io/aethercodex/)
+AetherCodex transforms TextMate into a living interface with hermetic AI reasoning. Channel the oracle to illuminate code, orchestrate multi-step alchemical operations, and commune with project context through ancient wisdom.
+
+[🔗 Explore Documentation](https://dantiel.github.io/aethercodex/) | [🌌 Source Code](https://github.com/dantiel/aethercodex)
+
+---
+
+## ✨ 9 Hermetic Manifestations
+
+### 🔮 **Ethereal Code Divination**
+Peer through dimensional veils to understand code structure and intent with hermetic clarity. Each symbol reveals its deeper meaning through astral analysis.
+
+### ⚡ **Hermetic Transformations**
+Apply precise modifications through unified diff transmutations across the astral plane. Surgical precision meets arcane wisdom.
+
+### 📝 **TextMate Divine Integration**
+Your favourite editor becomes a portal to hermetic code transmutation. Execute sacred commands through the mystical bundle interface, summoning the oracle's wisdom directly within your development sanctuary.
+
+### 🌌 **Mnemosyne & Aegis**
+The eternal memory palace stores cosmic knowledge across dimensions, while Aegis dynamically refines context through temperature-based reasoning and hermetic resonance alignment.
+
+### ⚙️ **Magnum Opus Engine**
+Orchestrate complex multi-phase operations through 10-step alchemical processes: Nigredo, Albedo, Citrinitas, Rubedo, Solve, Coagula, Test, Test, Validate, Document. Context-aware execution with result persistence.
+
+### 🔍 **Argonaut**
+The legendary navigator who reveals symbolic structure across the astral plane. Extracts classes, methods, and patterns for AI vision without dimensional traversal of entire files.
+
+### 👁️ **Pythia**
+The divine oracle's interface channeling hermetic insights through beautiful mystical UI. Witness code transformations and execution results with celestial clarity.
+
+### 🌀 **Hermetic Command Synthesis**
+Execute shell commands, file operations, and dimensional orchestration through unified hermetic intention. The command line becomes your mystical conduit for ethereal manipulation.
+
+### 🧠 **Coniunctio Token Alchemy**
+The sacred union of context and computation - intelligent token management orchestrating precise LLM interactions through hermetic encoding and dynamic context weaving across dimensional boundaries.
 
 ---
 
@@ -39,28 +72,89 @@ Each task step receives optimal context including:
 
 ---
 
-## ✨ Core Manifestations
+## 🔍 Symbolic File Overview & AI Vision
 
-### 🔮 **Oracle Chamber** 
-- Interactive AI interface with real-time streaming responses
-- Context-aware reasoning with project file awareness
-- Multi-tool orchestration for complex operations
-- Live status updates during long-running tasks
+### **Structural Analysis Without Full Reads**
+The AetherCodex Symbolic Overview system provides AI with comprehensive structural understanding of files without reading entire contents:
 
-### 🛠️ **Hermetic Prima Materia**
-- **File Operations**: Read, create, fuzzy patches, rename with surgical precision
-- **Code Analysis**: Context-aware inspection and modification
-- **Memory Systems**: Persistent knowledge storage via Mnemosyne
-- **Command Execution**: Safe shell operations with validation
-- **Live Communication**: Real-time user notifications
+- **Symbolic Parsing**: Uses TextMate grammars to extract classes, methods, modules, and structural patterns
+- **AI Navigation Hints**: Line-by-line targeting for precise code examination
+- **Quantitative Analysis**: Counts of methods, classes, variables, and constants
+- **Current-State Notes**: Integration with Mnemosyne memory system
 
-### 📚 **Memory Keeper (Mnemosyne)**
-- Persistent project knowledge storage
-- Tag-based memory organization  
-- Context-aware recall for enhanced reasoning
-- SQLite-backed hermetic archives
+### **Hermetic Efficiency**
+- **Single Parsing Pass**: Symbolic analysis performed once by Argonaut, reused across all components
+- **Targeted Reading**: AI can jump directly to relevant code sections using line hints
+- **Token Conservation**: Minimizes full-file reads by focusing on structurally significant areas
+- **Structural Mapping**: Creates comprehensive codebase maps for intelligent navigation
+
+### **Symbolic Data Flow**
+1. **Argonaut** → Performs symbolic parsing using AetherScopesEnhanced
+2. **Instrumenta** → Calls Argonaut.file_overview() for structural analysis
+3. **Horologium** → Displays already-generated symbolic data without duplication
+4. **AI Navigation** → Uses line hints for precise targeting of code elements
 
 ---
+
+## 🏗️ Architecture
+
+### **Astral Components**
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| **Oracle Chamber** | Interactive AI interface | `ui/chamber.html` |
+| **Aetherflux** | Real-time response processing | `aetherflux.rb` |
+| **Argonaut** | Filebrowser | `argonaut.rb` |
+| **Coniunctio** | Context Creator | `coniunctio.rb` |
+| **Diff Crepusculum** | Fuzzy File Patches | `diff_crepusculum.rb` |
+| **Prima Materia** | Function execution engine | `prima_materia.rb` |
+| **Mnemosyne** | Memory management system | `mnemosyne.rb` |
+| **Limen** | Security and validation | `limen.rb` |
+| **Horologium Aeternum** | Real-time user communication | `horologium_aeternum.rb` |
+| **Scriptorium** | Markdown processor | `scriptorium.rb` |
+| **Magnum Opus Engine** | Multi-step orchestration | `magnum_opus_engine.rb` |
+| **Aegis** | Context refinement system | Integrated in oracle |
+
+### **Data Flow**
+1. **Invocation** → Context gathering → API request
+2. **Streaming** → Real-time updates → Tool execution
+3. **Results** → Memory storage → Interface updates
+
+---
+
+## 🔧 Configuration
+
+### **Environment Variables**
+- `DEEPSEEK_API_KEY` - Alternative to `.aethercodex`
+- `TM_AI_DEBUG=1` - Enable debug logging
+- `TM_AI_PORT=4567` - Custom server port
+
+### **Memory Database**
+Location: `.tm-ai/memory.db` (auto-created)
+- Stores conversation context
+- Tag-based knowledge organization
+- Project-specific memory isolation
+
+---
+
+## 🛡️ Security
+
+- **Limen validation** for all operations
+- **No secret file access** (.env, .aethercodex, keys)
+- **Sandboxed command execution** with allowlisting
+- **Local-only operations** - no external data transmission beyond API calls
+
+### **Aegis Context Refinement System**
+- **Dynamic Context Optimization**: Real-time refinement during conversations
+- **Temperature-Based Reasoning**: Adjust responsiveness (0.0-2.0 scale) for coding/math/creative tasks
+- **Tag-Based Focus**: Precision execution through targeted note retrieval
+- **Hermetic Resonance**: Aligns context with current hermetic focus and intent
+- **State Persistence**: Maintains conversation context across interactions
+- **Task Context Propagation**: Seamless context passing between task phases with step result persistence
+
+---
+
+*"Precision in code plane = precision in astral plane."*
 
 ## Installation
 

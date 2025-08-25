@@ -1,6 +1,5 @@
 /* ÆtherCodex - Cosmic Mystic Styling */
 
-
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
@@ -43,6 +42,22 @@ body {
     min-height: 100vh;
     line-height: 1.6;
     position: relative;
+}
+
+
+/* General link styling */
+.cosmic-link {
+    color: var(--argonaut-cosmic);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 2px;
+}
+
+.cosmic-link:hover {
+    color: var(--argonaut-mystic);
+    text-shadow: 0 0 10px var(--argonaut-mystic);
+    border-bottom-color: var(--argonaut-mystic);
 }
 
 
