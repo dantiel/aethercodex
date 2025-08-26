@@ -129,7 +129,7 @@ class TrashManager
     private
 
     def project_root
-      # Assuming same pattern as FileManager
+      # Assuming same pattern as Argonaut
       ENV['PROJECT_ROOT'] || Dir.pwd
     end
 

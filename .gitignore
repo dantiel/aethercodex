@@ -1,7 +1,9 @@
-.deepseekrc
+.aethercodex
 *.js
+!docs/*.js
 *.orig
 *.rej
 .vendor_bundle
 .tm-ai
 .bundle
+.env*

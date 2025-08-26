@@ -3,13 +3,14 @@
 <plist version="1.0">
 <dict>
   <key>beforeRunningCommand</key><string>nop</string>
-    <key>command</key>
-    <string><![CDATA[#!/usr/bin/env bash
+  <key>command</key>
+  <string><![CDATA[#!/usr/bin/env bash
 set -e
-SUP="$TM_BUNDLE_SUPPORT"
-SUP2=$(echo "file://$SUP/ui" | perl -pe 's/\//\\\//g')
-export BUNDLE_GEMFILE="$SUP/Gemfile"
-export GEM_HOME="$SUP/.vendor_bundle"
+BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
+BUNDLE_SUPPORT_UI=$(echo "file://$BUNDLE_SUPPORT/ui" | perl -pe 's/\//\\\//g')
+PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
+export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
+export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
 export GEM_PATH="$GEM_HOME"
 
 # optional RVM
@@ -19,21 +20,25 @@ if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
 fi
 
 # Ensure server running & get port
-JSON=$(bundle exec ruby "$SUP/boot.rb")
+JSON=$(bundle exec ruby "$BUNDLE_SUPPORT/boot.rb")
 PORT=$(echo "$JSON" | ruby -rjson -e 'puts JSON.parse(STDIN.read)["port"]')
 
 # Load chamber.html and inject the port dynamically with cache busting
-HTML_OUT=$(cat "$SUP/ui/chamber.html" | sed "s/\$AETHER_PORT/$PORT/g" | sed "s/\$UIDIR/$(echo $SUP2)/g" | sed "s/\$RANDOM/$(uuidgen)/g")
+HTML_OUT=$(cat "$BUNDLE_SUPPORT/ui/chamber.html" | sed "s/\$AETHER_PORT/$PORT/g" | sed "s/\$UIDIR/$(echo $BUNDLE_SUPPORT_UI)/g" | sed "s#\$AETHER_PROJECT_ROOT#$(echo $PROJECT_ROOT)#g" | sed "s/\$RANDOM/$(uuidgen)/g")
 
 printf "%s" "$HTML_OUT"
 ]]></string>
   <key>input</key><string>none</string>
   <key>inputFormat</key><string>text</string>
-  <key>keyEquivalent</key><string>^~A</string>
+	<key>keyEquivalent</key>
+	<string>^~@a</string>
   <key>name</key><string>AetherCodex: Commune</string>
+	<key>outputCaret</key>
+	<string>afterOutput</string>
   <key>outputFormat</key><string>html</string>
-  <key>outputLocation</key><string>showAsHTML</string>
+	<key>outputLocation</key>
+	<string>newWindow</string>
   <key>uuid</key><string>12345678-ABCD-1234-EFAB-1234567890AB</string>
-  <key>version</key><integer>2</integer>
+  <key>version</key><integer>3</integer>
 </dict>
 </plist>

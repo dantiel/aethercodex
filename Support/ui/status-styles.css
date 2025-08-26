@@ -19,7 +19,7 @@
 }
 
 
-.status::before {
+body.fancy-animations .status::before {
   content: '';
   position: absolute;
   top: 0;
@@ -43,7 +43,6 @@
   float: right;
 }
 
-
 .status code {
   transition: all 0.2s ease;
   background: rgba(147, 51, 234, 0.2);
@@ -55,6 +54,30 @@
 
 .status code:hover {
   background: rgba(147, 51, 234, 0.4);
+}
+
+.status summary code {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.status summary code:hover {
+  white-space: normal;
+}
+
+
+.status summary pre:hover{
+  max-height: 14em;
+}
+.status summary pre code,
+.status summary pre code:hover {
+  white-space: pre;
+}
+.status summary code:hover {
+  white-space: normal;
 }
 
 

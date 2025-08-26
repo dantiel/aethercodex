@@ -1,4 +1,5 @@
 DEFAULT_PORT = 4567
+isThinking = false
 port = window.AETHER_PORT ? DEFAULT_PORT
 ws   = null
 reconnectAttempts = 0
@@ -9,7 +10,6 @@ lastPongTime = null
 
 connectWebSocket = ->
   try
-    # Purify previous dimensional channel
     if ws?.readyState == WebSocket.OPEN or ws?.readyState == WebSocket.CONNECTING
       ws.close()
       ws = null
@@ -24,6 +24,7 @@ connectWebSocket = ->
 
 setupWebSocketHandlers = ->
   ws.onopen = ->
+    lastPongTime = Date.now()
     log 'system', '🗝️ Gate opened.'
     reconnectAttempts = 0  # Reset on successful connection
     
@@ -31,24 +32,29 @@ setupWebSocketHandlers = ->
     console.log e
     log 'error', "🔮 Dimensional breach detected: #{e.message ? e.type ? 'connection error'}"
   
-  ws.onping = -> lastPongTime = Date.now()
-  ws.onpong = -> lastPongTime = Date.now()
-    
   ws.onclose = (e) ->
     log 'error', "🌀 Gate sealed code=#{e.code} reason=#{e.reason}"
-    # Attempt reconnection unless it was a normal close (code 1000)
-    if e.code != 1000
-      scheduleReconnect()
+    do scheduleReconnect
     
-  # Check for missed pongs every 30 seconds
+  # Check for missed pongs every 30 seconds and close stale connections
   setInterval ->
-    if lastPongTime and (Date.now() - lastPongTime) > 30000
-      ws.close()
-  , 30000
-  ws.onmessage = handleMessage
+    if lastPongTime and (Date.now() - lastPongTime) > 42000
+      console.log 'missing pong detected, closing stale connection'
+      do ws.close
+      do scheduleReconnect
+  , 42000
+  
+  ws.onmessage = (e) ->
+    console.log "onmessage", e.data
+    if '💓' is e.data 
+      console.log "onping"
+      lastPongTime = Date.now()
+      ws.send '💓'
+    else    
+      handleMessage e
   
 
-scheduleReconnect = ->
+scheduleReconnect = (immediate = false) ->
   return if reconnectAttempts >= maxReconnectAttempts
 
   if reconnectAttempts >= maxReconnectAttempts
@@ -58,9 +64,8 @@ scheduleReconnect = ->
   delay = baseReconnectDelay * Math.pow(2, Math.min(reconnectAttempts, 5))
   reconnectAttempts++
   
-  log 'system', "🔮 Attempting dimensional reconnection #{reconnectAttempts}/#{maxReconnectAttempts} in #{delay}ms..."
+  log 'system', "🔮 Attempting dimensional reconnection #{reconnectAttempts}/#{maxReconnectAttempts} in #{if immediate then 0 else delay}ms..."
   setTimeout connectWebSocket, delay
-  
 
 
 # Message persistence
@@ -93,6 +98,7 @@ loadMessages = ->
 
 
 loadMessagesDone = ->
+  console.log "loadMessagesDone"
   do connectWebSocket
 
 
@@ -138,7 +144,7 @@ showStatus = (type, data) ->
           #{data.content}
         </details>"""
     when 'file_read_fail'
-      log 'status', "❌ #{data.message} <small>#{timestamp || ''}</small>"
+      log 'status', "#{data.message}: #{error} <small>#{timestamp || ''}</small>"
     when 'file_creating'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
     when 'file_created'
@@ -164,11 +170,15 @@ showStatus = (type, data) ->
         <details>
           <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
           #{data.diff}
-        # </details>"""
+        </details>"""
     when 'command_executing'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
     when 'command_completed'
-      log 'status', "#{data.message} <small>#{timestamp || ''}</small>"      # Show args if not too verbose
+      log 'status', """
+        <details>
+          <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+          <pre>#{data.content}</pre>
+        </details>"""
     when 'file_renaming'
       log 'status', "#{data.message} <small>#{timestamp || ''}</small>"
     when 'file_renamed'
@@ -199,7 +209,7 @@ showStatus = (type, data) ->
           log 'system', "<details><summary>📋 #{data.tool} result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
         else
           log 'system', "&nbsp;&nbsp;↳ Result: <pre style='display:inline; background:none;'>#{resultJson}</pre>"
-    when 'ai_response'
+    when 'oracle_revelation'
       if data.content
         log 'ai', data.content
       else
@@ -214,13 +224,9 @@ showStatus = (type, data) ->
       log 'error', "#{data.error} <small>#{timestamp || ''}</small>"
 
 
-# WebSocket event handlers
-# ws.onopen  = -> log 'system', '🗝️ Gate opened.'
-# ws.onerror = (e) -> log 'error', "WS error: #{e.message ? e}"
-# ws.onclose = (e) -> log 'error', "Closed code=#{e.code} reason=#{e.reason}"
-# ws.onmessage = (e) ->
 handleMessage = (e) ->
   data = JSON.parse e.data
+
   switch data.method
     when 'status'
       showStatus data.result.type, data.result.data
@@ -252,15 +258,58 @@ handleMessage = (e) ->
 
 
 send = ->
-  text = document.getElementById('chat-input').value
-  return unless text?.length
-  ws.send JSON.stringify method: 'askAI', params: { prompt: text, record: true }
-  log 'user', text
-  document.getElementById('chat-input').value = ''
+  if isThinking
+    isThinking = false
+  else
+    do adjustHeight
+    text = document.getElementById('chat-input').value
+    return unless text?.length
+    isThinking = true
+    ws.send JSON.stringify method: 'askAI', params: { prompt: text, record: true }
+    log 'user', text
+    document.getElementById('chat-input').value = ''
+  do updateSendButton
 
 
-document.getElementById('send-btn').onclick = send
 
 
+updateSendButton = ->
+  if isThinking
+    sendBtnGlyph.textContent = "⏹️"
+    sendBtn.classList.add 'thinking'
+  else
+    sendBtnGlyph.textContent = "⚡"
+    sendBtn.classList.remove 'thinking'
+    
+
+sendBtn = document.getElementById('send-btn')
+sendBtnGlyph = sendBtn.getElementsByClassName('send-glyph')[0]
+
+sendBtn.onclick = -> do send
+
+
+# Handle Enter and Shift+Enter for textarea
+document.getElementById('chat-input').addEventListener 'keydown', (e) ->
+  if e.key == 'Enter' and not e.shiftKey
+    e.preventDefault()
+    do send
+  else if e.key == 'Enter' and e.shiftKey
+    # Allow new line
+    return
+    
+
+textarea = null
+
+adjustHeight = -> 
+  textarea.style.height = 'auto'
+  textarea.style.height = "#{textarea.scrollHeight}px"
+
+document.addEventListener 'DOMContentLoaded', ->
+  textarea = document.getElementById('chat-input')
+  
+  textarea.addEventListener('input', adjustHeight)
+  do adjustHeight
+
+    
 # Load messages when page loads
 window.addEventListener 'DOMContentLoaded', loadMessages

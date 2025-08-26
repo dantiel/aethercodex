@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>beforeRunningCommand</key><string>nop</string>
+  <key>command</key>
+  <string><![CDATA[#!/usr/bin/env bash
+set -e
+BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
+BUNDLE_SUPPORT_UI=$(echo "file://$BUNDLE_SUPPORT/ui" | perl -pe 's/\//\\\//g')
+PROJECT_ROOT=$TM_PROJECT_DIRECTORY
+export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
+export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
+export GEM_PATH="$GEM_HOME"
+
+# Optional RVM
+if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
+  source "$HOME/.rvm/scripts/rvm"
+  rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
+fi
+
+# Ensure server running & get port
+JSON=$(bundle exec ruby "$BUNDLE_SUPPORT/boot.rb")
+PORT=$(echo "$JSON" | ruby -rjson -e 'puts JSON.parse(STDIN.read)["port"]')
+
+LANG="en_US.UTF-8" # Or your preferred UTF-8 locale
+export LANG
+# Capture active file or selection
+FILE="$TM_FILEPATH"
+SELECTION="$TM_SELECTED_TEXT"
+CONTENT=''
+LINES=0
+
+# Validate file size
+if [[ -n "$FILE" ]]; then
+  LINES=$(wc -l < "$FILE")
+  if [[ $LINES -gt 1000 && -z "$SELECTION" ]]; then
+    echo "File is too large. Please make a selection."
+    exit 1
+  fi
+fi
+
+#x[2, x.length-3]
+SELECTION="$TM_SELECTED_TEXT"
+
+
+
+SELECTION=$(ruby -rjson -Eutf-8 -e '
+  my_string = ARGV
+  puts JSON.generate(my_string[0])
+' "$SELECTION")
+
+#SELECTION=$(ruby -e 'puts ARGV[0].dump' "$SELECTION")
+#SELECTION="$(printf '%q' "$SELECTION")"
+#SELECTION="$(printf '%q' "$SELECTION")"
+
+
+# echo $SELECTION
+
+# Escape quotes and backslashes for JSON
+# SELECTION_JSON=$(echo "$SELECTION" | sed 's/"/\\"/g; s/\\/\\\\/g')
+
+# Prepare enriched JSON payload with TM variables
+ATTACHMENT_DATA="{\"method\": \"attach\", \"params\": {\"file\": \"$FILE\", \"selection\": $SELECTION, \"line\": \"$TM_INPUT_START_LINE\", \"column\": \"$TM_INPUT_START_COLUMN\", \"selection_range\": \"$TM_SELECTION\"}}"
+# Send attachment to UI via HTTP request
+ATTACHMENT_RESPONSE=$(curl -s -X POST "http://localhost:$PORT/api" \
+  -H "Content-Type: application/json" \
+  -d "$ATTACHMENT_DATA")
+
+# TODO ATTACHMENT_RESPONSE to HTML 
+# Load chamber.html (optional, if webview needs to open)
+HTML_OUT=$(cat "$BUNDLE_SUPPORT/ui/chamber.html" | sed "s/\$AETHER_PORT/$PORT/g" | sed "s/\$UIDIR/$(echo $BUNDLE_SUPPORT_UI)/g" | sed "s#\$AETHER_PROJECT_ROOT#$(echo $PROJECT_ROOT)#g" | sed "s/\$RANDOM/$(uuidgen)/g")
+#printf "%s" "$HTML_OUT"
+]]></string>
+  <key>input</key><string>none</string>
+  <key>inputFormat</key><string>text</string>
+  <key>outputFormat</key><string>html</string>
+  <key>name</key><string>AetherCodex: Attach To Prompt</string>
+	<key>keyEquivalent</key>
+	<string>~@e</string>
+	<key>outputCaret</key>
+	<string>afterOutput</string>
+	<key>outputLocation</key>
+	<string>newWindow</string>
+	<key>uuid</key>
+	<string>87654321-DCBA-4321-FEBA-9876543210BA</string>
+  <key>version</key><integer>3</integer>
+</dict>
+</plist>

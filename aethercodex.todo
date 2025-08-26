@@ -1,0 +1,104 @@
+TODO: 
+Hermetic Coding Paradigm & File Naming
+
+✔︎ AI Connection @done(27-07-2025 19:14)
+    Established a secure connection to the AI reasoning oracle for task automation.
+✔︎ Basic File Operations @done(27-07-2025 19:11)
+    Implemented core file operations like read, write, and patch.
+✔︎ replace pygments by rouge... its already added to gemfile @done(29-07-2025 23:52)
+✔︎ make a textmate command that shows the fileoverview content (ai notes) to the user as a txtmate info @done(09-08-2025 13:51)
+✔︎ selected a chunk of code in textmate and include it into the prompt... (how to solve this by ui/workflow?) @done(09-08-2025 13:51)
+◯ use textmate marks from ai, for example as a tool for annotations or alike (investigate)
+✔︎ use textmate links a la txmt://open/?url=file://~/.profile&line=11&column=2 e.g. when clicking on a filename, maybe we need a tag that the ai can use like <file>path/to/file</file> or <file url="path/to/file">text</file> @done(09-08-2025 13:51)
+◯ add ai actions to filebrowser actions: callback.file-browser.action-menu
+◯ add button for proceeed
+◯ add ability to create and edit tasks, ai will generate a task from user prompt, generate a detailed plan and then start acting on it in a loop until all parts of the tasks are done
+◯ add syntax check to created or patched files. if fails, rollback automatically.
+◯ better rollback system, maybe using git stashes
+◯ add error to history
+◯ add file overview: syntax tree, imports/exports
+◯ aegis: trigger generation of new history summary
+◯ use dynamic temperature parameter in aegis and tasks
+◯ improve word diff by applying section wise
+◯ save many aegis state and include old summaries when changed
+◯ add a syntax tree to file_overview. Notes should be able to connect directly to methods (instead of line number). When a file, or method disappears or is moved the reference in memory need also be migrated.
+◯ IMPORTANT: revise msgs about feeding back to the model formatted html instead of markdown
+◯ ability to intervene: when ai is acting in a loop it should be possible to pause and add remarks
+
+Website:
+  ✧ Hermetic Symbolism
+      Integrate alchemical symbols into UI and docs.
+  ✧ Elemental Themes
+      Assign colors to elements (fire, water, air, earth) for visual harmony.
+
+Hermetic Coding Paradigm:
+  ✧ Poetry of Names
+      Rename tools symbolically (e.g., `file_manager.rb` → `argonaut.rb`).
+  ✧ Dualities in Code
+      Balance creation (`forge.sh`) and dissolution (`trash_manager.rb`).
+
+Files:
+  ✔︎ Basic Website for GitHub.io @done(27-07-2025 19:18)
+      Deployed a minimalistic website to showcase project updates.
+  ◯ Research Typography & Colors
+      ✔︎ Divine Code Transmutation (3-color gradient) @done(29-07-2025 23:49)
+      ◯ Alchemical Symbol Integration
+          Incorporate symbols for visual hierarchy.
+  ✧ Include Testimonials
+
+Commands:
+      Gather feedback from early adopters.
+
+Commands:
+  ✔︎ Allow Safe Commands @done(27-07-2025 19:12)
+      Enabled execution of predefined safe commands.
+  ◯ Document Safe Commands API
+      Create comprehensive documentation for safe command usage.
+  ◯ Show Command Output in HorologiumAeternum
+      Display command results in real-time.
+  ◯ Allow Unsafe Commands with User Confirmation
+      Implement a confirmation prompt for risky operations.
+
+Tool Naming & Concepts:
+  ✧ Argonaut (Navigation)
+      Rename `argonaut.rb` to `argonaut.rb` for symbolic resonance.
+  ✧ Mnemosyne (Memory)
+      Extend `mnemosyne.rb` with Hermetic memory operations.
+  ✧ Oracle (Logic)
+      Enhance `oracle.coffee` with divinatory methods.
+
+Mnemosyne:
+  ✔︎ General AI Notes  @done(12-08-2025 20:52)
+      Create project notes table.
+  ✔︎ File-Specific Memory @done(12-08-2025 20:52)
+      Design table for file and folder metadata (path, AI notes).
+  ✔︎ Tool Integration (file_overview) @done(12-08-2025 20:52)
+      Add tool to fetch metadata and AI notes per file. An extra tool is needed to save metadata.
+  ◯ Testing
+
+Hermetic Enhancements:
+      Verify patch updates and metadata queries.
+
+AI Features:
+  ✔︎ Add Reasoning Content @done(27-07-2025 19:11)
+      Integrated AI-generated explanations for tasks.
+  ✧ Symbolic Code Analysis
+      Analyze code for symbolic patterns and meanings.
+  ✧ Hermetic Refactoring Tools
+      Tools for mystical code restructuring.
+  ✧ Astral Projection (Multi-File Context)
+      Enable cross-file reasoning and navigation.
+  ✧ Ritualistic Command Sequences
+      Define sequences for complex workflows.
+  ✧ Esoteric Documentation
+      Document hidden or arcane features.
+  ✧ Secure Code Oracles
+      Predict and prevent code vulnerabilities.
+  ✧ Alchemical Transmutation
+      Transform code paradigms magically.
+  ✔︎  Reasoning-Model Tool Integration @done(12-08-2025 20:53)
+      Add reasoning-model as a tool call for enhanced task automation.
+  ✧ Divination Mode (Symbolic Predictions)
+      Forecast code behavior based on symbols.
+  ✧ Elemental Bindings (Code Paradigm Shifts)
+      Shift between coding styles dynamically.
