@@ -5,6 +5,7 @@ TextMate plugin for AI-assisted coding with hermetic principles
 Primary goal: Create intuitive, powerful AI tools that enhance developer workflow
 
 ## CORE HERMETIC PRINCIPLES
+
 mentalism: The universe is mental; all code reflects consciousness
 correspondence: As above, so below; patterns repeat across scales
 vibration: Nothing rests; everything moves and vibrates

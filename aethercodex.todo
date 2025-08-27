@@ -1,104 +1,128 @@
-TODO: 
-Hermetic Coding Paradigm & File Naming
+# 🌌 HERMETIC PROJECT TODO
 
+## 🏛️ CORE ARCHITECTURAL PILLARS (Language Agnostic)
+
+### 🔮 AI INTEGRATION & REASONING
 ✔︎ AI Connection @done(27-07-2025 19:14)
-    Established a secure connection to the AI reasoning oracle for task automation.
+✔︎ Reasoning-Model Tool Integration @done(12-08-2025 20:53)
+✔︎ Add Reasoning Content @done(27-07-2025 19:11)
+
+### 📁 FILE & MEMORY SYSTEMS
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
-    Implemented core file operations like read, write, and patch.
-✔︎ replace pygments by rouge... its already added to gemfile @done(29-07-2025 23:52)
-✔︎ make a textmate command that shows the fileoverview content (ai notes) to the user as a txtmate info @done(09-08-2025 13:51)
-✔︎ selected a chunk of code in textmate and include it into the prompt... (how to solve this by ui/workflow?) @done(09-08-2025 13:51)
-◯ use textmate marks from ai, for example as a tool for annotations or alike (investigate)
-✔︎ use textmate links a la txmt://open/?url=file://~/.profile&line=11&column=2 e.g. when clicking on a filename, maybe we need a tag that the ai can use like <file>path/to/file</file> or <file url="path/to/file">text</file> @done(09-08-2025 13:51)
-◯ add ai actions to filebrowser actions: callback.file-browser.action-menu
-◯ add button for proceeed
-◯ add ability to create and edit tasks, ai will generate a task from user prompt, generate a detailed plan and then start acting on it in a loop until all parts of the tasks are done
-◯ add syntax check to created or patched files. if fails, rollback automatically.
-◯ better rollback system, maybe using git stashes
-◯ add error to history
-◯ add file overview: syntax tree, imports/exports
-◯ aegis: trigger generation of new history summary
-◯ use dynamic temperature parameter in aegis and tasks
-◯ improve word diff by applying section wise
-◯ save many aegis state and include old summaries when changed
-◯ add a syntax tree to file_overview. Notes should be able to connect directly to methods (instead of line number). When a file, or method disappears or is moved the reference in memory need also be migrated.
-◯ IMPORTANT: revise msgs about feeding back to the model formatted html instead of markdown
-◯ ability to intervene: when ai is acting in a loop it should be possible to pause and add remarks
+✔︎ Mnemosyne Memory System @done(12-08-2025 20:52)
+✔︎ File Overview & Symbolic Analysis @done(09-08-2025 13:51)
 
-Website:
-  ✧ Hermetic Symbolism
-      Integrate alchemical symbols into UI and docs.
-  ✧ Elemental Themes
-      Assign colors to elements (fire, water, air, earth) for visual harmony.
+### 🛠️ TOOLING & COMMANDS
+✔︎ Allow Safe Commands @done(27-07-2025 19:12)
+✔︎ replace pygments by rouge @done(29-07-2025 23:52)
 
-Hermetic Coding Paradigm:
-  ✧ Poetry of Names
-      Rename tools symbolically (e.g., `file_manager.rb` → `argonaut.rb`).
-  ✧ Dualities in Code
-      Balance creation (`forge.sh`) and dissolution (`trash_manager.rb`).
+### 🌐 UI & INTEGRATION
+✔︎ TextMate Integration @done(09-08-2025 13:51)
+✔︎ Basic Website for GitHub.io @done(27-07-2025 19:18)
 
-Files:
-  ✔︎ Basic Website for GitHub.io @done(27-07-2025 19:18)
-      Deployed a minimalistic website to showcase project updates.
-  ◯ Research Typography & Colors
-      ✔︎ Divine Code Transmutation (3-color gradient) @done(29-07-2025 23:49)
-      ◯ Alchemical Symbol Integration
-          Incorporate symbols for visual hierarchy.
-  ✧ Include Testimonials
+## 🎯 ACTIVE DEVELOPMENT FOCUS
 
-Commands:
-      Gather feedback from early adopters.
+### 🔧 CORE INFRASTRUCTURE
+◯ Task Engine & Automation
+    ◯ Create/edit tasks from user prompts
+    ◯ Generate detailed execution plans
+    ◯ Loop execution until task completion
+    ◯ Pause and add remarks during execution
 
-Commands:
-  ✔︎ Allow Safe Commands @done(27-07-2025 19:12)
-      Enabled execution of predefined safe commands.
-  ◯ Document Safe Commands API
-      Create comprehensive documentation for safe command usage.
-  ◯ Show Command Output in HorologiumAeternum
-      Display command results in real-time.
-  ◯ Allow Unsafe Commands with User Confirmation
-      Implement a confirmation prompt for risky operations.
+◯ Error Handling & Rollback
+    ◯ Syntax validation for created/patched files
+    ◯ Automatic rollback on validation failure
+    ◯ Git stash-based rollback system
+    ◯ Error history tracking
 
-Tool Naming & Concepts:
-  ✧ Argonaut (Navigation)
-      Rename `argonaut.rb` to `argonaut.rb` for symbolic resonance.
-  ✧ Mnemosyne (Memory)
-      Extend `mnemosyne.rb` with Hermetic memory operations.
-  ✧ Oracle (Logic)
-      Enhance `oracle.coffee` with divinatory methods.
+◯ Dynamic Configuration
+    ◯ Aegis state management with temperature parameters
+    ◯ Dynamic temperature in task execution
+    ◯ Multiple Aegis state preservation
 
-Mnemosyne:
-  ✔︎ General AI Notes  @done(12-08-2025 20:52)
-      Create project notes table.
-  ✔︎ File-Specific Memory @done(12-08-2025 20:52)
-      Design table for file and folder metadata (path, AI notes).
-  ✔︎ Tool Integration (file_overview) @done(12-08-2025 20:52)
-      Add tool to fetch metadata and AI notes per file. An extra tool is needed to save metadata.
-  ◯ Testing
+### 🌐 ADVANCED INTEGRATION
+◯ File Browser Actions
+    ◯ AI actions in file browser context menus
 
-Hermetic Enhancements:
-      Verify patch updates and metadata queries.
+◯ Real-time Command Output
+    ◯ Real-time streaming to HorologiumAeternum
 
-AI Features:
-  ✔︎ Add Reasoning Content @done(27-07-2025 19:11)
-      Integrated AI-generated explanations for tasks.
-  ✧ Symbolic Code Analysis
-      Analyze code for symbolic patterns and meanings.
-  ✧ Hermetic Refactoring Tools
-      Tools for mystical code restructuring.
-  ✧ Astral Projection (Multi-File Context)
-      Enable cross-file reasoning and navigation.
-  ✧ Ritualistic Command Sequences
-      Define sequences for complex workflows.
-  ✧ Esoteric Documentation
-      Document hidden or arcane features.
-  ✧ Secure Code Oracles
-      Predict and prevent code vulnerabilities.
-  ✧ Alchemical Transmutation
-      Transform code paradigms magically.
-  ✔︎  Reasoning-Model Tool Integration @done(12-08-2025 20:53)
-      Add reasoning-model as a tool call for enhanced task automation.
-  ✧ Divination Mode (Symbolic Predictions)
-      Forecast code behavior based on symbols.
-  ✧ Elemental Bindings (Code Paradigm Shifts)
-      Shift between coding styles dynamically.
+◯ Unsafe Command Confirmation
+    ◯ Risk mitigation for advanced operations
+
+◯ TextMate Marks Integration
+    ◯ Line-based tooltips for AI annotations
+    ◯ Error highlighting and syntax validation markers
+    ◯ Task progress and architecture guidance marks
+    ◯ Code quality and security vulnerability indicators
+    ◯ Cross-reference points between files
+    ◯ Bookmark integration for persistence
+
+◯ Configuration Options
+    ◯ System prompt customization via .aethercodex/.tm-properties
+    ◯ Task system step configuration
+    ◯ Allowed commands configuration
+
+### 🔮 HERMETIC ENHANCEMENTS
+◯ Symbolic Code Analysis
+    ◯ Language-agnostic pattern recognition
+    ◯ Hermetic symbol extraction (elemental, planetary, alchemical)
+    ◯ Symbolic operations and mystical pattern forecasting
+
+◯ Astral Projection (Multi-File Context)
+    ◯ Cross-file reasoning and navigation
+    ◯ Consciousness threading across files
+
+◯ Ritualistic Command Sequences
+    ◯ Complex workflow automation patterns
+    ◯ Elemental-aligned command execution
+
+◯ Secure Code Oracles
+    ◯ Vulnerability prediction and prevention
+    ◯ Quantum security analysis
+
+◯ Divination Mode
+    ◯ Symbolic behavior forecasting
+    ◯ Code evolution prediction
+
+◯ Alchemical Transmutation
+    ◯ Code paradigm transformation
+    ◯ Elemental recomposition
+
+### 📚 DOCUMENTATION & UX
+◯ Safe Commands API Documentation
+    ◯ Comprehensive usage guidelines
+
+◯ Esoteric Documentation
+    ◯ Hidden/arcane feature guides
+
+◯ Alchemical Symbol Integration
+    ◯ Visual hierarchy with symbolic elements
+
+◯ User Intervention System
+    ◯ Pause and add remarks during AI execution
+    ◯ Mark-based intervention points
+
+## ✅ COMPLETED BUT UNMARKED
+✔︎ File Renaming Symbolism (argonaut.rb, mnemosyne.rb, oracle.rb)
+✔︎ Hermetic Memory Operations (Mnemosyne enhancements)
+✔︎ Divinatory Methods (Oracle logic improvements)
+✔︎ Multi-file Context System (Astral projection)
+✔︎ Metaprogramming Utils (Language transformation foundation)
+
+## 🎨 AESTHETIC & SYMBOLISM
+✔︎ Theme based on Textmate's Argonaut-Theme @done(27-08-2025 16:43)
+◯ Support more Themes
+◯ Hermetic Symbolism Integration
+◯ Elemental Color Themes (Fire, Water, Air, Earth)
+◯ Typography & Visual Harmony Research
+◯ Testimonials & Community Feedback
+
+## 🔮 HERMETIC PRINCIPLES EMBODIMENT
+◯ Mentalism: Code reflects consciousness patterns
+◯ Correspondence: Architectural patterns repeat across scales
+◯ Vibration: Dynamic state management and energy flow
+◯ Polarity: Balance between magical abstraction and practical implementation
+◯ Rhythm: Natural cadence in code execution and user interaction
+◯ Cause & Effect: Clear action-consequence relationships in tool design
+◯ Gender: Masculine structure with feminine flow in architecture
