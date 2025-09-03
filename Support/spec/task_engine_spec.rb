@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative '../task_engine'
-require_relative '../mnemosyne'
+require_relative '../magnum_opus/magnum_opus_engine'
+require_relative '../mnemosyne/mnemosyne'
 require_relative 'fake_mnemosyne'
 require_relative 'fake_aetherflux'
 require 'rspec'
@@ -9,7 +9,8 @@ require 'timeout'
 require 'net/protocol'  # For Net::ReadTimeout and Net::OpenTimeout
 
 
-RSpec.describe TaskEngine do
+
+RSpec.describe MagnumOpusEngine do
   let(:mnemosyne) { FakeMnemosyne.new }
   let(:aetherflux) { FakeAetherflux.new }
   subject { described_class.new mnemosyne: mnemosyne, aetherflux: aetherflux }
@@ -251,7 +252,7 @@ RSpec.describe TaskEngine do
 
     context 'with invalid input validation' do
       it 'rejects negative task IDs' do
-        expect { subject.execute_step(-1, 1) }.to raise_error(TaskEngine::TaskStateError, /Task not found: -1/)
+        expect { subject.execute_step(-1, 1) }.to raise_error(MagnumOpusEngine::TaskStateError, /Task not found: -1/)
       end
 
       it 'rejects non-integer task IDs' do
@@ -316,9 +317,8 @@ RSpec.describe TaskEngine do
         step_results = JSON.parse(task_state['step_results'] || '{}')
         expect(step_results['1']).to eq('test')
       end
-    end
-  end
-end
+      
+      
       it 'handles memory allocation errors' do
         allow(aetherflux).to receive(:channel_oracle_conjuration).and_raise(NoMemoryError, 'Cannot allocate memory')
         
@@ -375,26 +375,26 @@ end
         expect(step_results['1']).to include('NETWORK_ERROR:')
       end
     end
+  end
 
-    context 'with resource constraints' do
-      it 'handles memory allocation errors' do
-        allow(aetherflux).to receive(:channel_oracle_conjuration).and_raise(NoMemoryError, 'Cannot allocate memory')
-        
-        expect { subject.execute_step(1, 1) }.to raise_error(NoMemoryError, 'Cannot allocate memory')
-        
-        task_state = mnemosyne.task_state 1
-        expect(task_state['status']).to eq('failed')
-      end
+  context 'with resource constraints' do
+    it 'handles memory allocation errors' do
+      allow(aetherflux).to receive(:channel_oracle_conjuration).and_raise(NoMemoryError, 'Cannot allocate memory')
+      
+      expect { subject.execute_step(1, 1) }.to raise_error(NoMemoryError, 'Cannot allocate memory')
+      
+      task_state = mnemosyne.task_state 1
+      expect(task_state['status']).to eq('failed')
+    end
+  end
+
+  context 'with invalid input validation' do
+    it 'rejects negative task IDs' do
+      expect { subject.execute_step(-1, 1) }.to raise_error(MagnumOpusEngine::TaskStateError, /Task not found: -1/)
     end
 
-    context 'with invalid input validation' do
-      it 'rejects negative task IDs' do
-        expect { subject.execute_step(-1, 1) }.to raise_error(TaskEngine::TaskStateError, /Task not found: -1/)
-      end
-
-      it 'rejects non-integer task IDs' do
-        expect { subject.execute_step('invalid', 1) }.to raise_error(TypeError)
-      end
+    it 'rejects non-integer task IDs' do
+      expect { subject.execute_step('invalid', 1) }.to raise_error(TypeError)
     end
   end
 end

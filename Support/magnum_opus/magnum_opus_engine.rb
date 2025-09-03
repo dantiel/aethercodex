@@ -3,9 +3,9 @@
 # Support/magnum_opus_engine.rb
 require 'timeout'
 require 'json'
-require_relative 'horologium_aeternum'
+require_relative '../instrumentarium/horologium_aeternum'
+require_relative '../oracle/aetherflux'
 require_relative 'opus_instrumenta'
-require_relative 'aetherflux'
 
 
 class String
@@ -568,8 +568,14 @@ EXTENDED_STEP_GUIDANCE = {
 }.freeze
 
 DEBUG = true
-def debug(msg)
-  puts msg if DEBUG
+def debug(category, msg = nil)
+  if msg.nil?
+    msg = category
+    category = nil
+  else
+    category = "[#{category}]"
+  end
+  puts "[MagnumOpusEngine]#{category}: #{msg}" if DEBUG
 end
 
 
@@ -585,8 +591,28 @@ class MagnumOpusEngine
   class TaskCancelledError < StandardError; end
   class TaskCreationError < StandardError; end
   class UnknownResponseError < StandardError; end
+  class StepCompleted < StandardError
+    attr_reader :task_id, :step, :result
+    
+    def initialize(task_id, step, result = nil)
+      @task_id = task_id
+      @step = step
+      @result = result
+      super("Step #{step} completed for task #{task_id}")
+    end
+  end
+  class StepRejected < StandardError
+    attr_reader :task_id, :reason, :restart_from_step
+    
+    def initialize(task_id, reason = nil, restart_from_step = nil)
+      @task_id = task_id
+      @reason = reason
+      @restart_from_step = restart_from_step
+      super("Step rejected for task #{task_id}: #{reason}")
+    end
+  end
 
-  debug 'MagnumOpusEngine module loaded (FIXED)'
+  debug 'MagnumOpusEngine module loaded'
   STATES = %i[pending active paused failed completed invalid cancelled].freeze
   WORKFLOW_STEPS = 10
   # Step purposes for logging, aligned with hermetic principles
@@ -902,6 +928,9 @@ class MagnumOpusEngine
   def execute_step(task_id, step_index)
     debug "Executing step #{step_index} for task #{task_id}"
     task = Mnemosyne.get_task task_id
+    unless task
+      raise "Task #{task_id} not found in Mnemosyne"
+    end
     debug "Task description: #{task[:description]}"
 
     # Load previous step results for context continuity
@@ -958,20 +987,36 @@ class MagnumOpusEngine
         extended_purpose: step_guidance,
         progress: "#{step_index}/#{WORKFLOW_STEPS}"
       }
-      # TODO: some phases should use normal divination instead of reasoning conjuration, but may call conjuration if needed, but conjuration shall not be able to call conjuration
+      
+      # Use divination for exploration phases, conjuration for implementation phases
+      # Exploration: Nigredo (1), Albedo (2), Citrinitas (3), Rubedo (4)
+      # Implementation: Solve (5), Coagula (6), Test (7,8), Validate (9), Document (10)
       begin
         # Debug context length before making the call
         debug "PROMPT LENGTH: #{prompt.length} characters"
         debug "SYSTEM PROMPT LENGTH: #{system_prompt.length} characters"
         
-        response = Aetherflux.channel_oracle_divination(
-          {
-            prompt: prompt,
-            system: system_prompt
-          },
-          tools: create_task_tools(task_id),
-          context: context
-        )
+        if step_index <= 4
+          # Exploration phases - use divination for pure reasoning
+          response = Aetherflux.channel_oracle_divination(
+            {
+              prompt: prompt,
+              system: system_prompt
+            },
+            tools: create_task_tools(task_id),
+            context: context ? context.merge(reasoning_method: 'divination') : { reasoning_method: 'divination' }
+          )
+        else
+          # Implementation phases - use conjuration for tool execution
+          response = Aetherflux.channel_oracle_divination(
+            {
+              prompt: prompt,
+              system: system_prompt
+            },
+            tools: create_task_tools(task_id),
+            context: context
+          )
+        end
       rescue => e
         puts "DEBUG: Error calling Aetherflux.channel_oracle_divination: #{e.message}"
         puts "DEBUG: Backtrace: #{e.backtrace.first(5).join('\n')}"
@@ -1091,6 +1136,16 @@ class MagnumOpusEngine
       # Don't fail entire task - allow step rejection/retry
       store_step_result task_id, step_index, "UNKNOWN_RESPONSE: #{e.message}"
       raise
+    rescue StepCompleted => e
+      # Step was completed via task_complete_step - this is expected termination
+      log_message task_id, "Step #{step_index} completed via explicit completion: #{e.result.inspect.truncate 200}"
+      store_step_result task_id, step_index, e.result
+      return {status: :completed, step: step_index, result: e.result}
+    rescue StepRejected => e
+      # Step was rejected via task_reject_step - this is expected termination
+      log_message task_id, "Step #{step_index} rejected via explicit rejection: #{e.reason}"
+      store_step_result task_id, step_index, "REJECTED: #{e.reason}"
+      return {status: :rejected, step: step_index, reason: e.reason, restart_from_step: e.restart_from_step}
     rescue StandardError => e
       log_message task_id, "Step #{step_index} failed: #{e.message}"
       # Enhanced error logging for debugging
@@ -1160,14 +1215,16 @@ class MagnumOpusEngine
       end
     end
 
+    # Terminate current reasoning to prevent double cycles
+    raise StepRejected.new(task_id, reason, restart_from_step)
+    
     { ok:                true,
       task_id:           task_id,
       restart_from_step: restart_from_step || (current_step(task_id) - 1) }
   end
 
 
-  # TODO: complete_step and reject step should terminate the current reasoning otherwise this creates double cycles.
-  # Complete current step with optional result
+  # Complete current step with optional result - terminates current reasoning
   def complete_step(task_id, result = nil)
     current_step = current_step task_id
     log_message task_id, "Step #{current_step} completed: #{result.inspect.truncate 200}" if result
@@ -1175,6 +1232,9 @@ class MagnumOpusEngine
     # Boundary check: don't progress beyond WORKFLOW_STEPS
     next_step = [current_step + 1, WORKFLOW_STEPS].min
     update_progress task_id, next_step
+    
+    # Terminate current reasoning to prevent double cycles
+    raise StepCompleted.new(task_id, current_step, result)
     
     { ok: true, task_id: task_id, completed_step: current_step, result: result }
   end

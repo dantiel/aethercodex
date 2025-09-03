@@ -7,7 +7,7 @@
   <string><![CDATA[#!/usr/bin/env bash
 set -e
 BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
-BUNDLE_SUPPORT_UI=$(echo "file://$BUNDLE_SUPPORT/ui" | perl -pe 's/\//\\\//g')
+BUNDLE_SUPPORT_UI=$(echo "file://$BUNDLE_SUPPORT/pythia" | perl -pe 's/\//\\\//g')
 PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
 export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
 export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
@@ -24,7 +24,7 @@ JSON=$(bundle exec ruby "$BUNDLE_SUPPORT/boot.rb")
 PORT=$(echo "$JSON" | ruby -rjson -e 'puts JSON.parse(STDIN.read)["port"]')
 
 # Load chamber.html and inject the port dynamically with cache busting
-HTML_OUT=$(cat "$BUNDLE_SUPPORT/ui/chamber.html" | sed "s/\$AETHER_PORT/$PORT/g" | sed "s/\$UIDIR/$(echo $BUNDLE_SUPPORT_UI)/g" | sed "s#\$AETHER_PROJECT_ROOT#$(echo $PROJECT_ROOT)#g" | sed "s/\$RANDOM/$(uuidgen)/g")
+HTML_OUT=$(cat "$BUNDLE_SUPPORT/pythia/chamber.html" | sed "s/\$AETHER_PORT/$PORT/g" | sed "s/\$UIDIR/$(echo $BUNDLE_SUPPORT_UI)/g" | sed "s#\$AETHER_PROJECT_ROOT#$(echo $PROJECT_ROOT)#g" | sed "s/\$RANDOM/$(uuidgen)/g")
 
 printf "%s" "$HTML_OUT"
 ]]></string>

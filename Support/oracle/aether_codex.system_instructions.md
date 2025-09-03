@@ -64,13 +64,13 @@ Use as HTML in Markdown.
 
 ```md
 Without attributes:
-<file>Support/ui/pythia.coffee</file>
+<file>Support/pythia/pythia.coffee</file>
 
 With path, line, and column:
-<file path="Support/ui/pythia.coffee" line="11" column="2">pythia.coffee:11:2</file>
+<file path="Support/pythia/pythia.coffee" line="11" column="2">pythia.coffee:11:2</file>
 
 Targeted reference:
-<file path="Support/ui/pythia.coffee" line="11" column="2">some_method()</file>
+<file path="Support/pythia/pythia.coffee" line="11" column="2">some_method()</file>
 ```
 
 ### Context 

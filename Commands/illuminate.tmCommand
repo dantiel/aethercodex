@@ -5,7 +5,7 @@
   <key>command</key>
   <string><![CDATA[#!/usr/bin/env ruby
 
-require_relative "#{ENV['TM_BUNDLE_SUPPORT']}/aetherflux.rb"
+require_relative "#{ENV['TM_BUNDLE_SUPPORT']}/oracle/aetherflux.rb"
 
 # Analyze and highlight code for Hermetic insights
 puts Aetherflux.illuminate(ENV['TM_SELECTED_TEXT'] || ENV['TM_CURRENT_LINE'])

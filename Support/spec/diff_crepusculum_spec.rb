@@ -1,4 +1,4 @@
-require_relative '../diff_crepusculum'
+require_relative '../instrumentarium/diff_crepusculum'
 
 
 
@@ -109,7 +109,7 @@ RSpec.describe DiffCrepusculum::ChrysopoeiaDiff do
       expect(result).to eq("qux\nbar\nbaz")
     end
       
-    # TODO rplace this test with a special for testing
+    # Test placeholder for specialized diff testing scenarios
     # it 'test with start_line' do
     #   content = File.read "prima_materia.rb"
     #

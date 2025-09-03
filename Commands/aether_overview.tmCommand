@@ -19,7 +19,7 @@ PORT=$(echo "$JSON" | ruby -rjson -e 'puts JSON.parse(STDIN.read)["port"]')
 # Call file_overview tool for current file
 RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d \
   "{\"method\":\"tool\",\"params\":{\"tool\":\"file_overview\",\"args\":{\"path\":\"$TM_FILEPATH\"}}}" \
-  "http://localhost:$PORT/api")
+  "http://0.0.0.0:$PORT/api")
 
 # Extract and format result
 FORMATTED=$(echo "$RESPONSE" | ruby -rjson -e '

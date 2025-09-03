@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
-require_relative '../magnum_opus_engine'
-require_relative '../mnemosyne'
+require_relative '../magnum_opus/magnum_opus_engine'
+require_relative '../mnemosyne/mnemosyne'
 require_relative 'fake_mnemosyne'
 require_relative 'fake_aetherflux'
 require 'rspec'
+
+
 
 RSpec.describe 'Task Engine Context Integration' do
   let(:mnemosyne) { FakeMnemosyne.new }

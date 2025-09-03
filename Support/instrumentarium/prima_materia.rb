@@ -1,43 +1,40 @@
 # frozen_string_literal: true
 
-
 # Define Boolean type for schema compatibility
 Boolean = TrueClass
 Number = Numeric
 
-
-
+# Prima Materia - The First Matter from which all tools are formed
+# Hermetic tool execution system with selective debug logging and argument truncation
 class PrimaMateria
   # Tool definition structure
-  Tool = Struct.new :name, :description, :params, :returns, :implementation
-
+  Tool = Struct.new :name, :description, :params, :returns, :timeout, :implementation
 
   def initialize
     @tools = {}
   end
 
-
   attr_reader :tools
-  
+
   def reject(*tool_names)
     # Create a new PrimaMateria instance with filtered tools
     filtered_prima = PrimaMateria.new
-    
+
     # Add only the tools that are NOT in the reject list
     @tools.each do |name, tool|
-      next if tool_names.include?(name)
-      
+      next if tool_names.include? name
+
       filtered_prima.add_instrument(name,
-        desc: tool.description,
-        params: tool.params,
-        returns: tool.returns,
-        &tool.implementation
-      )
+                                    desc:    tool.description,
+                                    params:  tool.params,
+                                    returns: tool.returns,
+                                    &tool.implementation)
     end
-    
+
     filtered_prima
   end
-  
+
+
   # Merge tools from another PrimaMateria instance (destructive)
   def merge_tools!(other_prima)
     other_prima.tools.each do |name, tool|
@@ -98,7 +95,10 @@ class PrimaMateria
           end
 
           # Array validation
-          validate_array param_name, value, param_spec if param_spec.is_a?(Hash) && value.is_a?(Array)
+          if param_spec.is_a?(Hash) && value.is_a?(Array)
+            validate_array param_name, value,
+                           param_spec
+          end
 
           # Enum validation
           if param_spec.is_a?(Hash) && param_spec[:enum]
@@ -123,58 +123,62 @@ class PrimaMateria
     end
     self
   end
-  
+
+
   # Create a copy of tool definitions for reuse
   def clone_tools
     cloned = PrimaMateria.new
     @tools.each do |name, tool|
       cloned.add_instrument(name,
-        desc: tool.description,
-        params: tool.params,
-        returns: tool.returns,
-        &tool.implementation
-      )
+                            desc:    tool.description,
+                            params:  tool.params,
+                            returns: tool.returns,
+                            &tool.implementation)
     end
     cloned
   end
-  
+
+
   # Merge tools from another PrimaMateria instance (non-destructive version)
   def merge_tools(other_prima)
     merged = PrimaMateria.new
     # First add our own tools
     @tools.each do |name, tool|
       merged.add_instrument(name,
-        desc: tool.description,
-        params: tool.params,
-        returns: tool.returns,
-        &tool.implementation
-      )
+                            desc:    tool.description,
+                            params:  tool.params,
+                            returns: tool.returns,
+                            &tool.implementation)
     end
     # Then add tools from the other prima (overwriting if needed)
     other_prima.tools.each do |name, tool|
       merged.add_instrument(name,
-        desc: tool.description,
-        params: tool.params,
-        returns: tool.returns,
-        &tool.implementation
-      )
+                            desc:    tool.description,
+                            params:  tool.params,
+                            returns: tool.returns,
+                            &tool.implementation)
     end
     merged
   end
-  
+
 
   # Add instrument with validation schema integration
-  def add_instrument(name, desc: '', description: '', params: {}, returns: {}, &implementation)
+  def add_instrument(name,
+                     desc: '',
+                     description: '',
+                     params: {},
+                     returns: {},
+                     timeout: nil,
+                     &implementation)
     # Use desc parameter if provided, otherwise fall back to description
     tool_description = desc.empty? ? description : desc
-    
+
     @tools[name] = Tool.new(
       name,
       tool_description,
-      params.merge(task_id: { type:        Integer,
-                              required:    false,
-                              description: 'Optional task ID for execution context' }),
-      returns.merge(task_id: { type: Integer, description: 'Task ID for traceability' }),
+      params,
+      returns,
+      timeout,
       implementation
     )
     # Define the method dynamically with comprehensive validation
@@ -259,6 +263,7 @@ class PrimaMateria
 
 
   # Type validation helper
+  # Type validation helper
   def validate_type(param_name, value, expected_type)
     case expected_type.to_s
     when 'String', 'string'
@@ -286,7 +291,7 @@ class PrimaMateria
 
     raise ArgumentError, "#{param_name} must be <= #{param_spec[:maximum]}"
   end
-  
+
 
   # String length validation helper
   def validate_string_length(param_name, value, param_spec)
@@ -355,15 +360,15 @@ class PrimaMateria
         properties[param_name.to_s] = if param_spec.is_a? Hash
                                         param_spec.to_h.except(:required).each_with_object({}) do |(key, value), hash|
                                           hash[key] = case key
-                                          when :type
-                                            case value.to_s
-                                            when 'TrueClass' then 'boolean'
-                                            when 'Numeric' then 'number'
-                                            else value.to_s.downcase
-                                            end
-                                          else
-                                            value
-                                          end
+                                                      when :type
+                                                        case value.to_s
+                                                        when 'TrueClass' then 'boolean'
+                                                        when 'Numeric' then 'number'
+                                                        else value.to_s.downcase
+                                                        end
+                                                      else
+                                                        value
+                                                      end
                                         end
                                       else
                                         { type: param_spec.to_s }
@@ -377,7 +382,7 @@ class PrimaMateria
     # Add aliases as separate entries
     # tool_aliases.each do |alias_name, real_name|
     #   next unless @tools[real_name.to_sym]
-    # 
+    #
     #   schema << {
     #     type:     'function',
     #     function: {
@@ -390,7 +395,7 @@ class PrimaMateria
 
     schema
   end
-  
+
 
   def schema
     @tools.each_with_object({}) do |(name, tool), schema|
@@ -433,27 +438,44 @@ class PrimaMateria
       'updatetask'        => 'update_task',
       'evaluatetask'      => 'evaluate_task',
       'listtasks'         => 'list_tasks',
-      'removetask'         => 'remove_task'
+      'removetask'        => 'remove_task'
     }
   end
 
 
-  def handle(call)
-    tool = (call['tool'] || call[:tool]).to_s
+  def handle(tool:, args: {}, context: nil, timeout: 30)
+    tool = tool.to_s
     tool = tool_aliases[tool] || tool
-    args = symbolize(call['args'] || {})
+    args = symbolize(args || {})
 
-    # Generic tool invocation using dynamic method lookup with built-in validation
-    if @tools.key? tool.to_sym
-      send(tool.to_sym, **args)
-    else
-      { error: "Unknown tool #{tool}" }
-    end
+    # Use tool-specific timeout if defined, otherwise fall back to provided timeout or default
+    tool_timeout = if @tools.key?(tool.to_sym) && @tools[tool.to_sym].timeout
+                     @tools[tool.to_sym].timeout
+                   else
+                     timeout
+                   end
+
+    # Log tool execution with truncated arguments to avoid bloat
+    truncated_args = args.transform_values { |v| v.to_s.truncate 200 }
+    puts "[PRIMA_MATERIA][TOOL_CALL]: #{tool} with args: #{truncated_args.inspect} (timeout: #{tool_timeout})"
+
+    out = if @tools.key? tool.to_sym
+            HermeticExecutionDomain.execute timeout: tool_timeout do
+              send(tool.to_sym, **args)
+            end
+          else
+            { error: "Unknown tool #{tool}" }
+          end
+  rescue HermeticExecutionDomain::Error => e
+    out = { error: "Hermetic execution failed for #{tool}: #{e.message.truncate 100}" }
   rescue ArgumentError => e
-    { error: "Bad args for #{tool}: #{e.message}", got: call }
+    out = { error: "Bad args for #{tool}: #{e.message}", got: args }
   rescue StandardError => e
-    puts "[RESCUE] #{e.inspect}"
-    {}
+    puts "[PRIMA_MATERIA][ERROR]: #{e.class}: #{e.message.truncate 200}"
+    out = {}
+  ensure
+    truncated_result = out&.transform_values { |v| v.to_s.truncate 200 }
+    puts "[PRIMA_MATERIA][TOOL_CALL][RESULT]: #{truncated_result.inspect}"
   end
 
 
@@ -461,7 +483,8 @@ class PrimaMateria
     case obj
     when Hash  then obj.each_with_object({}) { |(k, v), h| h[k.to_sym] = symbolize v }
     when Array then obj.map { |v| symbolize v }
-    else obj end
+    else obj
+    end
   end
 
 

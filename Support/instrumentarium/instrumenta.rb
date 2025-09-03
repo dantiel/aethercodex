@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
 
+require_relative '../magnum_opus/magnum_opus_engine'
+require_relative '../argonaut/argonaut'
+require_relative '../mnemosyne/mnemosyne'
+require_relative '../oracle/oracle'
 require_relative 'horologium_aeternum'
 require_relative 'prima_materia'
-require_relative 'magnum_opus_engine'
-require_relative 'argonaut'
-require_relative 'mnemosyne'
 
 
 
@@ -66,7 +67,7 @@ instrument :read_file,
                               minItems: 2,
                               maxItems: 2 } },
            returns: { content: String, error: String } do |path:, range: nil|
-  return { error: 'Denied path' } if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
+  next { error: 'Denied path' } if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
 
   uuid = HorologiumAeternum.file_reading path, range
   result = Argonaut.read path, range
@@ -78,7 +79,8 @@ rescue StandardError => e
   { error: e.message.to_s }
 end
 
-
+# When reasoning is invoked, tools are filtered to prevent circular tool execution
+# The reasoning oracle receives a focused toolset for optimal performance
 instrument :oracle_conjuration,
            description: <<~DESC,
              Invoke the reasoning model to generate responses and actions based on a chain of
@@ -94,6 +96,7 @@ instrument :oracle_conjuration,
                      context: { type:        Object,
                                 required:    false,
                                 description: 'Context object to pass through to oracle' } },
+           timeout: 600,
            returns: { reasoning: String, content: String, context: Object } do |prompt:, context: nil|
   params = {
     prompt:  prompt,
@@ -101,7 +104,7 @@ instrument :oracle_conjuration,
   }
   HorologiumAeternum.oracle_conjuration prompt
   
-  puts "CONJURATION TOOL CONTEXT=#{context}"
+  puts "CONJURATION TOOL CONTEXT=#{context.inspect.truncate 200}"
 
   filtered_instrumenta = Instrumenta.reject :oracle_conjuration, :create_task
 
@@ -139,7 +142,7 @@ instrument :run_command,
                       exit_status: Integer,
                       result:      String,
                       error:       String } do |cmd:|
-  return { error: 'Blocked command' } unless PrimaMateria::ALLOW_CMDS.any? { |re| cmd =~ re }
+  next { error: 'Blocked command' } unless PrimaMateria::ALLOW_CMDS.any? { |re| cmd =~ re }
 
   uuid = HorologiumAeternum.command_executing cmd
 
@@ -166,14 +169,14 @@ instrument :create_file,
                      content:   { type: String, required: true },
                      overwrite: { type: Boolean, required: false, default: false } },
            returns: { ok: Boolean, error: String } do |path:, content:, overwrite: false|
-  return { error: 'Denied path' } if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
+  next { error: 'Denied path' } if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
 
   bytes = content.bytesize
   uuid = HorologiumAeternum.file_creating path, bytes
 
   full = File.join Argonaut.project_root, path
-
-  return { error: "File exists: #{path} (set overwrite:true)" } if File.exist?(full) && !overwrite
+  
+  next { error: "File exists: #{path} (set overwrite:true)" } if File.exist?(full) && !overwrite
 
   Argonaut.write path, content
   HorologiumAeternum.file_created(path, bytes, content, uuid:)
@@ -188,7 +191,7 @@ instrument :rename_file,
            params: { from: { type: String, required: true },
                      to:   { type: String, required: true } },
            returns: { ok: Boolean, error: String } do |from:, to:|
-  return { error: 'Denied path' } if [from, to].any? do |p|
+  next { error: 'Denied path' } if [from, to].any? do |p|
     PrimaMateria::DENY_PATHS.any? do |re|
       re.match? p
     end
@@ -384,16 +387,14 @@ instrument :patch_file,
            params: { path: { type: String, required: true },
                      diff: { type: String, required: true } },
            returns: { ok: Boolean, error: String } do |path:, diff:|
-  return { error: 'missing :path or :diff' } unless path && diff
+  next { error: 'missing :path or :diff' } unless path && diff
 
-  puts "PATCH #{path} #{diff}"
   diff_lines = diff.lines.count
   uuid = HorologiumAeternum.file_patching path, diff, diff_lines
 
-  return { error: 'Diff too big' } if PrimaMateria::MAX_DIFF < diff.lines.count
+  next { error: 'Diff too big' } if PrimaMateria::MAX_DIFF < diff.lines.count
 
   old_content, new_content = Argonaut.patch path, diff
-  puts "PATCH2 #{old_content} #{new_content}"
 
   HorologiumAeternum.file_patched(path, old_content, new_content, uuid:)
   { ok: true }
@@ -461,7 +462,7 @@ instrument :execute_task,
                                 description: 'The ID of the task to execute.' } },
            returns: { ok: Boolean, error: String } do |task_id:|
   task = Mnemosyne.get_task task_id
-  return { error: 'Task not found' } unless task
+  next { error: 'Task not found' } unless task
 
   uuid = HorologiumAeternum.task_started(**task)
 

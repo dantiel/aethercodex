@@ -235,7 +235,7 @@ class Mnemosyne
                     ''
                   else
                     'WHERE ' + (%w[content tags links].map do |field|
-                      query_tokens.map { |keyword| "#{field} LIKE '%#{keyword}%'" }.join ' OR '
+                      query_tokens&.map { |keyword| "#{field} LIKE '%#{keyword}%'" }.join ' OR '
                     end.join ' OR ')
                   end
 
@@ -315,7 +315,7 @@ class Mnemosyne
     def recall_aegis_notes(max_tokens: nil, max_content_length: nil)
       tags = @aegis[:tags] || []
       tags = tags.split ',' if tags.is_a? String
-      notes = recall_notes tags.join(' '), limit: 8, max_content_length: max_content_length
+      notes = recall_notes tags&.join(' '), limit: 8, max_content_length: max_content_length
 
       # Apply token limit if provided
       unless max_tokens.nil?
@@ -374,10 +374,9 @@ class Mnemosyne
 
 
     def update_note(id, content: nil, links: nil, tags: nil)
-      # TODO: change created_at to updated_at
       truncated_content = truncate_note_content(content) if content
       db.execute \
-        'UPDATE project_notes SET content = ?, links = ?, tags = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?', [
+        'UPDATE project_notes SET content = ?, links = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
           truncated_content || content, links&.join(','), tags&.join(','), id
         ]
     end

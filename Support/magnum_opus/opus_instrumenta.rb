@@ -3,9 +3,9 @@
 # Support/opus_instrumenta.rb
 # Dynamic task-specific tools that automatically include task_id context
 
-require_relative 'instrumenta'
-require_relative 'prima_materia'
-require_relative 'horologium_aeternum'
+require_relative '../instrumentarium/instrumenta'
+require_relative '../instrumentarium/prima_materia'
+require_relative '../instrumentarium/horologium_aeternum'
 
 
 
@@ -25,7 +25,18 @@ class OpusInstrumenta
   def self.build_task_prima(task_id, task_engine)
     task_prima = PrimaMateria.new
 
-    # TODO: add create_sub_task
+    # Task creation within task context
+    task_prima.add_instrument :create_sub_task,
+                              description: 'Create a sub-task with parent task context for complex workflows.',
+                              params: {
+                                title: { type: 'string', required: true, minLength: 1 },
+                                plan:  { type: 'string', required: true, minLength: 1 }
+                              } do |title:, plan:|
+      # Create sub-task with parent context
+      sub_task = task_engine.create_task(title: title, plan: plan, parent_task_id: task_id)
+      HorologiumAeternum.task_created(**sub_task)
+      sub_task
+    end
 
     # Task-specific file operations
     task_prima.add_instrument :task_read_file,
@@ -50,8 +61,15 @@ class OpusInstrumenta
                                 path: { type: 'string', required: true },
                                 diff: { type: 'string', required: true }
                               } do |path:, diff:|
-      # TODO: gather changes about modified files in task context maybe by additional note.
+      # Track file modifications in task context
       result = Instrumenta::PRIMA_MATERIA.patch_file path: path, diff: diff
+      
+      if result.is_a?(Hash) && result[:ok]
+        # Record file modification in task notes for context continuity
+        change_note = "File modified: #{path}\nDiff applied:\n#{diff.truncate(200)}"
+        Mnemosyne.remember(content: change_note, links: [path], tags: ['task_modification', "task_#{task_id}"])
+      end
+      
       result.merge task_id: task_id if result.is_a? Hash
     end
 

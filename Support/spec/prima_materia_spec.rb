@@ -1,5 +1,5 @@
-require_relative '../instrumenta'
-require_relative './fake_mnemosyne'
+require_relative '../instrumentarium/instrumenta'
+require_relative 'fake_mnemosyne'
 
 
 

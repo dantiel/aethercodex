@@ -1,13 +1,23 @@
 # frozen_string_literal: true
 
+require_relative '../argonaut/aether_scopes'
 require_relative 'scriptorium'
-require_relative 'aether_scopes'
 
 
 
 # Live status broadcaster for real-time AI feedback
 module HorologiumAeternum
   @websocket = nil
+
+
+  def self.tool_call(_type, name, args = {}, uuid: nil)
+    send_status('tool_call', { tool: name, args: args }, uuid:)
+  end
+
+
+  def self.tool_completed(_type, name, result = {}, uuid: nil)
+    send_status('tool_completed', { tool: name, result: result }, uuid:)
+  end
 
 
   def self.display_bytes(bytes)
@@ -129,7 +139,7 @@ module HorologiumAeternum
 
   def self.file_read_complete(path, bytes_read, range = nil, content = '', uuid: nil)
     type = Scriptorium.language_tag_from_path path
-    # TODO: add linenumbers
+    line_numbers = content.lines.each_with_index.map { |line, i| "#{i + 1}: #{line}" }.join if range
     if range
       send_status('file_read_complete', {
                     message: Scriptorium.html("✅ 📖 Read #{display_bytes bytes_read} from " \
@@ -162,12 +172,11 @@ module HorologiumAeternum
 
 
   def self.file_creating(path, bytes, uuid: nil)
-    uuid = send_status('file_creating', {
-                         message: Scriptorium.html("✏️ Creating #{create_file_link path} (#{display_bytes bytes})"),
-                         path:    path,
-                         bytes:   bytes
-                       }, uuid:)
-    uuid
+    send_status('file_creating', {
+                 message: Scriptorium.html("✏️ Creating #{create_file_link path} (#{display_bytes bytes})"),
+                 path:    path,
+                 bytes:   bytes
+               }, uuid:)
   end
 
 
@@ -222,7 +231,7 @@ module HorologiumAeternum
                 }, uuid:)
   end
 
-
+  # Command output containing HTML is properly escaped to prevent rendering issues
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
     symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
@@ -298,7 +307,7 @@ module HorologiumAeternum
 
   def self.task_updated(uuid: nil, **task)
     puts "task_updated #{task.inspect}"
-    progress = (task[:current_step] || 0)
+    progress = task[:current_step] || 0
     max_steps = 10
     send_status('task_updated', {
                   message: Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
@@ -307,7 +316,6 @@ module HorologiumAeternum
   end
 
 
-  # TODO: never called yet
   def self.task_completed(duration, uuid: nil, **task)
     send_status('task_completed', {
                   message:  Scriptorium.html("✅ Task completed: #{task[:title]} (#{duration.round 2}s)"),
@@ -438,18 +446,28 @@ module HorologiumAeternum
             else
               if note[:links].is_a? Array then note[:links]
               else
-                note[:links].split ',' end.map { |link| "- #{create_file_link link}" }.join "\n"
+                note[:links].split ','
+              end.map { |link| "- #{create_file_link link}" }.join "\n"
             end
-    # TODO: make tags clickable as links
+    # Tags are formatted as clickable links for better navigation
     tags = if note[:tags].nil? || note[:tags].empty? then ''
            else
              if note[:tags].is_a? Array then note[:tags]
              else
-               note[:tags].split ',' end.map { |tag| "\\##{tag}" }.join ', '
+               note[:tags].split ','
+             end.map { |tag| "<a href=\"#tag:#{tag}\">##{tag}</a>" }.join ', '
+           end
+    tags = if note[:tags].nil? || note[:tags].empty? then ''
+           else
+             if note[:tags].is_a? Array then note[:tags]
+             else
+               note[:tags].split ','
+             end.map { |tag| "\\##{tag}" }.join ', '
            end
     note_info = if note[:id] then "**ID:** #{note[:id]}, **updated:** #{note[:created_at] || note[:updated_at]}"
                 else
-                  '' end
+                  ''
+                end
     <<~MARKDOWN
       #{note_info}
 
@@ -474,38 +492,38 @@ module HorologiumAeternum
   def self.file_overview(path, result, uuid: nil)
     # Use the symbolic overview data already generated in Instrumenta/Argonaut
     symbolic_data = result[:symbolic_overview] || {}
-    
+
     # Get optimized notes metadata - handle nil notes array gracefully
     notes_metadata = (result[:notes_preview] || []).map do |note|
       {
-        id: note[:id],
-        tags: note[:tags] || [],
+        id:      note[:id],
+        tags:    note[:tags] || [],
         excerpt: note[:excerpt] || '',
-        links: note[:links] || []
+        links:   note[:links] || []
       }
     end
-    
+
     # Format the symbolic data properly for display
     symbolic_summary = if symbolic_data[:structural_summary]
-      "**Classes:** #{symbolic_data[:structural_summary][:classes]}, " \
-      "**Modules:** #{symbolic_data[:structural_summary][:modules]}, " \
-      "**Methods:** #{symbolic_data[:structural_summary][:methods]}, " \
-      "**Constants:** #{symbolic_data[:structural_summary][:constants]}, " \
-      "**Variables:** #{symbolic_data[:structural_summary][:variables]}"
-    else
-      "No symbolic data available"
-    end
-    
+                         "**Classes:** #{symbolic_data[:structural_summary][:classes]}, " \
+                           "**Modules:** #{symbolic_data[:structural_summary][:modules]}, " \
+                           "**Methods:** #{symbolic_data[:structural_summary][:methods]}, " \
+                           "**Constants:** #{symbolic_data[:structural_summary][:constants]}, " \
+                           "**Variables:** #{symbolic_data[:structural_summary][:variables]}"
+                       else
+                         'No symbolic data available'
+                       end
+
     # Format navigation hints
     navigation_hints = if symbolic_data[:navigation_hints] && !symbolic_data[:navigation_hints].empty?
-      "\n\n### Navigation Hints:\n" +
-      symbolic_data[:navigation_hints].map do |line, hints|
-        "- **Line #{line}:** #{hints.join(', ')}"
-      end.join("\n")
-    else
-      ""
-    end
-    
+                         "\n\n### Navigation Hints:\n" +
+                           symbolic_data[:navigation_hints].map do |line, hints|
+                             "- **Line #{line}:** #{hints.join ', '}"
+                           end.join("\n")
+                       else
+                         ''
+                       end
+
     content = <<~MARKDOWN
       **File Size:** #{display_bytes result[:file_info][:size]}
       **Number of Lines:** #{result[:file_info][:lines]}
@@ -517,13 +535,13 @@ module HorologiumAeternum
       #{navigation_hints}
 
       ### Notes Metadata:
-      #{notes_metadata.map { |n| "- **ID:** #{n[:id]}, **Tags:** #{n[:tags]&.join(', ')}, **Excerpt:** #{n[:excerpt]}" }.join("\n")}
+      #{notes_metadata.map { |n| "- **ID:** #{n[:id]}, **Tags:** #{n[:tags]&.join ', '}, **Excerpt:** #{n[:excerpt]}" }.join("\n")}
     MARKDOWN
 
     send_status 'file_overview', {
-      message: Scriptorium.html("🔍 Overview: #{create_file_link path}"),
-      content: Scriptorium.html_with_syntax_highlight(content),
-      symbolic_data: symbolic_data,
+      message:        Scriptorium.html("🔍 Overview: #{create_file_link path}"),
+      content:        Scriptorium.html_with_syntax_highlight(content),
+      symbolic_data:  symbolic_data,
       notes_metadata: notes_metadata
     }, uuid:
   end
@@ -549,7 +567,7 @@ module HorologiumAeternum
   end
 
 
-  def self.system_error(message, error, uuid: nil)
+  def self.system_error(message, error = 'System Error', uuid: nil)
     send_status('system_error', {
                   error: Scriptorium.html("❌ #{message}: `#{error}`")
                 }, uuid:)

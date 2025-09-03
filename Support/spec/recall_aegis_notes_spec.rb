@@ -1,6 +1,8 @@
 # Test for integrating Aegis summaries into history messages
 require 'rspec'
-require_relative '../mnemosyne'
+require_relative '../mnemosyne/mnemosyne'
+
+
 
 describe 'Aegis summaries in history' do
   it 'limits summaries by token count' do

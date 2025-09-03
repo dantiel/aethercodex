@@ -31,7 +31,7 @@ The `ctx` object represents the developer's mental model - a microcosm of the pr
 
 The database schema in `mnemosyne.rb` mirrors the mental model:
 
-```ruby
+```sql
 CREATE TABLE project_notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   links TEXT,      # Connections between concepts

@@ -73,7 +73,9 @@
     ◯ Cross-file reasoning and navigation
     ◯ Consciousness threading across files
 
+
 ◯ Ritualistic Command Sequences
+    ◯ Straightforward way to define project specific commands
     ◯ Complex workflow automation patterns
     ◯ Elemental-aligned command execution
 
@@ -118,11 +120,5 @@
 ◯ Typography & Visual Harmony Research
 ◯ Testimonials & Community Feedback
 
-## 🔮 HERMETIC PRINCIPLES EMBODIMENT
-◯ Mentalism: Code reflects consciousness patterns
-◯ Correspondence: Architectural patterns repeat across scales
-◯ Vibration: Dynamic state management and energy flow
-◯ Polarity: Balance between magical abstraction and practical implementation
-◯ Rhythm: Natural cadence in code execution and user interaction
-◯ Cause & Effect: Clear action-consequence relationships in tool design
-◯ Gender: Masculine structure with feminine flow in architecture
+## Bugs
+◯ double quotes at line endings get removed in patches.

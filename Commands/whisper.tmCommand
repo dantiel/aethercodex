@@ -7,7 +7,7 @@
   <string><![CDATA[#!/usr/bin/env bash
 set -e
 SUP="$TM_BUNDLE_SUPPORT"
-SUP2=$(echo "file://$SUP/ui" | perl -pe 's/\//\\\//g')
+SUP2=$(echo "file://$SUP/pythia" | perl -pe 's/\//\\\//g')
 export BUNDLE_GEMFILE="$SUP/Gemfile"
 export GEM_HOME="$SUP/.vendor_bundle"
 export GEM_PATH="$GEM_HOME"

@@ -16,17 +16,16 @@ end
 require 'sinatra'
 require 'faye/websocket'
 require 'thin'
-require_relative 'metaprogramming_utils'
-require_relative 'mnemosyne'
-require_relative 'argonaut'
-require_relative 'horologium_aeternum'
-require_relative 'coniunctio'
-require_relative 'oracle'
-require_relative 'verbum'
-require_relative 'prima_materia'
-require_relative 'scriptorium'
-require_relative 'aetherflux'
-require_relative 'instrumenta'
+require_relative 'instrumentarium/metaprogramming_utils'
+require_relative 'instrumentarium/horologium_aeternum'
+require_relative 'instrumentarium/prima_materia'
+require_relative 'instrumentarium/scriptorium'
+require_relative 'instrumentarium/instrumenta'
+require_relative 'mnemosyne/mnemosyne'
+require_relative 'argonaut/argonaut'
+require_relative 'oracle/coniunctio'
+require_relative 'oracle/oracle'
+require_relative 'oracle/aetherflux'
 
 
 
@@ -38,6 +37,7 @@ PORT = (ENV['AETHER_PORT'] || CFG['port'] || 4567).to_i
 Faye::WebSocket.load_adapter 'thin'
 set :server, 'thin'
 set :port, PORT
+set :bind, '0.0.0.0'
 
 # Daemon persistence protocol
 if ARGV.include?('--daemon') || ENV['AETHER_DAEMON']
@@ -54,7 +54,7 @@ trap('TERM') { exit }
 
 # Optional landing page not required if you inline HTML in command
 get '/' do
-  File.read File.expand_path('ui/chamber.html', __dir__)
+  File.read File.expand_path('pythia/chamber.html', __dir__)
 rescue StandardError
   'OK'
 end
@@ -197,7 +197,7 @@ def do_ask(p)
     Oracle.divination p['prompt'], ctx do |name, args|
     # HorologiumAeternum.tool_starting(name, args)
     # HorologiumAeternum.processing("Executing #{name}...")
-    result = PrimaMateria.handle({ 'tool' => name, 'args' => args })
+    result = PrimaMateria.handle(tool: name, args:)
     # HorologiumAeternum.tool_completed(name, result)
 
     # Brief pause to ensure UI updates are processed

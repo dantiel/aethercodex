@@ -76,6 +76,11 @@ class FakeAetherflux
     response
   end
 
+  # Simulate oracle divination (same as conjuration for testing purposes)
+  def channel_oracle_divination(params, tools: nil, context: nil, **)
+    channel_oracle_conjuration(params, tools: tools, context: context)
+  end
+
   private
 
   def find_matching_response(prompt)

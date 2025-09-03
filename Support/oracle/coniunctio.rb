@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
 require 'tiktoken_ruby'
-require_relative 'mnemosyne'
-require_relative 'aetherflux'
-require_relative 'metaprogramming_utils'
+require_relative '../mnemosyne/mnemosyne'
+require_relative '../instrumentarium/metaprogramming_utils'
 # TM_TAB_SIZE
 # TM_SOFT_TABS
 # TM_DISPLAYNAME
@@ -45,7 +44,8 @@ module Coniunctio
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
 
       ctx = { history:       prepend_summaries(history),
-              extra_context: build_extra_context(file, selection, project_files, aegis_notes, context) }
+              extra_context: build_extra_context(file, selection, project_files, aegis_notes,
+                                                 context) }
 
       update_aegis_orientation ctx, file, selection
       ctx
@@ -94,16 +94,19 @@ module Coniunctio
 
     def build_extra_context(file, selection, project_files, aegis_notes, context = nil)
       hermetic_manifest = read_hermetic_manifest
-      
+
+      puts "[ORACLE][CONIUNCTIO]: #{'NO ' unless hermetic_manifest[:present]}" \
+           'Manifest file found.'
+
       {
         project_files:,
         file:,
-        selection:,
+        selection:, # Selection is stored in history and rendered in code blocks for context
         snippet:           snippet_for(file, selection),
         aegis_orientation: { **Mnemosyne.aegis },
         aegis_notes:,
         tool_context:      context,
-        hermetic_manifest: 
+        hermetic_manifest:
       }
     end
 
@@ -137,7 +140,11 @@ module Coniunctio
 
     def read_hermetic_manifest
       hermetic_manifest = Argonaut.read 'hermetic.manifest.md'
-      return { content: "Hermetic manifest file not found", present: false } unless hermetic_manifest[:content]
+      unless hermetic_manifest[:content]
+        return { content: 'Hermetic manifest file not found',
+                 present: false }
+      end
+
       { content: hermetic_manifest[:content], present: true }
     rescue StandardError => e
       { content: "Error reading hermetic manifest: #{e.message}", present: false }

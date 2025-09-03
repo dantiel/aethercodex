@@ -133,11 +133,23 @@ module AetherScopesEnhanced
   end
 
   # Integration with file_overview tool - optimized for minimal context usage
-  def self.for_file_overview(file_path, max_notes: 3, max_content_length: 150)
-    overview = structural_overview(file_path)
+  def self.for_file_overview file_path, max_notes: 3, max_content_length: 150
+    overview = structural_overview file_path
+    
+    # Get notes based on structural symbols and cross-references
+    overview = structural_overview file_path
+    symbol_queries = overview[:symbols]&.map { |sym| sym[:name] }&.compact || []
     
     # Get relevant notes with content length limits
-    notes = Mnemosyne.recall_notes(file_path, limit: max_notes, max_content_length: max_content_length)
+    notes = if symbol_queries.any?
+              # Search for notes related to symbols found in the file
+              symbol_queries.flat_map do |symbol|
+                Mnemosyne.recall_notes(symbol, limit: 2, max_content_length: max_content_length)
+              end.uniq { |note| note[:id] }
+            else
+              # Fallback to file-based notes
+              Mnemosyne.recall_notes(file_path, limit: max_notes, max_content_length: max_content_length)
+            end
     
     # Format for AI consumption - minimal, focused data
     {
@@ -157,9 +169,9 @@ module AetherScopesEnhanced
 end
 
 # Test the enhanced implementation
-if __FILE__ == $0
+if $0 == __FILE__ 
   test_file = __FILE__
-  overview = AetherScopesEnhanced.structural_overview(test_file)
+  overview = AetherScopesEnhanced.structural_overview test_file
   
   puts "=== AetherScopesEnhanced Test ==="
   puts "File: #{overview[:file]}"

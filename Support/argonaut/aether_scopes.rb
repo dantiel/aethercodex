@@ -211,7 +211,7 @@ module AetherScopes
     # Extract text using proper string slicing (not byteslice for multi-byte chars)
     name = text[node.start_byte...node.end_byte].to_s
     container = node.ancestor_matching(CONTAINER_SCOPE_PREFIXES)
-
+    ar => arsar
     {
       name: name.strip,  # Clean up whitespace
       scope: node.scope,

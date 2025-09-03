@@ -102,7 +102,7 @@ The AetherCodex Symbolic Overview system provides AI with comprehensive structur
 
 | Component | Purpose | Location |
 |-----------|---------|----------|
-| **Oracle Chamber** | Interactive AI interface | `ui/chamber.html` |
+| **Oracle Chamber** | Interactive AI interface | `pythia/chamber.html` |
 | **Aetherflux** | Real-time response processing | `aetherflux.rb` |
 | **Argonaut** | Filebrowser | `argonaut.rb` |
 | **Coniunctio** | Context Creator | `coniunctio.rb` |
@@ -230,7 +230,7 @@ Remember this pattern as "user-auth-flow" for future reference
 
 | Component | Purpose | Location |
 |-----------|---------|----------|
-| **Oracle Chamber** | Interactive AI interface | `ui/chamber.html` |
+| **Oracle Chamber** | Interactive AI interface | `pythia/chamber.html` |
 | **Aetherflux** | Real-time response processing | `aetherflux.rb` |
 | **Argonaut** | Filebrowser | `argonaut.rb` |
 | **Coniunctio** | Context Creator | `coniunctio.rb` |

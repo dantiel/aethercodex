@@ -17,7 +17,7 @@ GEM
     dotenv (3.1.8)
     dotenvx (0.0.2)
     eventmachine (1.2.7)
-    faraday (2.13.3)
+    faraday (2.13.4)
       faraday-net_http (>= 2.0, < 3.5)
       json
       logger
@@ -26,9 +26,9 @@ GEM
     faye-websocket (0.11.4)
       eventmachine (>= 0.12.0)
       websocket-driver (>= 0.5.1, < 0.8.0)
-    json (2.13.0)
+    json (2.13.2)
     logger (1.7.0)
-    mustermann (3.0.3)
+    mustermann (3.0.4)
       ruby2_keywords (~> 0.0.1)
     net-http (0.6.0)
       uri
@@ -51,7 +51,7 @@ GEM
     rspec-mocks (3.13.5)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
-    rspec-support (3.13.4)
+    rspec-support (3.13.5)
     ruby-enum (1.0.0)
     ruby2_keywords (0.0.5)
     sinatra (3.2.0)
@@ -76,7 +76,7 @@ GEM
     yaml (0.4.0)
 
 PLATFORMS
-  x86_64-darwin-22
+  x86_64-darwin-24
 
 DEPENDENCIES
   concurrent-ruby (~> 1.3)

@@ -10,27 +10,28 @@ CFG = begin
 rescue; {}; end
 
 DEFAULT_PORT = (CFG['port'] || 4567).to_i
-PIDFILE  = File.expand_path('../../.tm-ai/limen.pid', __dir__)
+PIDFILE  = File.expand_path('../.tm-ai/limen.pid', __dir__)
 FileUtils.mkdir_p(File.dirname(PIDFILE))
-
+# puts "PIDFILE=#{PIDFILE}"
 
 # check port
 def port_open?(p)
-  TCPSocket.new('127.0.0.1', p).close rescue return false
+  TCPSocket.new('0.0.0.0', p).close rescue return false
   true
 end
 
 
 # free port finder
 def find_free_port
-  s = TCPServer.new('127.0.0.1', 0)
+  s = TCPServer.new('0.0.0.0', 0)
   p = s.addr[1]
   s.close
   p
 end
 
-
 port = DEFAULT_PORT
+# puts "PORT OPEN #{port_open?(port)}"
+
 unless port_open?(port)
   port = port.zero? ? find_free_port : port
   # Preserve TextMate environment variables

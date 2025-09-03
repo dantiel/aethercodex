@@ -1,11 +1,11 @@
 require 'json'
 require 'open3'
 require 'tempfile'
-require_relative 'diff_crepusculum'
 require 'pathname'
+require_relative '../mnemosyne/mnemosyne'
+require_relative '../instrumentarium/diff_crepusculum'
 require_relative 'simple_scopes'
 require_relative 'aether_scopes_enhanced'
-require_relative 'mnemosyne'
 
 
 
@@ -24,6 +24,7 @@ class Argonaut
   end
   
 
+  # Reads a file relative to base of project folder.
   def self.read(path, range = nil)
     base = project_root
     src = File.read(File.join base, path)

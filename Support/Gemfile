@@ -25,7 +25,6 @@ gem "rspec", "~> 3.13"
 
 gem "textpow", "~> 1.4"
 
-
 gem "differ", "~> 0.1.2"
 
 gem "tiktoken_ruby", "~> 0.0.9"
@@ -34,11 +33,8 @@ gem "diffy", "~> 3.4"
 
 gem "htmldiff", git: "https://github.com/myobie/htmldiff.git"
 
-
-
 gem "dotenv", "~> 3.1"
 
 gem "dotenvx", "~> 0.0.2"
-
 
 gem "concurrent-ruby", "~> 1.3"
