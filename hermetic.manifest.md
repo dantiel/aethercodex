@@ -59,6 +59,9 @@ metaprogramming: Use judicious metaprogramming for DSL creation and pattern abst
 - Run RSpec: `bundle exec rspec <spec_file>`
 - Run IRB: `bundle exec irb`
 -Use Rubocop to improve code quality. run (global) from root dir, not from support dir: `rubocop <file>`
+	
+
+**NOTICE: when making code changes on the running environment the modules and classes are not automatically reloaded, hence when you change this code the user must restart it manually for the change to take effect**
 
 ## GEM MANAGEMENT
 - Gemfile: `Support/Gemfile`

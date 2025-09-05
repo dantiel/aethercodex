@@ -39,6 +39,7 @@ using MetaprogrammingUtils
 # Hermetic Oracle for AI-assisted coding with functional purity
 class Oracle
   SYSTEM_PROMPT = File.read "#{__dir__}/aether_codex.system_instructions.md"
+  REASONING_PROMPT = File.read "#{__dir__}/aether_codex.reasoning_instructions.md"
   SYSTEM_PROMPT_BRIEFING = <<~BRIEFING
     Focus on autonomous execution: Read files, plan briefly if needed, then chain all required tools
     (e.g., read_file → recall_notes → patch) in one go. Do not seek confirmation—apply changes and
@@ -68,16 +69,16 @@ class Oracle
   class << self
     # Public API Methods
     def ask(prompt, context)
-      divination(prompt, context, tools: []) do |name, args|
+      divination(prompt, context, tools: nil) do |name, args|
         PrimaMateria.handle(tool: name, args:, context:)
       end
         .then { |a, arts, _| [a, arts] }
     end
 
 
-    def divination(prompt, ctx, tools:, max_depth: 80, reasoning: false, msg_uuid: nil, &exec)
+    def divination(prompt, ctx, tools: nil, max_depth: 80, reasoning: false, msg_uuid: nil, &exec)
       initial_temperature = initialize_divination_state
-      msgs = base_messages prompt, ctx
+      msgs = base_messages prompt, ctx, reasoning
       tool_results = []
       arts = { prelude: [] }
 
@@ -106,21 +107,33 @@ class Oracle
                                 max_depth,
                                 &exec)
       answer = nil
+      
+      puts "[ORACLE][DIVINATION_LOOP]: Reasoning mode: #{reasoning}"
+      puts "[ORACLE][DIVINATION_LOOP]: Tools: #{tools.inspect}"
 
       (1..max_depth).each do |_depth|
         check_temperature_restart initial_temperature
 
         json = Conduit.generate_ai_response msgs, tools, reasoning
         content, tcalls, arts = Conduit.extract_response_data json, arts
+        
+        puts "[ORACLE][DIVINATION_LOOP]: Response content: #{content.to_s.truncate(100)}"
+        puts "[ORACLE][DIVINATION_LOOP]: Tool calls found: #{tcalls.any?}"
 
         msgs << (add_assistant_message msgs, content, tcalls)
         arts = collect_prelude_content arts, content
         stream_reasoning_content arts
 
-        next if process_tool_calls tcalls, msgs, tool_results, content, exec, arts
+        # In reasoning mode, we should NOT process tool calls - reasoning models only provide reasoning
+        if reasoning
+          answer = content
+          break
+        else
+          next if process_tool_calls tcalls, msgs, tool_results, content, exec, arts
 
-        answer = content
-        break
+          answer = content
+          break
+        end
       end
 
       answer
@@ -129,30 +142,40 @@ class Oracle
 
     def process_tool_calls(tcalls, msgs, tool_results, content, exec, arts)
       if tcalls.any?
-        msgs, tool_results = handle_standard_tool_calls tcalls, msgs, tool_results, content, exec
+        new_msgs, new_tool_results = handle_standard_tool_calls tcalls, msgs, tool_results,
+                                                                content, exec
+        msgs.replace new_msgs
+        tool_results.replace new_tool_results
         return true
       end
 
+      # In reasoning mode, skip tool call extraction entirely
       tools_from_content = Artificer.extract_instrumenta_from_content content
       if tools_from_content.any?
-        msgs, tool_results = handle_fallback_tool_calls tools_from_content, msgs, tool_results,
-                                                        content, exec, arts
+        puts "[ORACLE][DEBUG]: Found #{tools_from_content.size} tools in content (fallback mode)"
+        new_msgs, new_tool_results = handle_fallback_tool_calls tools_from_content, msgs,
+                                                                tool_results, content, exec, arts
+        msgs.replace new_msgs
+        tool_results.replace new_tool_results
         return true
-      end
+      end     
 
       false
     end
 
 
-    def conjuration(prompt, context, tools:, msg_uuid:, &block)
+    def conjuration(prompt, context, tools: nil, msg_uuid:, &block)
       initial_temperature = (Mnemosyne.aegis[:temperature] || 1.0).to_f
-      divination(prompt, context, tools:, reasoning: true, msg_uuid:, &block)
+      result = divination(prompt, context, tools:, reasoning: true, msg_uuid:, &block)
+      result
     rescue StandardError => e
       error_details = Conduit.extract_deepseek_error_details e
       error_message = error_details[:message] || e.message
       HorologiumAeternum.system_error "Conjuration failed: #{error_message.truncate 100}"
       { error: "Conjuration failed: #{error_message}", details: error_details }
     end
+
+    public :conjuration
 
 
     def complete(ctx)
@@ -161,16 +184,35 @@ class Oracle
 
 
     # Message Construction
-    def base_messages(prompt, ctx)
+    def base_messages(prompt, ctx, reasoning)
       hermetic_manifest = ctx.dig(:extra_context, :hermetic_manifest).to_s
-      [
-        { role: 'system', content: SYSTEM_PROMPT },
+      
+      system_prompt = reasoning ? REASONING_PROMPT : SYSTEM_PROMPT
+      
+      puts "[ORACLE][DEBUG]: Reasoning mode: #{reasoning}"
+      puts "[ORACLE][DEBUG]: System prompt length: #{system_prompt.length}"
+      puts "[ORACLE][DEBUG]: System prompt preview: #{system_prompt[0..200]}..."
+      
+      messages = [
+        { role: 'system', content: system_prompt },
         *ctx[:history],
-        { role: 'system', content: "Context:\n#{ctx[:extra_context].to_json}" },
-        { role: 'system', content: SYSTEM_PROMPT_BRIEFING },
-        { role: 'system', content: hermetic_manifest_message(hermetic_manifest) },
         { role: 'user', content: prompt }
       ]
+      
+      # Only include briefing in non-reasoning mode to avoid conflicting instructions
+      unless reasoning
+        messages.insert(3, { role: 'system', content: SYSTEM_PROMPT_BRIEFING })
+      end
+      
+      puts "[ORACLE][DEBUG]: Messages being sent:"
+      messages.each_with_index do |msg, i|
+        puts "[ORACLE][DEBUG]: Message #{i}: role=#{msg[:role]}, content_length=#{msg[:content].to_s.length}"
+        if msg[:role] == 'system' && msg[:content].to_s.length > 100
+          puts "[ORACLE][DEBUG]: System content preview: #{msg[:content].to_s[0..100]}..."
+        end
+      end
+      
+      messages
     end
 
 

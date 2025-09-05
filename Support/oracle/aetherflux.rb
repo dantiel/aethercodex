@@ -66,7 +66,7 @@ msg_uuid:) do |name, args, tool_ctx|
       Mnemosyne.record params, "Error: #{error_message}" if params[:record]
 
       status = classify_error error_message, e
-      { status: status, response: "#{status.to_s.humanize}: #{error_message}" }
+      { status: status, response: "#{status.to_s.humanize}: #{error_message}", backtrace: e.backtrace }
     end
 
 
@@ -75,9 +75,18 @@ msg_uuid:) do |name, args, tool_ctx|
       ctx = Coniunctio.build(context ? params.merge(context: context) : params)
 
       begin
-        answer, arts, tool_results = Oracle.conjuration(params[:prompt], ctx, tools:,
+        # For reasoning, we must use empty tools array to enable DeepSeek advanced reasoning
+        # The reasoning model cannot execute tools, so we provide empty array
+        # This is handled automatically in Conduit based on model detection
+        answer, arts, tool_results = Oracle.conjuration(params[:prompt], ctx, tools: tools,
 msg_uuid:) do |name, args, tool_ctx|
-          tools.handle tool: name, args:, context: tool_ctx, timeout: timeout
+          # Tool execution is handled normally, but tools will be filtered in Conduit
+          # for reasoning models to enable advanced reasoning capabilities
+          if tools.respond_to?(:handle)
+            tools.handle tool: name, args:, context: tool_ctx, timeout: timeout
+          else
+            { error: "No tools available for execution" }
+          end
         end
       rescue Oracle::RestartException
         HorologiumAeternum.thinking 'Restarting oracle process due to temperature change...'
@@ -85,8 +94,8 @@ msg_uuid:) do |name, args, tool_ctx|
       end
 
       html = Scriptorium.html_with_syntax_highlight answer.to_s
-      HorologiumAeternum.oracle_revelation answer.to_s unless answer.to_s.strip.empty?
-      HorologiumAeternum.completed "🎯 Response ready with **#{tool_results.length}** tools executed"
+      # HorologiumAeternum.oracle_revelation answer.to_s unless answer.to_s.strip.empty?
+      # HorologiumAeternum.completed "🎯 Response ready with **#{tool_results.length}** tools executed"
 
       {
         status:   :success,

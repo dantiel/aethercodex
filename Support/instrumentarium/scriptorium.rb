@@ -4,6 +4,7 @@ require 'redcarpet'
 require 'rouge'
 require 'diffy'
 require 'htmldiff'
+require 'cgi'
 
 
 
@@ -65,6 +66,52 @@ module Scriptorium
   # Legacy method for compatibility
   def self.html(md)
     @basic_renderer.render md.to_s
+  end
+
+  # Utility function to escape HTML content for safe display
+  def self.escape_html(content)
+    CGI.escapeHTML(content.to_s)
+  end
+
+
+  # Escape HTML content within JSON strings while preserving structure
+  def escape_json_html_content(json_text)
+    return json_text unless json_text.is_a?(String)
+    
+    # Use a simple approach: escape HTML in string values
+    # This is a conservative approach to avoid breaking JSON structure
+    json_text.gsub(/"([^"]*)"/) do |match|
+      content = match[1..-2]  # Remove quotes
+      escaped_content = escape_html(content)
+      "\"#{escaped_content}\""
+    end
+  end
+
+
+  
+  # Utility function to mask HTML content by escaping it
+  def self.mask_html(content)
+    escape_html(content)
+  end
+
+  # Check if content contains HTML tags
+  def self.contains_html?(content)
+    content.to_s =~ /<[^>]+>/
+  end
+
+  # Strip HTML tags from content
+  def self.strip_html(content)
+    content.to_s.gsub /<[^>]+>/, ''
+  end
+
+  # Safe HTML rendering with optional line breaks
+  def self.safe_html(content, preserve_line_breaks: false)
+    escaped = escape_html(content)
+    if preserve_line_breaks
+      escaped.gsub /\n/, '<br>'
+    else
+      escaped
+    end
   end
 
 

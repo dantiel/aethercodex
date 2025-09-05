@@ -11,10 +11,13 @@
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
 ✔︎ Mnemosyne Memory System @done(12-08-2025 20:52)
 ✔︎ File Overview & Symbolic Analysis @done(09-08-2025 13:51)
-
+◯ improve symbolic analysis
+◯ mnemosyne memory truncation should be longer, it has to be possible to retrieve complete memories, otherwise when creating memories that are too long there should be an error message
+  
 ### 🛠️ TOOLING & COMMANDS
 ✔︎ Allow Safe Commands @done(27-07-2025 19:12)
 ✔︎ replace pygments by rouge @done(29-07-2025 23:52)
+◯ add instrument: temp_create_file. this action creates a file for use as a temporary script or utility that isnt supposed to be part of the project but for the ai handling. it will be automatically cleaned up after termination or request.
 
 ### 🌐 UI & INTEGRATION
 ✔︎ TextMate Integration @done(09-08-2025 13:51)
@@ -121,4 +124,4 @@
 ◯ Testimonials & Community Feedback
 
 ## Bugs
-◯ double quotes at line endings get removed in patches.
+✔︎ double quotes at line endings get removed in patches. @done(04-09-2025 04:34)

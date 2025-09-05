@@ -7,6 +7,7 @@ require_relative '../mnemosyne/mnemosyne'
 require_relative '../oracle/oracle'
 require_relative 'horologium_aeternum'
 require_relative 'prima_materia'
+require_relative '../instrumentarium/scriptorium'
 
 
 
@@ -67,7 +68,7 @@ instrument :read_file,
                               minItems: 2,
                               maxItems: 2 } },
            returns: { content: String, error: String } do |path:, range: nil|
-  next { error: 'Denied path' } if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
+  raise 'Denied path' if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
 
   uuid = HorologiumAeternum.file_reading path, range
   result = Argonaut.read path, range
@@ -79,16 +80,24 @@ rescue StandardError => e
   { error: e.message.to_s }
 end
 
-# When reasoning is invoked, tools are filtered to prevent circular tool execution
-# The reasoning oracle receives a focused toolset for optimal performance
+# When reasoning is invoked, tools are excluded to enable advanced reasoning capabilities
 instrument :oracle_conjuration,
            description: <<~DESC,
-             Invoke the reasoning model to generate responses and actions based on a chain of
-             thought reasoning method. Make sure to provide a meaningful and profound prompt as
-             invocation to the high oracle and give a rich context as sacred offerings like files
-             and other tools output, this higher oracle will call tools on its own, too. Whenever a task
-             is difficult or you're asked to reason or meditate or something similar, use this
-             function to have a higher intelligence.
+             Invoke advanced reasoning for complex problem-solving. This conjuration provides
+             only the final prompt and context to the reasoning model - no tool execution is possible.
+             
+             **REQUIRED PREPARATION**: Before invocation, you MUST:
+               - Perform comprehensive research using all available tools
+               - Gather complete file contents and structural analysis
+               - Prepare detailed reasoning plan and context
+               - Include all relevant information in the prompt
+               - Put explanations and thoughts in the prompt
+               
+               **CRITICAL**: In reasoning mode, you CANNOT call any tools including oracle_conjuration itself
+               
+               The reasoning model receives only your prepared prompt and context.
+               Previous tool results (such as file reads, overviews, previous conjuration results)
+               are automatically passed in the context.
            DESC
            params: { prompt:  { type:        String,
                                 required:    true,
@@ -98,30 +107,45 @@ instrument :oracle_conjuration,
                                 description: 'Context object to pass through to oracle' } },
            timeout: 600,
            returns: { reasoning: String, content: String, context: Object } do |prompt:, context: nil|
+  # Add reasoning flag to context for proper system prompt selection
+  context_with_reasoning = context ? context.merge(reasoning: true) : { reasoning: true }
+  
   params = {
     prompt:  prompt,
-    context: context
+    context: context_with_reasoning,
   }
   HorologiumAeternum.oracle_conjuration prompt
   
   puts "CONJURATION TOOL CONTEXT=#{context.inspect.truncate 200}"
 
-  filtered_instrumenta = Instrumenta.reject :oracle_conjuration, :create_task
+  # For DeepSeek reasoning, we must NOT pass any tools to enable advanced reasoning
+  # The reasoning model cannot use tools, so we provide empty tools array
+  puts "[CONJURATION][DEBUG]: Starting conjuration with params: #{params.inspect.truncate(200)}"
+  # For reasoning, we need to pass empty tools object, not nil
+  result = Aetherflux.channel_oracle_conjuration params, tools: nil
+  puts "[CONJURATION][DEBUG]: Aetherflux result: #{result.inspect.truncate(300)}"
 
-  result = Aetherflux.channel_oracle_conjuration params, tools: filtered_instrumenta
+  if result[:error]
+    puts "[CONJURATION][ERROR]: #{result[:error]}"
+    raise result[:error]
+  end
 
-  raise result[:error] if result[:error]
+  if result[:status] == :success && result[:response]
+    reasoning = result[:response][:reasoning]
+    answer = result[:response][:answer]
 
-  if result[:result]
-    reasoning = result[:result][:reasoning]
-    content = result[:result][:answer]
+    puts "[CONJURATION][DEBUG]: Success - reasoning: #{reasoning.to_s.truncate(100)}, answer: #{answer.to_s.truncate(100)}"
 
     unless reasoning.to_s.empty?
       HorologiumAeternum.oracle_conjuration_revelation 'Oracle Reasoning', reasoning
     end
-    unless content.to_s.empty?
-      HorologiumAeternum.oracle_conjuration_revelation 'Oracle Answer', content
+    unless answer.to_s.empty?
+      HorologiumAeternum.oracle_conjuration_revelation 'Oracle Answer', answer
     end
+  else
+    puts "[CONJURATION][DEBUG]: Failed - status: #{result[:status]}, response: #{result[:response].inspect.truncate(200)}"
+    reasoning = nil
+    content = nil
   end
 
   { reasoning:, content: }
@@ -156,7 +180,10 @@ instrument :run_command,
     out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
     HorologiumAeternum.command_completed(cmd, out.length, out, status.exitstatus, uuid:)
 
-    { ok: true, exit_status: status.exitstatus, result: "Command output: #{out}" }
+    # Use Scriptorium HTML utils for proper escaping
+    escaped_out = Scriptorium.escape_html(out)
+
+    { ok: true, exit_status: status.exitstatus, result: "Command output: #{escaped_out}" }
   rescue StandardError => e
     { error: "Command error: #{e.message}" }
   end
@@ -442,13 +469,13 @@ instrument :create_task,
            returns: { id: Integer, error: String } do |title:, plan:|
   engine = MagnumOpusEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
 
-  result = engine.create_task(title:, plan:)
+  result = engine.create_task(title:, plan:, workflow_type: 'full')
 
   uuid = HorologiumAeternum.task_created(**result)
 
   result
 rescue StandardError => e
-  HorologiumAeternum.system_error('Error Creating Task', e.message, uuid:)
+  HorologiumAeternum.system_error('Error Creating Task', message: e.message, uuid:)
 
   { error: e.message }
 end
@@ -471,7 +498,7 @@ instrument :execute_task,
 
   { ok: true }
 rescue StandardError => e
-  HorologiumAeternum.system_error('Error Executing Task', e.message, uuid:)
+  HorologiumAeternum.system_error('Error Executing Task', message: e.message, uuid:)
 
   { error: e.message }
 end
@@ -490,7 +517,7 @@ instrument :update_task,
   uuid = HorologiumAeternum.task_updated(**task, plan: new_plan)
   { ok: true }
 rescue StandardError => e
-  HorologiumAeternum.system_error('Error Updating Task', e.message, uuid:)
+  HorologiumAeternum.system_error('Error Updating Task', message: e.message, uuid:)
   { error: e.message }
 end
 
@@ -516,7 +543,7 @@ instrument :evaluate_task,
            end
   result
 rescue StandardError => e
-  HorologiumAeternum.system_error 'Error Evaluating Task', e.message
+  HorologiumAeternum.system_error 'Error Evaluating Task', message: e.message
   { error: e.message }
 end
 

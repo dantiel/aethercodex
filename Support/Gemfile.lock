@@ -86,7 +86,7 @@ DEPENDENCIES
   dotenvx (~> 0.0.2)
   faraday (~> 2.8)
   faye-websocket (~> 0.11.0)
-  htmldiff!
+  htmldiff (~> 1.0.0)!
   redcarpet (~> 3.6)
   rouge (~> 4.6)
   rspec (~> 3.13)

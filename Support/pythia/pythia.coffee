@@ -191,7 +191,8 @@ renderTaskProgress = (task) ->
     
     inputBar = document.getElementById 'input-bar'
     inputBar.insertAdjacentElement "beforebegin", taskProgress
-    
+  
+  # TODO the task step is rendered wrong it should render the steps and not plan. plan is just description.
   taskProgress.innerHTML = """
     <div class=\"task-header\">
       <strong>#{task.title}</strong>
@@ -429,7 +430,7 @@ showStatus = (type, data, uuid) ->
       task_log_entries.appendChild logEntry
       task_log_entries.scrollTop = task_log_entries.scrollHeight
       
-      renderTaskProgress data
+      # renderTaskProgress data
     when 'history'
       log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
       data.content.forEach (entry) ->

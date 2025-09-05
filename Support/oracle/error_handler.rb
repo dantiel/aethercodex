@@ -10,7 +10,7 @@ class ErrorHandler
     def handle_divination_error(error, tool_results)
       error_message = error.message.truncate 100
       backtrace = error.backtrace&.first(3)&.join "\n"
-
+      
       HorologiumAeternum.system_error("Divination failed: #{error_message}", backtrace:)
 
       if error_message.include?('invalid_request_error') &&

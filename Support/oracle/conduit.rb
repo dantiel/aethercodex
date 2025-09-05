@@ -6,6 +6,8 @@ require 'yaml'
 require_relative '../mnemosyne/mnemosyne'
 require_relative '../instrumentarium/horologium_aeternum'
 require_relative 'error_handler'
+require_relative '../instrumentarium/metaprogramming_utils'
+require_relative '../instrumentarium/scriptorium'
 
 # Conduit - Hermetic conduit for DeepSeek API communication
 # Channels cosmic energies through the digital aether for oracle divination
@@ -14,13 +16,15 @@ class Conduit
     # Configuration and Utilities
     def load_cfg
       path = File.expand_path '../.aethercodex', __dir__
+      puts "[CONDUIT][LOAD CFG]: loading path: #{path} exist?=#{File.exist? path}"
       if File.exist? path
-        YAML.load_file(path).try(:deep_symbolize_keys) || {}
+        config = YAML.load_file(path)
+        config.respond_to?(:deep_symbolize_keys) ? config.deep_symbolize_keys : {}
       else
         {}
       end
     rescue StandardError => e
-      HorologiumAeternum.system_error "Failed to load config: #{e.message.truncate 100}"
+      HorologiumAeternum.system_error "Failed to load config: #{e.message[0..100]}"
       {}
     end
 
@@ -34,6 +38,15 @@ class Conduit
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to select model: #{e.message.truncate 100}"
       'deepseek-chat'
+    end
+
+
+    def is_deepseek_reasoning_model?(model_name)
+      model_name.to_s.downcase.include?('reason') ||
+      model_name.to_s.downcase.include?('deepseek-reasoner')
+    rescue StandardError => e
+      HorologiumAeternum.system_error "Failed to detect reasoning model: #{e.message.truncate 100}"
+      false
     end
 
 
@@ -79,16 +92,17 @@ class Conduit
 
 
     # API Request Building
-    def build_body(prompt, ctx)
+    def build_body(prompt, ctx, reasoning: false)
       cfg = load_cfg
+      system_prompt = reasoning ? Oracle::REASONING_PROMPT : Oracle::SYSTEM_PROMPT
       {
-        model:       cfg['model'] || 'reasoning-1',
+        model:       cfg['model'] || 'deepseek-chat',
         messages:    [
-          { role: 'system', content: Oracle::SYSTEM_PROMPT },
+          { role: 'system', content: system_prompt },
           { role: 'user', content: prompt },
           { role: 'user', content: "Context: #{ctx.to_json}" }
         ],
-        tools:       Instrumenta.instrumenta_schema,
+        tools:       [],
         max_tokens:  2048,
         temperature: 0.7
       }
@@ -104,7 +118,16 @@ class Conduit
       max_tokens = select_max_tokens reasoning
       temperature = (Mnemosyne.aegis[:temperature] || 1.0).to_f
 
-      { model:, messages:, max_tokens:, tools:, temperature: }
+      # For DeepSeek reasoning models, we must NOT include tools to enable advanced reasoning
+      # Reasoning models cannot use tools, so we omit the tools field entirely
+      # Also detect reasoning models by name pattern for future compatibility
+      base_body = { model:, messages:, max_tokens:, temperature: }
+      
+      if reasoning || is_deepseek_reasoning_model?(model)
+        base_body
+      else
+        base_body.merge(tools: tools)
+      end
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to build request body: #{e.message.truncate 100}"
       raise
@@ -169,7 +192,15 @@ class Conduit
 
 
     def generate_ai_response(msgs, tools, reasoning)
-      body = build_body_with_messages_and_tools(msgs, tools: tools.instrumenta_schema, reasoning:)
+      # Handle nil tools case - use empty array for instrumenta_schema
+      tools_schema = tools.respond_to?(:instrumenta_schema) ? tools.instrumenta_schema : []
+      body = build_body_with_messages_and_tools(msgs, tools: tools_schema, reasoning:)
+      puts "[ORACLE][CONDUIT][GENERATE_AI_RESPONSE]: "\
+           "#{msgs.map{ |msg| msg.transform_values{ |v| v.to_s.truncate(200) }}.inspect}, #{tools}"
+      puts "[ORACLE][CONDUIT][BODY]: model=#{body[:model]}, max_tokens=#{body[:max_tokens]}, temperature=#{body[:temperature]}"
+      puts "[ORACLE][CONDUIT][BODY_MESSAGES_COUNT]: #{body[:messages].size}"
+      puts "[ORACLE][CONDUIT][BODY_MESSAGES_FIRST]: #{body[:messages].first.transform_values{ |v| v.to_s.truncate(100) }.inspect}"
+      puts "[ORACLE][CONDUIT][BODY_MESSAGES_LAST]: #{body[:messages].last.transform_values{ |v| v.to_s.truncate(100) }.inspect}"
       post(body, reasoning ? 600 : 300)
         .then { |raw| ensure_json raw }
         .tap do |json|
@@ -183,14 +214,14 @@ class Conduit
 
 
     def extract_response_data(json, arts)
-      choice = json.safe_get('choices', [])&.first || {}
-      msg = choice.safe_get('message') || {}
-      content = msg.safe_get('content').to_s
-      tcalls = msg.safe_get('tool_calls') || []
-      arts[:reasoning_content] = msg.safe_get('reasoning_content').to_s if msg['reasoning_content']
+      choice = (json['choices'] || []).first || {}
+      msg = choice['message'] || {}
+      content = msg['content'].to_s
+      tcalls = msg['tool_calls'] || []
+      arts[:reasoning_content] = msg['reasoning_content'].to_s if msg['reasoning_content']
       [content, tcalls, arts]
     rescue StandardError => e
-      HorologiumAeternum.system_error "Failed to load config: #{e.message.truncate 100}"
+      HorologiumAeternum.system_error "Failed to extract response data: #{e.message.truncate(100)}"
       ['', [], arts]
     end
 

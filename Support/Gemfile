@@ -31,7 +31,7 @@ gem "tiktoken_ruby", "~> 0.0.9"
 
 gem "diffy", "~> 3.4"
 
-gem "htmldiff", git: "https://github.com/myobie/htmldiff.git"
+gem "htmldiff", "~> 1.0.0", git: "https://github.com/myobie/htmldiff.git"
 
 gem "dotenv", "~> 3.1"
 

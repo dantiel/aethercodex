@@ -457,7 +457,8 @@ class PrimaMateria
 
     # Log tool execution with truncated arguments to avoid bloat
     truncated_args = args.transform_values { |v| v.to_s.truncate 200 }
-    puts "[PRIMA_MATERIA][TOOL_CALL]: #{tool} with args: #{truncated_args.inspect} (timeout: #{tool_timeout})"
+    puts "[PRIMA MATERIA][HANDLE][#{tool.upcase.gsub '_', ' '}]: args: "\
+         "#{truncated_args.inspect} (timeout: #{tool_timeout})"
 
     out = if @tools.key? tool.to_sym
             HermeticExecutionDomain.execute timeout: tool_timeout do
@@ -471,11 +472,12 @@ class PrimaMateria
   rescue ArgumentError => e
     out = { error: "Bad args for #{tool}: #{e.message}", got: args }
   rescue StandardError => e
-    puts "[PRIMA_MATERIA][ERROR]: #{e.class}: #{e.message.truncate 200}"
+    puts "[PRIMA MATERIA][ERROR]: #{e.class}: #{e.message.truncate 200}"
     out = {}
   ensure
-    truncated_result = out&.transform_values { |v| v.to_s.truncate 200 }
-    puts "[PRIMA_MATERIA][TOOL_CALL][RESULT]: #{truncated_result.inspect}"
+    truncated_result = out&.transform_values { |v| v.to_s.truncate 300 }
+    puts "[PRIMA MATERIA][HANDLE][#{tool.upcase.gsub '_', ' '}][RESULT]: "\
+         "#{truncated_result.inspect}"
   end
 
 

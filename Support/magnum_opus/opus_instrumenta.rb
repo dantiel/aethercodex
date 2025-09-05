@@ -30,10 +30,24 @@ class OpusInstrumenta
                               description: 'Create a sub-task with parent task context for complex workflows.',
                               params: {
                                 title: { type: 'string', required: true, minLength: 1 },
-                                plan:  { type: 'string', required: true, minLength: 1 }
-                              } do |title:, plan:|
-      # Create sub-task with parent context
-      sub_task = task_engine.create_task(title: title, plan: plan, parent_task_id: task_id)
+                                plan:  { type: 'string', required: true, minLength: 1 },
+                                workflow_type: { type: 'string', required: false, enum: ['full', 'simple', 'analysis'], default: 'simple' }
+                              } do |title:, plan:, workflow_type: 'simple'|
+      # Create sub-task with parent context and workflow type
+      sub_task = task_engine.create_task(title: title, plan: plan, parent_task_id: task_id, workflow_type: workflow_type)
+      
+      # Store workflow type in task metadata for simplified execution
+      Mnemosyne.manage_tasks({
+        'action' => 'update',
+        'id' => sub_task['id'],
+        'workflow_type' => workflow_type,
+        'max_steps' => case workflow_type
+                      when 'simple' then 3
+                      when 'analysis' then 5
+                      else 10
+                      end
+      })
+      
       HorologiumAeternum.task_created(**sub_task)
       sub_task
     end

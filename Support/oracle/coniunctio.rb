@@ -3,6 +3,7 @@
 require 'tiktoken_ruby'
 require_relative '../mnemosyne/mnemosyne'
 require_relative '../instrumentarium/metaprogramming_utils'
+require_relative '../argonaut/argonaut'
 # TM_TAB_SIZE
 # TM_SOFT_TABS
 # TM_DISPLAYNAME
@@ -86,8 +87,7 @@ module Coniunctio
     def format_summary_entry(summary)
       {
         role:    'system',
-        content: "Summary: #{summary[:summary]}\n\nTags: #{summary[:tags]}",
-        ts:      summary[:created_at]
+        content: "Summary: #{summary[:summary]}\n\nTags: #{summary[:tags]}"
       }
     end
 

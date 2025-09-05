@@ -6,6 +6,7 @@ require 'json'
 require_relative '../instrumentarium/horologium_aeternum'
 require_relative '../oracle/aetherflux'
 require_relative 'opus_instrumenta'
+require_relative '../instrumentarium/scriptorium'
 
 
 class String
@@ -31,6 +32,10 @@ TASK_SYSTEM_PROMPT = <<~PROMPT
   - Use task-specific tools (task_read_file, task_patch_file, etc.) that automatically include task_id
   - Step management: task_reject_step(reason, restart_from_step) and task_complete_step(result)
   - Context Access: Use task_get_previous_results to access historical step outcomes
+
+  # PHASED TOOL ACCESS:
+  - Exploration (Steps 1-4): Read-only tools only (file reading, memory queries, analysis)
+  - Implementation (Steps 5-10): Full tool access including file modifications
 
   # STEP PURPOSES:
   - read_file: Read and analyze file content
@@ -775,12 +780,13 @@ class MagnumOpusEngine
 
 
   # Creates a new task with optional sub-tasks
-  def create_task(title:, plan:, parent_task_id: nil)
-    response = Mnemosyne.manage_tasks({ 'action'         => 'create',
-                                         'title'          => title,
-                                         'plan'           => plan,
-                                         'parent_task_id' => parent_task_id,
-                                         'status'         => 'pending' })
+  def create_task(title:, plan:, parent_task_id: nil, workflow_type: 'full')
+    response = Mnemosyne.manage_tasks({ action: :create,
+                                        title: title,
+                                        plan: plan,
+                                        parent_task_id: parent_task_id,
+                                        workflow_type: workflow_type,
+                                        status: :pending })
 
     unless response && response['ok']
       error_msg = "Task creation failed: #{response['error'] || 'Unknown error'}"
@@ -798,7 +804,15 @@ class MagnumOpusEngine
 
     raise TaskStateError, "Task not found: #{task_id}" unless task
 
-    log_message task_id, "Starting execution of task #{task_id} (max_loops=#{max_loops})"
+    # Determine workflow type and max steps
+    workflow_type = task[:workflow_type] || 'full'
+    max_steps = case workflow_type
+                when 'simple' then 3
+                when 'analysis' then 5
+                else WORKFLOW_STEPS
+                end
+
+    log_message task_id, "Starting execution of task #{task_id} (workflow_type=#{workflow_type}, max_steps=#{max_steps}, max_loops=#{max_loops})"
     log_message task_id, "Task status: #{task[:status]}"
 
     unless %w[pending active].include? task[:status]
@@ -824,15 +838,15 @@ class MagnumOpusEngine
       # Get current step from database to resume where we left off
       current_step = task[:current_step] || 0
       
-      # Boundary check: Ensure current_step is within valid range
-      current_step = [[current_step, 0].max, WORKFLOW_STEPS].min
+      # Boundary check: Ensure current_step is within valid range for workflow type
+      current_step = [[current_step, 0].max, max_steps].min
       
       # Execute steps using event-driven state machine
       # Only execute current step and wait for completion/rejection signals
-      while current_step < WORKFLOW_STEPS && !halted?(task_id)
+      while current_step < max_steps && !halted?(task_id)
         begin
           # Execute only the current step
-          execute_step task_id, current_step + 1
+          execute_step task_id, current_step + 1, workflow_type
           
           # Step execution should now wait for completion/rejection signals
           # from OpusInstrumenta task_complete_step/task_reject_step
@@ -844,7 +858,7 @@ class MagnumOpusEngine
           current_step = task[:current_step] || 0
           
           # Boundary check: Ensure current_step remains within valid range
-          current_step = [[current_step, 0].max, WORKFLOW_STEPS].min
+          current_step = [[current_step, 0].max, max_steps].min
           
         rescue MagnumOpusEngine::TaskStateError => e
           # Task state errors break execution loop for step rejection/retry
@@ -925,8 +939,8 @@ class MagnumOpusEngine
   # @param [Integer] task_id The task's alchemical identifier.
   # @param [Integer] step_index The phase of the magnum opus (1..10).
   # @raise [RuntimeError] If the oracle's response is invalid or times out.
-  def execute_step(task_id, step_index)
-    debug "Executing step #{step_index} for task #{task_id}"
+  def execute_step(task_id, step_index, workflow_type = 'full')
+    debug "Executing step #{step_index} for task #{task_id} (workflow_type=#{workflow_type})"
     task = Mnemosyne.get_task task_id
     unless task
       raise "Task #{task_id} not found in Mnemosyne"
@@ -943,9 +957,37 @@ class MagnumOpusEngine
                       extended_guidance = step_data[:extended_purpose] || EXTENDED_STEP_GUIDANCE[step_index] || 'No extended guidance provided.'
                       "#{step_data[:purpose]}\n\nEXTENDED PURPOSE:\n#{extended_guidance}"
                     else
+                      # Use workflow-specific step names
+                      step_name = case workflow_type
+                                 when 'simple'
+                                   case step_index
+                                   when 1 then 'Analyze: Understanding requirements and context'
+                                   when 2 then 'Implement: Executing the planned solution'
+                                   when 3 then 'Validate: Testing and confirming results'
+                                   else "Step #{step_index}"
+                                   end
+                                 when 'analysis'
+                                   case step_index
+                                   when 1 then 'Research: Gathering information and context'
+                                   when 2 then 'Plan: Developing the analysis approach'
+                                   when 3 then 'Analyze: Performing detailed examination'
+                                   when 4 then 'Synthesize: Integrating findings and insights'
+                                   when 5 then 'Report: Documenting conclusions and recommendations'
+                                   else "Step #{step_index}"
+                                   end
+                                 else # full
+                                   STEP_PURPOSES[step_index - 1]
+                                 end
                       extended_guidance = EXTENDED_STEP_GUIDANCE[step_index] || 'No extended guidance provided.'
-                      "#{STEP_PURPOSES[step_index - 1]}\n\nEXTENDED PURPOSE:\n#{extended_guidance}"
+                      "#{step_name}\n\nEXTENDED PURPOSE:\n#{extended_guidance}"
                     end
+
+    # Determine max steps based on workflow type
+    max_steps = case workflow_type
+                when 'simple' then 3
+                when 'analysis' then 5
+                else WORKFLOW_STEPS
+                end
 
     # Comprehensive system prompt with task context
     system_prompt = format TASK_SYSTEM_PROMPT, step_guidance: step_guidance
@@ -956,7 +998,8 @@ class MagnumOpusEngine
       TASK TITLE: #{task[:title] || '--'}
       TASK DESCRIPTION: #{task[:description] || '--'}
       TASK PLAN: #{task[:plan] || '--'}
-      CURRENT STEP: #{step_index}/#{WORKFLOW_STEPS}
+      WORKFLOW TYPE: #{workflow_type.upcase}
+      CURRENT STEP: #{step_index}/#{max_steps}
 
       # PREVIOUS STEP RESULTS
       #{previous_step_context}
@@ -965,13 +1008,75 @@ class MagnumOpusEngine
       #{step_guidance}
 
       # EXECUTION INSTRUCTIONS
-      - Use task-specific tools (prefixed with 'task_') for all operations
-      - After completing step actions, call task_complete_step to advance
-      - If you need to backtrack, use task_reject_step with optional restart_from_step
-      - All task tools automatically include the task_id context
-      - Use task_get_previous_results to access historical step outcomes for context continuity
+      # Step #{step_index} Phase: #{step_index <= 4 ? 'EXPLORATION (Reasoning Only)' : 'IMPLEMENTATION (Full Tool Access)'}
+      
+      #{case workflow_type
+      when 'simple'
+        if step_index <= 1
+          <<~SIMPLE_ANALYZE
+          # SIMPLE WORKFLOW - ANALYSIS PHASE
+          - You are in analysis mode for simple task execution
+          - LIMITED TOOL ACCESS: Basic reading and analysis tools only
+          - Focus on understanding requirements and planning the implementation
+          - Provide clear reasoning and implementation plan
+          - Use task_complete_step when ready to advance to implementation
+          SIMPLE_ANALYZE
+        else
+          <<~SIMPLE_IMPLEMENT
+          # SIMPLE WORKFLOW - IMPLEMENTATION PHASE
+          - You are in implementation mode for simple task execution
+          - FULL TOOL ACCESS: Use task-specific tools for execution
+          - Execute the planned solution efficiently
+          - After completing actions, call task_complete_step to advance
+          - All task tools automatically include the task_id context
+          SIMPLE_IMPLEMENT
+        end
+      when 'analysis'
+        if step_index <= 3
+          <<~ANALYSIS_RESEARCH
+          # ANALYSIS WORKFLOW - RESEARCH PHASE
+          - You are in research mode for analysis tasks
+          - LIMITED TOOL ACCESS: Reading, querying, and analysis tools only
+          - Focus on gathering information and developing analysis approach
+          - Provide comprehensive research findings and methodology
+          - Use task_complete_step when ready to advance to synthesis
+          ANALYSIS_RESEARCH
+        else
+          <<~ANALYSIS_SYNTHESIS
+          # ANALYSIS WORKFLOW - SYNTHESIS PHASE
+          - You are in synthesis mode for analysis tasks
+          - FULL TOOL ACCESS: Use tools to organize and present findings
+          - Integrate research findings into coherent conclusions
+          - Create comprehensive reports and recommendations
+          - After completing analysis, call task_complete_step to finalize
+          ANALYSIS_SYNTHESIS
+        end
+      else
+        if step_index <= 4
+          <<~EXPLORATION
+          # FULL WORKFLOW - EXPLORATION PHASE (Steps 1-4)
+          - You are in exploration mode: Nigredo (1), Albedo (2), Citrinitas (3), or Rubedo (4)
+          - NO TOOL ACCESS: You cannot use any tools during exploration phases
+          - Focus on analysis, planning, and strategic thinking only
+          - Provide comprehensive reasoning and recommendations
+          - Use task_complete_step when ready to advance to implementation
+          - Use task_reject_step if you need to refine your analysis
+          EXPLORATION
+        else
+          <<~IMPLEMENTATION
+          # FULL WORKFLOW - IMPLEMENTATION PHASE (Steps 5-10)
+          - You are in implementation mode: Solve (5), Coagula (6), Test (7-8), Validate (9), or Document (10)
+          - FULL TOOL ACCESS: Use task-specific tools for all operations
+          - Execute the planned transformations with surgical precision
+          - After completing step actions, call task_complete_step to advance
+          - If you need to backtrack, use task_reject_step with optional restart_from_step
+          - All task tools automatically include the task_id context
+          - Use task_get_previous_results to access historical step outcomes for context continuity
+          IMPLEMENTATION
+        end
+      end}
 
-      Execute the step actions based on the guidance above, building upon previous transformations.
+      Execute based on the phase guidance above, building upon previous transformations.
     PROMPT
 
     begin
@@ -988,34 +1093,113 @@ class MagnumOpusEngine
         progress: "#{step_index}/#{WORKFLOW_STEPS}"
       }
       
-      # Use divination for exploration phases, conjuration for implementation phases
-      # Exploration: Nigredo (1), Albedo (2), Citrinitas (3), Rubedo (4)
-      # Implementation: Solve (5), Coagula (6), Test (7,8), Validate (9), Document (10)
+      # Use filtered tool access by phase using Instrumenta::reject
+      # Exploration: Nigredo (1), Albedo (2), Citrinitas (3), Rubedo (4) - Read-only tools
+      # Implementation: Solve (5), Coagula (6), Test (7,8), Validate (9), Document (10) - Full tool access
       begin
         # Debug context length before making the call
         debug "PROMPT LENGTH: #{prompt.length} characters"
         debug "SYSTEM PROMPT LENGTH: #{system_prompt.length} characters"
         
-        if step_index <= 4
-          # Exploration phases - use divination for pure reasoning
-          response = Aetherflux.channel_oracle_divination(
-            {
-              prompt: prompt,
-              system: system_prompt
-            },
-            tools: create_task_tools(task_id),
-            context: context ? context.merge(reasoning_method: 'divination') : { reasoning_method: 'divination' }
-          )
+        # Determine tool access based on workflow type and step
+        case workflow_type
+        when 'simple'
+          if step_index == 1
+            # Simple workflow - Step 1 (Analyze): Read-only tools only
+            filtered_tools = Instrumenta.reject(:patch_file, :create_file, :rename_file, :remove_note, :remove_task, :create_task, :execute_task, :update_task, :evaluate_task, :list_tasks, :remove_task)
+            filtered_tools = filtered_tools.reject do |tool|
+              tool_name = tool[:name].to_s
+              tool_name.include?('create_sub_task') ||
+              tool_name.include?('task_patch') ||
+              tool_name.include?('task_create') ||
+              tool_name.include?('task_remove')
+            end
+            
+            response = Aetherflux.channel_oracle_conjuration(
+              {
+                prompt: prompt,
+                system: system_prompt
+              },
+              tools: filtered_tools,
+              context: context ? context.merge(reasoning_method: 'divination') : { reasoning_method: 'divination' }
+            )
+          else
+            # Simple workflow - Steps 2-3: Full tool access
+            response = Aetherflux.channel_oracle_conjuration(
+              {
+                prompt: prompt,
+                system: system_prompt
+              },
+              tools: create_task_tools(task_id),
+              context: context
+            )
+          end
+        when 'analysis'
+          if step_index <= 3
+            # Analysis workflow - Steps 1-3 (Research/Plan/Analyze): Read-only tools only
+            filtered_tools = Instrumenta.reject(:patch_file, :create_file, :rename_file, :remove_note, :remove_task, :create_task, :execute_task, :update_task, :evaluate_task, :list_tasks, :remove_task)
+            filtered_tools = filtered_tools.reject do |tool|
+              tool_name = tool[:name].to_s
+              tool_name.include?('create_sub_task') ||
+              tool_name.include?('task_patch') ||
+              tool_name.include?('task_create') ||
+              tool_name.include?('task_remove')
+            end
+            
+            response = Aetherflux.channel_oracle_conjuration(
+              {
+                prompt: prompt,
+                system: system_prompt
+              },
+              tools: filtered_tools,
+              context: context ? context.merge(reasoning_method: 'divination') : { reasoning_method: 'divination' }
+            )
+          else
+            # Analysis workflow - Steps 4-5 (Synthesize/Report): Full tool access
+            response = Aetherflux.channel_oracle_conjuration(
+              {
+                prompt: prompt,
+                system: system_prompt
+              },
+              tools: create_task_tools(task_id),
+              context: context
+            )
+          end
         else
-          # Implementation phases - use conjuration for tool execution
-          response = Aetherflux.channel_oracle_divination(
-            {
-              prompt: prompt,
-              system: system_prompt
-            },
-            tools: create_task_tools(task_id),
-            context: context
-          )
+          # Full workflow - Steps 1-4: Exploration, Steps 5-10: Implementation
+          if step_index <= 4
+            # Exploration phases - read-only tools only (NO task creation allowed)
+            read_only_tools = Instrumenta.reject(:patch_file, :create_file, :rename_file, :remove_note, :remove_task, :create_task, :execute_task, :update_task, :evaluate_task, :list_tasks, :remove_task)
+            
+            # Also filter out task-specific tools that allow modifications
+            filtered_tools = read_only_tools.reject do |tool|
+              tool_name = tool[:name].to_s
+              # Reject any task tools that could create sub-tasks or modify state
+              tool_name.include?('create_sub_task') ||
+              tool_name.include?('task_patch') ||
+              tool_name.include?('task_create') ||
+              tool_name.include?('task_remove')
+            end
+            
+            response = Aetherflux.channel_oracle_conjuration(
+              {
+                prompt: prompt,
+                system: system_prompt
+              },
+              tools: filtered_tools,
+              context: context ? context.merge(reasoning_method: 'divination') : { reasoning_method: 'divination' }
+            )
+          else
+            # Implementation phases - full tool access
+            response = Aetherflux.channel_oracle_conjuration(
+              {
+                prompt: prompt,
+                system: system_prompt
+              },
+              tools: create_task_tools(task_id),
+              context: context
+            )
+          end
         end
       rescue => e
         puts "DEBUG: Error calling Aetherflux.channel_oracle_divination: #{e.message}"

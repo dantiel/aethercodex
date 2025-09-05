@@ -173,10 +173,10 @@ module HorologiumAeternum
 
   def self.file_creating(path, bytes, uuid: nil)
     send_status('file_creating', {
-                 message: Scriptorium.html("✏️ Creating #{create_file_link path} (#{display_bytes bytes})"),
-                 path:    path,
-                 bytes:   bytes
-               }, uuid:)
+                  message: Scriptorium.html("✏️ Creating #{create_file_link path} (#{display_bytes bytes})"),
+                  path:    path,
+                  bytes:   bytes
+                }, uuid:)
   end
 
 
@@ -213,11 +213,13 @@ module HorologiumAeternum
   end
 
 
-  def self.file_patched_fail(path, error_message, diff_content, uuid: nil)
+  def self.file_patched_fail(path, error, diff_content, uuid: nil)
+    error_message = error[:message] || "```\n#{error}\n```"
+    error_message += "\n\n**Similarity score:** #{error[:similarity_score]}" if error[:similarity_score]
     send_status('file_patched_fail', {
                   message: Scriptorium.html("❌ Patch failed on #{create_file_link path}"),
                   path:    path,
-                  diff:    Scriptorium.html_with_syntax_highlight("```\n#{error_message}\n```\n\n```diff\n#{diff_content}\n```"),
+                  diff:    Scriptorium.html_with_syntax_highlight("#{error_message}\n\n```diff\n#{diff_content}\n```"),
                   error:   error_message
                 }, uuid:)
   end
@@ -231,15 +233,20 @@ module HorologiumAeternum
                 }, uuid:)
   end
 
+
   # Command output containing HTML is properly escaped to prevent rendering issues
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
     symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
+    
+    # Escape HTML in content to prevent UI corruption
+    escaped_content = Scriptorium.escape_html(content)
+    
     send_status('command_completed', {
                   message:       Scriptorium.html("#{symbol} Command complete: #{cmd_str} (#{output_length} chars output)"),
                   command:       cmd,
                   output_length: output_length,
-                  content:       content
+                  content:       escaped_content
                 }, uuid:)
   end
 
@@ -567,9 +574,13 @@ module HorologiumAeternum
   end
 
 
-  def self.system_error(message, error = 'System Error', uuid: nil)
+  def self.system_error(error, message: nil, backtrace: nil, uuid: nil)
+    error, message = ['System Error', error] if message.nil?
+    message = "`#{message}`" if message
+    backtrace = "\n\nBacktrace: #{backtrace}" if backtrace
     send_status('system_error', {
-                  error: Scriptorium.html("❌ #{message}: `#{error}`")
+                  error: Scriptorium.html("❌ #{error}#{': ' if message || backtrace}" \
+                                          "#{message}#{backtrace}")
                 }, uuid:)
   end
 
