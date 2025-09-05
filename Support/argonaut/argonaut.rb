@@ -6,6 +6,7 @@ require_relative '../mnemosyne/mnemosyne'
 require_relative '../instrumentarium/diff_crepusculum'
 require_relative 'simple_scopes'
 require_relative 'aether_scopes_enhanced'
+require_relative 'aether_scopes_hierarchical'
 
 
 
@@ -174,7 +175,7 @@ class Argonaut
     # Add enhanced symbolic structural overview using AetherScopesEnhanced
     symbolic_overview = if File.exist?(fullpath) && File.readable?(fullpath)
       begin
-        AetherScopesEnhanced.for_file_overview(fullpath, max_notes: max_notes, max_content_length: max_content_length)
+        AetherScopesHierarchical.for_file_overview(fullpath, max_notes: max_notes, max_content_length: max_content_length)
       rescue => e
         { error: "Enhanced symbolic parsing failed: #{e.message}" }
       end
