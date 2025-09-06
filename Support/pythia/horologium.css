@@ -1,0 +1,224 @@
+/* Horologium - Hierarchical File Overview Styles */
+/* Uses only colors from glyphs.css for consistency */
+
+.horologium-header {
+  background: linear-gradient(135deg, var(--argonaut-cosmic) 0%, var(--argonaut-mystic) 100%);
+  color: var(--ethereal-white);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.language-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--ethereal-white);
+}
+
+.line-count, .file-size {
+  opacity: 0.9;
+  font-size: 0.9em;
+  color: var(--argonaut-steel);
+}
+
+.horologium-structure {
+  background: rgba(0, 12, 22, 0.4);
+  border: 1px solid var(--argonaut-cosmic);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.structure-header {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--argonaut-shadow);
+}
+
+.structure-header h3 {
+  margin: 0;
+  color: var(--argonaut-azure);
+  font-size: 1.2em;
+}
+
+.structure-summary {
+  color: var(--argonaut-shadow);
+  font-size: 0.9em;
+}
+
+.hierarchy-tree {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+.tree-item {
+  margin: 0.25rem 0;
+}
+
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--argonaut-steel);
+}
+
+.tree-node:hover {
+  background: rgba(0, 166, 255, 0.1);
+  transform: translateX(2px);
+}
+
+.tree-icon {
+  font-size: 1.1em;
+  width: 1.5em;
+  text-align: center;
+}
+
+.tree-name {
+  font-weight: 600;
+  color: var(--argonaut-steel);
+}
+
+.tree-line {
+  color: var(--argonaut-shadow);
+  font-size: 0.85em;
+  margin-left: auto;
+}
+
+.no-hierarchy {
+  color: var(--argonaut-shadow);
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+}
+
+.imports-exports {
+  background: rgba(255, 206, 0, 0.1);
+  border: 1px solid var(--argonaut-amber);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.imports-exports h3 {
+  margin: 0 0 1rem 0;
+  color: var(--argonaut-amber);
+  font-size: 1.1em;
+}
+
+.imports-exports h4 {
+  margin: 0.5rem 0;
+  color: var(--argonaut-amber);
+  font-size: 1em;
+}
+
+.imports-exports ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--argonaut-amber);
+}
+
+.imports-exports li {
+  margin: 0.25rem 0;
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.none {
+  color: var(--argonaut-shadow);
+  font-style: italic;
+}
+
+.navigation-hints {
+  background: rgba(0, 166, 255, 0.1);
+  border: 1px solid var(--argonaut-azure);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.navigation-hints h3 {
+  margin: 0 0 1rem 0;
+  color: var(--argonaut-azure);
+  font-size: 1.1em;
+}
+
+.hints-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.5rem;
+}
+
+.hint-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.hint-line {
+  background: var(--argonaut-azure);
+  color: var(--ethereal-white);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 0.8em;
+  min-width: 2.5em;
+  text-align: center;
+}
+
+.hint-text {
+  color: var(--argonaut-steel);
+  flex: 1;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .file-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .hints-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .structure-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+.label {
+    background: var(--argonaut-shadow);
+    border-radius: 0.3em;
+    padding: 0.2em 0.5em;
+    font-size: 0.8em;
+    color: var(--ethereal-white);
+}
+.line {
+    opacity: 0.5;
+    font-size: 0.8em;
+    color: var(--argonaut-shadow);
+}

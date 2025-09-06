@@ -195,7 +195,9 @@ module HorologiumAeternum
     send_status('file_patching', {
                   message:    Scriptorium.html("🔧 Applying patch to #{create_file_link path} (#{diff_lines} diff lines)"),
                   path:       path,
-                  diff:       Scriptorium.html_with_syntax_highlight("```diff\n#{diff_content}\n```"),
+                  diff:       Scriptorium.html_with_syntax_highlight(
+                    "```diff\n#{diff_content}\n```"
+                  ),
                   expandable: true
                 }, uuid:)
   end
@@ -214,8 +216,21 @@ module HorologiumAeternum
 
 
   def self.file_patched_fail(path, error, diff_content, uuid: nil)
-    error_message = error[:message] || "```\n#{error}\n```"
-    error_message += "\n\n**Similarity score:** #{error[:similarity_score]}" if error[:similarity_score]
+    render_error = -> (err) {
+      msg = err[:message] || err[:error]
+      if err[:similarity_score]
+        msg += "\n\n**Similarity score:** #{err[:similarity_score]}"
+      end
+      msg
+    }
+
+    error_message = if error.is_a? Hash
+      render_error error
+    elsif error.is_a? Array
+      "\n" + (error.map{ |err| "* #{render_error err}" }.join "\n") + "\n"
+    else
+      "```\n#{error}\n```"
+    end
     send_status('file_patched_fail', {
                   message: Scriptorium.html("❌ Patch failed on #{create_file_link path}"),
                   path:    path,
@@ -238,10 +253,10 @@ module HorologiumAeternum
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
     symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
-    
+
     # Escape HTML in content to prevent UI corruption
-    escaped_content = Scriptorium.escape_html(content)
-    
+    escaped_content = Scriptorium.escape_html content
+
     send_status('command_completed', {
                   message:       Scriptorium.html("#{symbol} Command complete: #{cmd_str} (#{output_length} chars output)"),
                   command:       cmd,
@@ -521,14 +536,32 @@ module HorologiumAeternum
                          'No symbolic data available'
                        end
 
-    # Format navigation hints
+    # Format navigation hints - handle both old hash format and new array format
     navigation_hints = if symbolic_data[:navigation_hints] && !symbolic_data[:navigation_hints].empty?
                          "\n\n### Navigation Hints:\n" +
-                           symbolic_data[:navigation_hints].map do |line, hints|
-                             "- **Line #{line}:** #{hints.join ', '}"
-                           end.join("\n")
+                           if symbolic_data[:navigation_hints].is_a? Hash
+                             # Old format: { "10" => ["method: test", "require -> json"] }
+                             symbolic_data[:navigation_hints].map do |line, hints|
+                               "- **Line #{line}:** #{hints.join ', '}"
+                             end.join("\n")
+                           else
+                             # New format: [{ line: 10, description: "Navigate to method test" }, ...]
+                             # Group by line number for cleaner display
+                             hints_by_line = symbolic_data[:navigation_hints].group_by do |h|
+                               h[:line]
+                             end
+                             hints_by_line.map do |line, line_hints|
+                               descriptions = line_hints.map { |h| h[:description] }
+                               "- **Line #{line}:** #{descriptions.join ', '}"
+                             end.join("\n")
+                           end
+                       elsif symbolic_data[:navigation_hints].nil?
+                         # Debug: check what we actually have
+                         "\n\n### Navigation Hints: (nil)\n"
+                       elsif symbolic_data[:navigation_hints].empty?
+                         "\n\n### Navigation Hints: (empty)\n"
                        else
-                         ''
+                         "\n\n### Navigation Hints: (unknown format)\n"
                        end
 
     content = <<~MARKDOWN
@@ -549,8 +582,10 @@ module HorologiumAeternum
       message:        Scriptorium.html("🔍 Overview: #{create_file_link path}"),
       content:        Scriptorium.html_with_syntax_highlight(content),
       symbolic_data:  symbolic_data,
-      notes_metadata: notes_metadata
-    }, uuid:
+      notes_metadata: notes_metadata,
+      data:           result, 
+      uuid:
+    }
   end
 
 
@@ -575,9 +610,21 @@ module HorologiumAeternum
 
 
   def self.system_error(error, message: nil, backtrace: nil, uuid: nil)
-    error, message = ['System Error', error] if message.nil?
+    if message.nil?
+      message = error
+      error = 'System Error'
+    end
     message = "`#{message}`" if message
-    backtrace = "\n\nBacktrace: #{backtrace}" if backtrace
+    if backtrace
+      puts "[HOROLOGIUM][SYSTEM ERROR] #{message} backtrace=#{backtrace}"
+      backtrace = backtrace.lines.map do |line|
+        line.gsub %r{((?:/[^/:]+/)+):([0-9]+)in `(\w+)'} do
+          matches = Regexp.last_match
+          "* #{create_file_link matches[1], nil, matches[2]} in `#{matches[3]}`"
+        end
+      end.join "\n"
+      backtrace = "\n\n**Backtrace:**\n\n#{backtrace}"
+    end
     send_status('system_error', {
                   error: Scriptorium.html("❌ #{error}#{': ' if message || backtrace}" \
                                           "#{message}#{backtrace}")

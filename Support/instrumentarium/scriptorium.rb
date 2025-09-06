@@ -178,6 +178,6 @@ module Scriptorium
     original_content = original_lines ? original_lines.join : ''
     modified_content = modified_lines ? modified_lines.join : ''
 
-    HTMLDiff.diff original_content, modified_content, html_format: { class: 'diff' }
+    HTMLDiff.diff escape_html(original_content), escape_html(modified_content), html_format: { class: 'diff' }
   end
 end

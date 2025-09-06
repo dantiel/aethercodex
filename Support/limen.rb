@@ -74,7 +74,7 @@ end
 
 
 get '/ws' do
-  puts '[WS] try open'
+  puts '[LIMEN][WS]: try open'
 
   last_pong = Time.now
   ws = Faye::WebSocket.new request.env
@@ -82,7 +82,7 @@ get '/ws' do
 
   if defined? EventMachine
     ping_timer = EventMachine.add_periodic_timer 20 do
-      warn '💓->'
+      warn '[LIMEN][WS]: 💓->'
       ws&.send '💓'
     end
   end
@@ -92,14 +92,14 @@ get '/ws' do
   end
 
   ws.on :open do |_e|
-    warn '[WS] open'
-    warn "[WS] open #{ENV.fetch 'TM_PROJECT_DIRECTORY', nil}"
+    warn '[LIMEN][WS]: open'
+    warn "[LIMEN][WS]: open #{ENV.fetch 'TM_PROJECT_DIRECTORY', nil}"
     last_pong = Time.now
   end
 
   ws.on :error do |event|
     HorologiumAeternum.server_error event.message
-    warn "[WS] error #{event.message}"
+    warn "[LIMEN][WS]: error #{event.message}"
     ws&.close
     ws = nil
   end
@@ -108,7 +108,7 @@ get '/ws' do
     begin
       case event.data
       when '💓'
-        warn 'ping received'
+        warn '[LIMEN][WS]: ping received'
         last_pong = Time.now
       else
         req = JSON.parse event.data
@@ -118,20 +118,19 @@ get '/ws' do
         when 'askAI'
           startThinkingThread ws, req
         when 'stopThinking'
-          warn 'stopThinking'
           stopThinkingThread true
         end
       end
     rescue StandardError => e
-      warn "[WS][ERROR] #{e.inspect}"
+      warn "[LIMEN][WS][ERROR]: #{e.inspect}"
       ws.send({ method: 'error', result: { error: e.message, backtrace: e.backtrace } }.to_json)
     end
 
-    warn '[WS] message done'
+    warn '[LIMEN][WS]: message done'
   end
 
   ws.on :close do |event|
-    warn "[WS] closed code=#{event.code} reason=#{event.reason}"
+    warn "[LIMEN][WS]: closed code=#{event.code} reason=#{event.reason}"
     EventMachine.cancel_timer ping_timer if ping_timer
     EventMachine.cancel_timer timeout_timer if timeout_timer
     HorologiumAeternum.set_websocket nil
@@ -146,7 +145,7 @@ def startThinkingThread(ws, req)
   stopThinkingThread if @ask_thread
 
   @ask_thread = Thread.new do
-    warn "[WS] message: #{req['params'].inspect}"
+    warn "[LIMEN][WS]: message: #{req['params'].inspect}"
     
     res = Aetherflux.channel_oracle_divination( req['params'].transform_keys!(&:to_sym), tools: Instrumenta)
     raise res[:error] if 'error' == res[:result]
@@ -154,7 +153,7 @@ def startThinkingThread(ws, req)
     # warn "[WS][DEBUG] #{res.inspect}"
     ws.send res.to_json
   rescue StandardError => e
-    warn "[WS][THREAD][ERROR]#{e.inspect}"
+    warn "[LIMEN][WS][THREAD][ERROR]: #{e.inspect}"
     ws.send({ method: 'error', result: { error: e.message, backtrace: e.backtrace } }.to_json)
   end
 end
@@ -163,7 +162,7 @@ end
 def stopThinkingThread(send_msg = false)
   return if @ask_thread.nil?
 
-  warn 'Thinking cancelled.'
+  warn '[LIMEN]: Thinking cancelled.'
   HorologiumAeternum.system_message 'Thinking cancelled.' if send_msg
   @ask_thread.kill
   @ask_thread = nil
@@ -172,18 +171,22 @@ end
 
 # ---- Core dispatcher ----
 def handle_request(req)
-  puts "handle_request #{req.inspect}"
-  case req['method']
-  when 'askAI'      then do_ask req['params']
-  when 'attach'     then do_attach req['params']
-  when 'tool'       then do_tool req['params']
-  when 'complete'   then do_complete req['params']
-  when 'manageTask' then do_tasks req['params']
-  when 'readFile'   then do_read req['params']
-  when 'patchFile'  then do_patch req['params']
-  when 'runCommand' then do_run req['params']
-  when 'error'      then { method: 'error', result: { error: 'Internal server error' } }
-  else { method: 'error', result: { error: "Unknown method: #{req['method']}" } }
+  req = req.deep_symbolize_keys
+  puts "[LIMEN][HANDLE_REQUEST]: #{req.inspect}"
+  case req[:method].to_sym
+  when :askAI      then do_ask req[:params]
+  when :attach     then do_attach req[:params]
+  when :tool       then do_tool req[:params]
+  when :complete   then do_complete req[:params]
+  when :manageTask then do_tasks req[:params]
+  when :readFile   then do_read req[:params]
+  when :patchFile  then do_patch req[:params]
+  when :runCommand then do_run req[:params]
+  when :error      then { method: 'error', result: { error: 'Internal server error' } }
+  else 
+    error = "Unknown method: #{req[:method]}"
+    puts "[LIMEN][HANDLE_REQUEST][ERROR]: #{error}. #{req.inspect}"
+    { method: 'error', result: { error: } }
   end
 end
 
@@ -232,15 +235,14 @@ def do_ask(p)
 end
 
 
-def do_tool(p)
-  result = PrimaMateria.handle p
+def do_tool(tool_data)
+  result = Instrumenta.handle **tool_data
   { method: 'toolResult', result: result }
 end
 
 
-def do_attach(p)
-  puts "handle attachments #{p.inspect}"
-  attachment_data = p.transform_keys!(&:to_sym)
+def do_attach(attachment_data)
+  puts "handle attachments #{attachment_data.inspect}"
   file = Argonaut.relative_path attachment_data[:file]
   puts "Argonaut.relative_path #{file}"
   file_content = if file and !attachment_data[:selection]

@@ -1,12 +1,12 @@
 /* Enhanced real-time status styling with subtle animations */
 
 .status {
-  background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(79, 70, 229, 0.1));
-  border-left: 3px solid #9333ea;
+  background: linear-gradient(135deg, rgba(100, 151, 197, 0.1), rgba(79, 70, 229, 0.1));
+  border-left: 3px solid var(--argonaut-mystic);
   padding: 8px 12px;
   margin: 4px 0;
   border-radius: 0 8px 8px 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
   font-size: 0.9em;
   position: relative;
   overflow: hidden;
@@ -26,14 +26,8 @@ body.fancy-animations .status::before {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(100, 151, 197, 0.3), transparent);
   animation: statusPulse 2s ease-in-out infinite;
-}
-
-
-@keyframes statusPulse {
-  0% { left: -100%; }
-  100% { left: 100%; }
 }
 
 
@@ -45,15 +39,22 @@ body.fancy-animations .status::before {
 
 .status code {
   transition: all 0.2s ease;
+  background: rgba(100, 151, 197, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--ethereal-white);
+}
+.status code {
+  transition: all 0.2s ease;
   background: rgba(147, 51, 234, 0.2);
   padding: 2px 6px;
   border-radius: 4px;
-  color: #f3e8ff;
+  color: var(--ethereal-white);
   font-weight: bold;
 }
 
 .status code:hover {
-  background: rgba(147, 51, 234, 0.4);
+  background: rgba(100, 151, 197, 0.4);
 }
 
 .status summary code {
@@ -98,7 +99,7 @@ body.fancy-animations .status::before {
   background: rgba(20, 20, 20, 0.7);
   position: relative;
   margin-bottom: 1rem;
-  color: white;
+  color: var(--ethereal-white);
   max-height: 17em;
   transition: all 0.3s ease;
 }
@@ -106,7 +107,7 @@ body.fancy-animations .status::before {
 
 /* Tool arguments display */
 .status .tool-args {
-  color: #c4b5fd;
+  color: var(--argonaut-ethereal);
   font-style: italic;
   transition: color 0.2s ease;
   margin-left: 20px;
@@ -128,28 +129,171 @@ body.fancy-animations .status::before {
 
 /* Tool execution status colors */
 .status:has-text("⚡") {
-  border-left-color: #f59e0b;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
+  border-left-color: var(--argonaut-amber);
+  background: linear-gradient(135deg, rgba(255, 206, 0, 0.1), rgba(217, 119, 6, 0.1));
 }
 
 
 
 .status:has-text("✅") {
-  border-left-color: #10b981;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+  border-left-color: var(--argonaut-emerald);
+  background: linear-gradient(135deg, rgba(6, 150, 14, 0.1), rgba(5, 150, 105, 0.1));
 }
 
 
 
 .status:has-text("❌") {
-  border-left-color: #ef4444;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+  border-left-color: var(--argonaut-crimson);
+  background: linear-gradient(135deg, rgba(219, 0, 28, 0.1), rgba(220, 38, 38, 0.1));
 }
 
 
 
 .status:has-text("🎯") {
-  border-left-color: #06b6d4;
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(8, 145, 178, 0.1));
+  border-left-color: var(--argonaut-azure);
+  background: linear-gradient(135deg, rgba(0, 166, 255, 0.1), rgba(8, 145, 178, 0.1));
   font-weight: bold;
+}
+
+/* File overview status styling */
+.file-overview-status {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  line-height: 1.4;
+  background: rgba(0, 12, 22, 0.05);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  border: 1px solid rgba(100, 151, 197, 0.1);
+}
+
+.file-overview-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(100, 151, 197, 0.2);
+}
+
+.language-badge {
+  background: linear-gradient(135deg, var(--argonaut-mystic), var(--argonaut-sage));
+  color: var(--ethereal-white);
+  padding: 0.3rem 0.8rem;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 0.8em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.line-count, .file-size {
+  color: var(--argonaut-shadow);
+  font-size: 0.85em;
+  opacity: 0.9;
+  background: rgba(100, 151, 197, 0.1);
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+}
+
+.structure-summary {
+  color: var(--argonaut-shadow);
+  font-size: 0.85em;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+}
+
+.hierarchy-preview,
+.imports-exports-preview,
+.notes-preview {
+  margin-top: 0.75rem;
+  border-top: 1px solid rgba(100, 151, 197, 0.1);
+  padding-top: 0.75rem;
+}
+
+.hierarchy-preview summary,
+.imports-exports-preview summary,
+.notes-preview summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--argonaut-mystic);
+  margin-bottom: 0.5rem;
+}
+
+.hierarchy-preview-item {
+  font-family: var(--mono);
+  font-size: 0.8em;
+  line-height: 1.6;
+  color: var(--argonaut-steel);
+  margin: 0.2rem 0;
+  padding-left: 1rem;
+  border-left: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.hierarchy-preview-item:hover {
+  color: var(--argonaut-mystic);
+  border-left-color: rgba(100, 151, 197, 0.3);
+  background: rgba(100, 151, 197, 0.05);
+}
+
+.line-number {
+  color: var(--argonaut-shadow);
+  font-size: 0.75em;
+  margin-left: 0.5rem;
+}
+
+.scope {
+  color: var(--argonaut-shadow);
+  font-size: 0.7em;
+  background: rgba(96, 110, 126, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.3rem;
+}
+
+.imports-exports-list {
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.imports-exports-list div {
+  margin: 0.3rem 0;
+  padding-left: 1rem;
+}
+
+.notes-list {
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.note-item {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: rgba(100, 151, 197, 0.05);
+  border-radius: 6px;
+  border-left: 3px solid rgba(100, 151, 197, 0.3);
+}
+
+.note-item strong {
+  color: var(--argonaut-mystic);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+/* Responsive design for file overview */
+@media (max-width: 768px) {
+  .file-overview-header {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .hierarchy-preview-item {
+    font-size: 0.75em;
+  }
+  
+  .file-overview-status {
+    padding: 0.75rem;
+  }
 }

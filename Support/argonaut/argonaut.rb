@@ -70,7 +70,7 @@ class Argonaut
   # patch as unified diff string
   def self.patch(path, patch_text)
     base = project_root
-    full = File.join(base, path)
+    full = File.join base, path
     
     # Read the original content
     original_content = File.read full
@@ -99,20 +99,20 @@ class Argonaut
     root = ENV['TM_PROJECT_DIRECTORY'] || ENV['TM_DIRECTORY'] || Dir.pwd
     
     if root && File.file?(root)
-      root = File.dirname(root)
+      root = File.dirname root
     end
     
     root
   end
 
 
-  def self.includeFiles
+  def self.include_files
     ["*", ".tm_properties", ".htaccess"] +
     (`#{ENV['TM_QUERY']}`.scan(/includeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' })
   end
 
 
-  def self.excludeFiles
+  def self.exclude_files
     ["*.{o", "pyc"] +
     `#{ENV['TM_QUERY']}`.scan(/excludeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
   end
@@ -125,8 +125,8 @@ class Argonaut
 
   def self.list_project_files
     root = project_root
-    includes = includeFiles
-    excludes = excludeFiles
+    includes = include_files
+    excludes = exclude_files
 
     if ENV['TM_DEBUG_PATHS']
       puts "list_project_files"
@@ -145,7 +145,7 @@ class Argonaut
   end
   
   
-  def self.file_overview(path:, max_notes: 3, max_content_length: 150)
+  def self.file_overview(path:, max_notes: 3, max_content_length: 555, max_depth: nil)
     fullpath = File.join(project_root, path)
     
     # Get notes count and tags only - no full content to prevent context bloat
@@ -174,12 +174,18 @@ class Argonaut
 
     # Add enhanced symbolic structural overview using AetherScopesEnhanced
     symbolic_overview = if File.exist?(fullpath) && File.readable?(fullpath)
+      puts "DEBUG: File exists and is readable: #{fullpath}"
       begin
-        AetherScopesHierarchical.for_file_overview(fullpath, max_notes: max_notes, max_content_length: max_content_length)
+        puts "DEBUG: Calling AetherScopesHierarchical.for_file_overview with max_depth: #{max_depth}"
+        result = AetherScopesHierarchical.for_file_overview(fullpath, max_notes: max_notes, max_content_length: max_content_length, max_depth: max_depth)
+        puts "DEBUG: AetherScopesHierarchical.for_file_overview returned: #{result.inspect}"
+        result
       rescue => e
+        puts "DEBUG: AetherScopesHierarchical.for_file_overview failed: #{e.message}"
         { error: "Enhanced symbolic parsing failed: #{e.message}" }
       end
     else
+      puts "DEBUG: File does not exist or is not readable: #{fullpath}"
       { error: "File not readable" }
     end
 

@@ -259,6 +259,7 @@ instrument :tell_user,
 end
 
 
+# TODO match by ID, so it can be easily accessed from file_overview tool
 instrument :recall_notes,
            description: 'Recall notes from Mnemosyne by tags, content or context. ' \
                         'Uses fuzzy matching with enhanced scoring: content (4x), ' \
@@ -267,7 +268,7 @@ instrument :recall_notes,
                      limit: { type: Integer, required: false, default: 3 } },
            returns: { notes: Array, error: String } do |query: '', limit: 7|
   # Use optimized parameters to prevent context bloat
-  result = { notes: Mnemosyne.recall_notes(query, limit: limit, max_content_length: 150) }
+  result = { notes: Mnemosyne.recall_notes(query, limit: limit, max_content_length: 555) }
   HorologiumAeternum.notes_recalled query, limit, result[:notes]
   result
 rescue StandardError => e
@@ -286,7 +287,7 @@ instrument :file_overview,
   path = Argonaut.relative_path path
 
   # Use optimized parameters to prevent context bloat
-  results = Argonaut.file_overview(path: path, max_notes: 3, max_content_length: 50)
+  results = Argonaut.file_overview(path: path, max_notes: 3, max_content_length: 333)
   raise results[:error] unless results[:error].nil?
 
   HorologiumAeternum.file_overview path, results

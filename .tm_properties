@@ -1,8 +1,13 @@
 # Settings
 
 projectDirectory      = "$CWD"
-# windowTitle         = "$TM_DISPLAYNAME — ${CWD/^.*\///}"
-spellingLanguage = "en_GB"
+windowTitle           = "$TM_DISPLAYNAME — ÆTHER CODEX::${TM_DIRECTORY/(?x:$TM_PROJECT_DIRECTORY/)/}"
+# windowTitle           = '${TM_DISPLAYNAME:+${TM_DISPLAYNAME}} — ÆTHER CODEX ${TM_DIRECTORY:+:: ${TM_DIRECTORY/^${projectDirectory}(?:\\/(.+))?/$1/}}'
+
+windowTitleProjectRelative = '${TM_DIRECTORY/^${projectDirectory}\/?(.+)/ :: $1/}'
+windowTitle = '${TM_DISPLAYNAME:+${TM_DISPLAYNAME}} — ÆTHER CODEX${windowTitleProjectRelative/^${projectDirectory}\/?/$1/}'
+
+spellingLanguage      = "en_GB"
 
 
 # Includes

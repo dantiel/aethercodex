@@ -61,7 +61,7 @@ metaprogramming: Use judicious metaprogramming for DSL creation and pattern abst
 -Use Rubocop to improve code quality. run (global) from root dir, not from support dir: `rubocop <file>`
 	
 
-**NOTICE: when making code changes on the running environment the modules and classes are not automatically reloaded, hence when you change this code the user must restart it manually for the change to take effect**
+**NOTICE: when making code changes on the running environment the modules and classes are not automatically reloaded, hence when you change this code the user must restart the system manually for the changes to take effect**
 
 ## GEM MANAGEMENT
 - Gemfile: `Support/Gemfile`

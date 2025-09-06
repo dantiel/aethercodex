@@ -18,6 +18,11 @@
 ✔︎ Allow Safe Commands @done(27-07-2025 19:12)
 ✔︎ replace pygments by rouge @done(29-07-2025 23:52)
 ◯ add instrument: temp_create_file. this action creates a file for use as a temporary script or utility that isnt supposed to be part of the project but for the ai handling. it will be automatically cleaned up after termination or request.
+◯ when the max tool calls commands are exceeded, instead of finishing the call, make a button that requires proceed so its not disrupted.
+◯ make a (very short) overview  about last tools calls
+◯ add a button to "pause" the current execution rather than stopping it, in in this state some arbitrary information and hints and additional requirements may be added by the user as prompt.
+◯ stop button should also log the current output to history.
+◯ allow edit of previous message to create new prompt and history starting point
 
 ### 🌐 UI & INTEGRATION
 ✔︎ TextMate Integration @done(09-08-2025 13:51)

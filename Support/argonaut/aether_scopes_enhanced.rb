@@ -133,7 +133,7 @@ module AetherScopesEnhanced
   end
 
   # Integration with file_overview tool - optimized for minimal context usage
-  def self.for_file_overview file_path, max_notes: 3, max_content_length: 150
+  def self.for_file_overview file_path, max_notes: 3, max_content_length: 555
     overview = structural_overview file_path
     
     # Get notes based on structural symbols and cross-references
