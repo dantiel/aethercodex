@@ -3,13 +3,12 @@
 require 'socket'
 require 'json'
 require 'fileutils'
+require_relative 'config'
 
 SUPPORT = File.expand_path(__dir__)
-CFG = begin
-  require 'yaml'; YAML.load_file(File.join(SUPPORT, '.aethercodex'))
-rescue; {}; end
 
-DEFAULT_PORT = (CFG['port'] || 4567).to_i
+
+DEFAULT_PORT = (CONFIG::CFG['port'] || 4567).to_i
 PIDFILE  = File.expand_path('../.tm-ai/limen.pid', __dir__)
 FileUtils.mkdir_p(File.dirname(PIDFILE))
 # puts "PIDFILE=#{PIDFILE}"

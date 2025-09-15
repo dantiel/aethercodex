@@ -2,6 +2,7 @@
 
 require_relative '../argonaut/aether_scopes'
 require_relative 'scriptorium'
+require_relative 'metaprogramming_utils'
 
 
 
@@ -216,21 +217,21 @@ module HorologiumAeternum
 
 
   def self.file_patched_fail(path, error, diff_content, uuid: nil)
-    render_error = -> (err) {
-      msg = err[:message] || err[:error]
-      if err[:similarity_score]
-        msg += "\n\n**Similarity score:** #{err[:similarity_score]}"
-      end
+    render_error = lambda { |err|
+      msg = err[:message] || err[:error] || err.inspect
+      msg += "\n\n**Similarity score:** #{err[:similarity_score]}" if err[:similarity_score]
       msg
     }
 
+
     error_message = if error.is_a? Hash
-      render_error error
-    elsif error.is_a? Array
-      "\n" + (error.map{ |err| "* #{render_error err}" }.join "\n") + "\n"
-    else
-      "```\n#{error}\n```"
-    end
+                      error = error.deep_symbolize_keys
+                      render_error.call error
+                    elsif error.is_a? Array
+                      "\n" + (error.map { |err| "* #{render_error.call err}" }.join "\n") + "\n"
+                    else
+                      "```\n#{error}\n```"
+                    end
     send_status('file_patched_fail', {
                   message: Scriptorium.html("❌ Patch failed on #{create_file_link path}"),
                   path:    path,
@@ -276,18 +277,6 @@ module HorologiumAeternum
   end
 
 
-  # Task lifecycle events
-  def self.task_updated(uuid: nil, **task)
-    puts "task_updated #{task.inspect}"
-    progress = (task[:current_step] || 0) + 1
-    max_steps = 10
-    send_status('task_updated', {
-                  message: Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
-                  **task
-                }, uuid:)
-  end
-
-
   def self.task_log_added(task_id, timestamp:, message:, uuid: nil)
     send_status('task_log_added', {
                   message:   Scriptorium.html('📝 Task log updated'),
@@ -309,6 +298,7 @@ module HorologiumAeternum
   def self.task_started(uuid: nil, **task)
     max_steps = 10
     title = task[:title]
+    task = render_task_fields task
     send_status('task_started', {
                   message: Scriptorium.html("📦 Task started: **#{title}** (0/#{max_steps})"),
                   **task
@@ -319,26 +309,100 @@ module HorologiumAeternum
   def self.task_created(uuid: nil, **task)
     max_steps = 10
     title = task[:title]
+    plan = task[:plan] || ''
+    task = render_task_fields task
+
     send_status('task_created', {
                   message: Scriptorium.html("📋 Task created: **#{title} ##{task[:id]}**"),
-                  **task,
-                  plan:    Scriptorium.html_with_syntax_highlight(task[:plan])
-                }, uuid:)
-  end
-
-
-  def self.task_updated(uuid: nil, **task)
-    puts "task_updated #{task.inspect}"
-    progress = task[:current_step] || 0
-    max_steps = 10
-    send_status('task_updated', {
-                  message: Scriptorium.html("🔄 Task progress: #{progress}/#{max_steps}"),
                   **task
                 }, uuid:)
   end
 
 
+  def self.task_updated(uuid: nil, show_progress: false, **task)
+    puts "task_updated #{task.inspect.truncate 300}"
+    progress = task[:current_step] || 0
+    max_steps = 10
+    workflow_type = task[:workflow_type] || 'full'
+
+    # Get proper stage name based on workflow type
+    stage_name = Mnemosyne.step_name workflow_type, progress + 0
+
+    task = render_task_fields task
+    send_status('task_updated', {
+                  message:       Scriptorium.html("🔄 Task progress: **#{stage_name}** (#{progress + 0}/#{max_steps})"),
+                  **task,
+                  show_progress:
+                }, uuid:)
+  end
+
+
+  def self.task_step_completed(result:, uuid: nil, **task)
+    progress = task[:current_step] || 0
+    max_steps = 10
+    workflow_type = task[:workflow_type] || 'full'
+
+    # Get proper stage name based on workflow type
+    stage_name = Mnemosyne.step_name workflow_type, progress + 0
+
+    # Extract step result if available
+    task = render_task_fields task
+    send_status('task_step_completed', {
+                  message: Scriptorium.html("✅ Step completed: **#{stage_name}** (#{progress}/#{max_steps})"),
+                  result:  Scriptorium.html_with_syntax_highlight(result),
+                  **task
+                }, uuid:)
+  end
+
+
+  def self.task_step_rejected(reason:, uuid: nil, **task)
+    progress = task[:current_step] || 0
+    max_steps = 10
+    workflow_type = task[:workflow_type] || 'full'
+
+    # Get proper stage name based on workflow type
+    stage_name = Mnemosyne.step_name workflow_type, progress + 0
+
+    # Extract rejection reason if available
+    task = render_task_fields task
+    send_status('task_step_rejected', {
+                  message: Scriptorium.html("🔄 Step rejected: **#{stage_name}** (#{progress}/#{max_steps})"),
+                  reason:  Scriptorium.html_with_syntax_highlight(reason),
+                  **task
+                }, uuid:)
+  end
+
+
+  def self.render_task_fields(task)
+    unless task[:logs].nil?
+      logs = if task[:logs].is_a? String
+               JSON.parse task[:logs]
+             else
+               task[:logs]
+             end
+      task = task.merge logs: logs.map do |log|
+        Scriptorium.html_with_syntax_highlight log
+      end
+    end
+    unless task[:step_results].nil?
+      step_results = if task[:step_results].is_a? String
+                       JSON.parse task[:step_results]
+                     else
+                       task[:step_results]
+                     end
+      task = task.merge step_results: step_results.map do |step_result|
+        Scriptorium.html_with_syntax_highlight step_result
+      end
+    end
+    unless task[:plan].nil?
+      task = task.merge plan: Scriptorium.html_with_syntax_highlight(task[:plan])
+    end
+    task
+  end
+
+
   def self.task_completed(duration, uuid: nil, **task)
+    task = render_task_fields task
     send_status('task_completed', {
                   message:  Scriptorium.html("✅ Task completed: #{task[:title]} (#{duration.round 2}s)"),
                   **task,
@@ -397,9 +461,10 @@ module HorologiumAeternum
   def self.aegis_unveiled(tags, summary, temperature, notes, uuid: nil)
     temperature = if temperature then "\n\nTemperature #{temperature}" else '' end
     notes = "\n\n**Notes:**\n\n#{render_notes notes}"
+    content = [summary, temperature, notes].join
     send_status('aegis_unveiled', {
-                  message: Scriptorium.html("🔮 Aegis unveiled: `#{tags.join ', '}`"),
-                  content: Scriptorium.html_with_syntax_highlight("#{summary}#{temperature}#{notes}")
+                  message: Scriptorium.html("🔮 Aegis unveiled#{": `#{tags.join ', '}`" if tags}"),
+                  content: Scriptorium.html_with_syntax_highlight(content)
                 }, uuid:)
   end
 
@@ -583,7 +648,7 @@ module HorologiumAeternum
       content:        Scriptorium.html_with_syntax_highlight(content),
       symbolic_data:  symbolic_data,
       notes_metadata: notes_metadata,
-      data:           result, 
+      data:           result,
       uuid:
     }
   end

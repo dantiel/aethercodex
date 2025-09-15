@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../oracle/oracle'
 
 # Define Boolean type for schema compatibility
 Boolean = TrueClass
@@ -443,7 +444,7 @@ class PrimaMateria
   end
 
 
-  def handle(tool:, args: {}, context: nil, timeout: 30)
+  def handle(tool:, args: {}, context: nil, timeout: 120)
     tool = tool.to_s
     tool = tool_aliases[tool] || tool
     args = symbolize(args || {})
@@ -457,7 +458,7 @@ class PrimaMateria
 
     # Log tool execution with truncated arguments to avoid bloat
     truncated_args = args.transform_values { |v| v.to_s.truncate 200 }
-    puts "[PRIMA MATERIA][HANDLE][#{tool.upcase.gsub '_', ' '}]: args: "\
+    puts "[PRIMA_MATERIA][HANDLE][#{tool.upcase.gsub '_', '_'}]: args: "\
          "#{truncated_args.inspect} (timeout: #{tool_timeout})"
 
     out = if @tools.key? tool.to_sym
@@ -465,18 +466,34 @@ class PrimaMateria
               send(tool.to_sym, **args)
             end
           else
+            HorologiumAeternum.system_error("Unknown tool #{tool}")
             { error: "Unknown tool #{tool}" }
           end
+  rescue Oracle::StepTerminationException => e
+    # Step completion is expected termination - handle differently based on context
+    puts "[PRIMA_MATERIA][STEP_COMPLETE]: #{tool}: #{e.message.truncate(100)}"
+    
+    # For task step completion/rejection tools, return success instead of re-raising
+    # This prevents "Hermetic execution failed" errors for expected step termination
+    if tool.to_s.include?('task_') || tool.to_s.include?('complete_step') || tool.to_s.include?('reject_step')
+      # puts { status: :success, message: e.message }.to_s
+      raise e
+    else
+      # For Oracle context, let it propagate for proper handling
+      raise e
+    end
   rescue HermeticExecutionDomain::Error => e
-    out = { error: "Hermetic execution failed for #{tool}: #{e.message.truncate 100}" }
+    HorologiumAeternum.system_error("Hermetic execution failed for #{tool}", message: e.message.truncate(300))
+    out = { error: "Hermetic execution failed for #{tool}: #{e.message.truncate(300)}" }
   rescue ArgumentError => e
+    HorologiumAeternum.system_error("Bad args for #{tool}", message: "got: #{args.inspect.truncate 300}")
     out = { error: "Bad args for #{tool}: #{e.message}", got: args }
   rescue StandardError => e
-    puts "[PRIMA MATERIA][ERROR]: #{e.class}: #{e.message.truncate 200}"
+    puts "[PRIMA_MATERIA][ERROR]: #{e.class}: #{e.message.truncate 200}"
     out = {}
   ensure
     truncated_result = out&.transform_values { |v| v.to_s.truncate 300 }
-    puts "[PRIMA MATERIA][HANDLE][#{tool.upcase.gsub '_', ' '}][RESULT]: "\
+    puts "[PRIMA_MATERIA][HANDLE][#{tool.upcase.gsub '_', '_'}][RESULT]: "\
          "#{truncated_result.inspect}"
   end
 
@@ -492,7 +509,8 @@ class PrimaMateria
 
   ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/,
                   /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/,
-                  /^bundle exec irb\b/, /^ruby\b/, /^irb\b/, /^cd\b/, /^curl\b/, /^ag\b/].freeze
+                  /^bundle exec irb\b/, /^bundle exec rspec\b/, /^ruby\b/, /^irb\b/, /^cd\b/, 
+                  /^curl\b/, /^ag\b/, /^find\b/, /^tail\b/].freeze
   DENY_PATHS   = [/\.aethercodex$/, /\.env$/, %r{\.git/}].freeze
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10

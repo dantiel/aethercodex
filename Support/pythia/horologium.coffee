@@ -12,7 +12,6 @@ class Horologium
 
   renderFileOverview: (fileData) ->
     console.log "renderFileOverview", fileData
-    
     # Data structure: data.result.data.data contains the actual file info
     # Handle nested structure: data.result.data.data.file_info and data.result.data.data.symbolic_overview
     resultData = fileData.data || fileData
@@ -67,7 +66,7 @@ class Horologium
     if hierarchy?.length
       overviewHtml += """
         <div class="hierarchy-preview">
-          <details open>
+          <details>
             <summary>🌳 Hierarchical Structure</summary>
             <div class="hierarchy-tree-preview">
               #{@renderHierarchyPreview(hierarchy, symbolicData)}

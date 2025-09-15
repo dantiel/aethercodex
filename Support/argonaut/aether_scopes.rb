@@ -1,4 +1,3 @@
-# gem install textpow
 require 'textpow'
 require 'plist'
 require 'yaml'

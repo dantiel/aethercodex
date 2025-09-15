@@ -6,6 +6,7 @@
 # Language-agnostic hierarchical symbolic analysis
 
 require_relative '../mnemosyne/mnemosyne'
+# require_relative '../argonaut/argonaut'
 
 
 
@@ -13,7 +14,7 @@ module AetherScopesHierarchical
   # Language-specific patterns for hierarchical analysis
   LANGUAGE_PATTERNS = {
     # Ruby patterns
-    ruby:       {
+    ruby:         {
       hierarchy: [
         { type: :module, pattern: /^\s*module\s+(\w+)/, level: :container },
         { type: :class, pattern: /^\s*class\s+(\w+)/, level: :container },
@@ -21,10 +22,19 @@ module AetherScopesHierarchical
         { type: :class_method, pattern: /^\s*def\s+([A-Z]\w*\.\w+)/, level: :member },
         { type: :method, pattern: /^\s*def\s+(\w+)/, level: :member },
         { type: :constant, pattern: /^\s*([A-Z][A-Z0-9_]*)\s*=/, level: :member },
-        { type: :instance_variable, pattern: /^\s*@(\w+)\s*=/, level: :variable, parent_scope: true },
+        { type:         :instance_variable,
+          pattern:      /^\s*@(\w+)\s*=/,
+          level:        :variable,
+          parent_scope: true },
         { type: :class_variable, pattern: /^\s*@@(\w+)\s*=/, level: :variable, parent_scope: true },
-        { type: :global_variable, pattern: /^\s*\$(\w+)\s*=/, level: :variable, parent_scope: true },
-        { type: :local_variable, pattern: /^\s*(\w+)\s*=[^=>]*$/, level: :variable, parent_scope: true }
+        { type:         :global_variable,
+          pattern:      /^\s*\$(\w+)\s*=/,
+          level:        :variable,
+          parent_scope: true },
+        { type:         :local_variable,
+          pattern:      /^\s*(\w+)\s*=[^=>]*$/,
+          level:        :variable,
+          parent_scope: true }
       ],
       imports:   [
         { type: :require, pattern: /^\s*require\s+['"]([^'"]+)['"]/ },
@@ -40,7 +50,7 @@ module AetherScopesHierarchical
     },
 
     # JavaScript patterns
-    javascript: {
+    javascript:   {
       hierarchy: [
         { type: :class, pattern: /^\s*class\s+(\w+)/, level: :container },
         { type: :function, pattern: /^\s*function\s+(\w+)/, level: :member },
@@ -62,7 +72,7 @@ module AetherScopesHierarchical
     },
 
     # Python patterns
-    python:     {
+    python:       {
       hierarchy: [
         { type: :class, pattern: /^\s*class\s+(\w+)/, level: :container },
         { type: :function, pattern: /^\s*def\s+(\w+)/, level: :member },
@@ -78,7 +88,7 @@ module AetherScopesHierarchical
     },
 
     # HTML patterns
-    html:       {
+    html:         {
       hierarchy: [
         { type: :element, pattern: /<([\w:-]+)/, level: :container },
         { type: :id, pattern: /id=['"]([^'"]+)['"]/, level: :attribute },
@@ -92,7 +102,7 @@ module AetherScopesHierarchical
     },
 
     # CSS patterns
-    css:        {
+    css:          {
       hierarchy: [
         { type: :selector, pattern: /^([^{]+)\{/, level: :container },
         { type: :at_rule, pattern: /^@(\w+)/, level: :directive }
@@ -181,8 +191,9 @@ module AetherScopesHierarchical
 
       # First, check for CoffeeScript patterns (function definitions, -> arrows)
       if sample =~ /^\s*\w+\s*[:=]\s*\([^)]*\)\s*->/ ||
-         sample =~ /^\s*class\s+\w+/ && sample =~ /\bconstructor:\s*->/ ||
+         (sample =~ /^\s*class\s+\w+/ && sample =~ /\bconstructor:\s*->/) ||
          sample =~ /^\s*\w+\s*=\s*\([^)]*\)\s*->/
+
         return :coffeescript
       end
 
@@ -217,33 +228,34 @@ module AetherScopesHierarchical
       patterns = LANGUAGE_PATTERNS[@language]&.[](:hierarchy) || []
 
       patterns.each do |pattern|
-        puts "    Testing pattern: #{pattern[:type]} - #{pattern[:pattern].source}"
+        # puts "    Testing pattern: #{pattern[:type]} - #{pattern[:pattern].source}"
         next unless (match = line.match pattern[:pattern])
-        puts "    Pattern #{pattern[:type]} matched! Captured: #{match[1]}"
+
+        # puts "    Pattern #{pattern[:type]} matched! Captured: #{match[1]}"
 
         # Handle special cases for naming
         name = match[1]
-        
-        puts "    Raw captured name: #{name.inspect}, pattern type: #{pattern[:type]}"
-        
+
+        # puts "    Raw captured name: #{name.inspect}, pattern type: #{pattern[:type]}"
+
         # Fix class method names (extract just the method name from "ClassName.method_name")
-        if pattern[:type] == :class_method && name.include?('.')
+        if :class_method == pattern[:type] && name.include?('.')
           name = name.split('.').last
-          puts "    After class method fix: #{name}"
+          # puts "    After class method fix: #{name}"
         end
-        
+
         # Fix singleton method names (extract just the method name from "self.method_name")
-        if pattern[:type] == :singleton_method && name.start_with?('self.')
+        if :singleton_method == pattern[:type] && name.start_with?('self.')
           name = name.sub('self.', '')
-          puts "    After singleton method fix: #{name}"
+          # puts "    After singleton method fix: #{name}"
         end
-        
+
         element = {
-          type:     pattern[:type],
-          name:     name,
-          line:     line_number,
-          level:    pattern[:level],
-          children: [],
+          type:         pattern[:type],
+          name:         name,
+          line:         line_number,
+          level:        pattern[:level],
+          children:     [],
           parent_scope: pattern[:parent_scope] || false
         }
 
@@ -278,9 +290,9 @@ module AetherScopesHierarchical
       end
 
       # Push to current scope if it's a container or member (methods)
-      if [:container, :member].include?(element[:level])
-        @current_scope << element
-      end
+      return unless %i[container member].include? element[:level]
+
+      @current_scope << element
     end
 
 
@@ -335,28 +347,27 @@ module AetherScopesHierarchical
 
 
   # Main API for file overview integration - hierarchical and language-aware
-  def self.structural_overview(file_path, content = nil, max_depth: nil)
-    content ||= (File.read file_path if file_path && File.exist?(file_path))
+  def self.structural_overview(project_root, file_path, content = nil, max_depth: nil)
+    full_path = File.join project_root, file_path
+    content ||= (File.read full_path if File.exist?(full_path))
     return empty_analysis unless content
 
-    parser = HierarchicalParser.new content, nil, file_path
+    parser = HierarchicalParser.new content, nil, full_path
     analysis = parser.parse
 
     # Apply depth reduction if specified
-    if max_depth
-      analysis[:hierarchy] = reduce_hierarchy_depth(analysis[:hierarchy], max_depth)
-    end
+    analysis[:hierarchy] = reduce_hierarchy_depth(analysis[:hierarchy], max_depth) if max_depth
 
     # Debug: check what the parser returns
-    puts "DEBUG: analysis[:hierarchy] = #{analysis[:hierarchy].inspect}"
-    puts "DEBUG: analysis[:imports] = #{analysis[:imports].inspect}"
-    puts "DEBUG: analysis[:exports] = #{analysis[:exports].inspect}"
+    # puts "DEBUG: analysis[:hierarchy] = #{analysis[:hierarchy].inspect}"
+    # puts "DEBUG: analysis[:imports] = #{analysis[:imports].inspect}"
+    # puts "DEBUG: analysis[:exports] = #{analysis[:exports].inspect}"
 
-    line_hints = generate_line_hints(analysis)
-    navigation_hints = generate_navigation_hints(analysis)
+    line_hints = generate_line_hints analysis
+    navigation_hints = generate_navigation_hints analysis
 
-    puts "DEBUG: line_hints = #{line_hints.inspect}"
-    puts "DEBUG: navigation_hints = #{navigation_hints.inspect}"
+    # puts "DEBUG: line_hints = #{line_hints.inspect}"
+    # puts "DEBUG: navigation_hints = #{navigation_hints.inspect}"
 
     {
       file:             file_path,
@@ -479,8 +490,8 @@ module AetherScopesHierarchical
 
 
   # Enhanced integration with file_overview tool - hierarchical and language-aware
-  def self.for_file_overview(file_path, max_notes: 3, max_content_length: 150, max_depth: nil)
-    overview = structural_overview file_path, nil, max_depth: max_depth
+  def self.for_file_overview(project_root, file_path, max_notes: 3, max_content_length: 150, max_depth: nil)
+    overview = structural_overview project_root, file_path, nil, max_depth: max_depth
 
     # Get relevant notes based on hierarchical structure
     symbol_names = extract_symbol_names overview[:hierarchy]
@@ -494,12 +505,12 @@ module AetherScopesHierarchical
             else
               # Fallback to file-based notes
               Mnemosyne.recall_notes file_path, limit: max_notes,
-max_content_length: max_content_length
+                                                max_content_length: max_content_length
             end
 
     # Debug: check what we're returning
-    puts "DEBUG: overview[:navigation_hints] = #{overview[:navigation_hints].inspect}"
-    puts "DEBUG: overview[:line_hints] = #{overview[:line_hints].inspect}"
+    # puts "DEBUG: overview[:navigation_hints] = #{overview[:navigation_hints].inspect}"
+    # puts "DEBUG: overview[:line_hints] = #{overview[:line_hints].inspect}"
 
     # Format for AI consumption - enhanced with hierarchical data
     {
@@ -534,7 +545,7 @@ max_content_length: max_content_length
   # Reduce hierarchy depth by truncating nested children beyond max_depth
   def self.reduce_hierarchy_depth(hierarchy, max_depth, current_depth = 1)
     return [] if hierarchy.empty? || current_depth > max_depth
-    
+
     hierarchy.map do |item|
       if current_depth == max_depth
         # At max depth, remove children but keep the item

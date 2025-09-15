@@ -41,7 +41,20 @@ module Coniunctio
       puts "TEST#{file}"
       project_files = Argonaut.list_project_files
       puts "PROJECT_FILES#{project_files}"
-      history = fetch_and_format_history task_history: params[:history]
+
+      # Handle history parameter: nil/true = fetch general history, false/[] = no history, array = use provided history
+      history = case params[:history]
+                when nil, true
+                  # Fetch general chat history
+                  fetch_and_format_history
+                when false, []
+                  # No history requested
+                  []
+                else
+                  # Use provided history array
+                  params[:history].flat_map(&method(:format_history_entry))
+                end
+
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
 
       ctx = { history:       prepend_summaries(history),
@@ -61,9 +74,9 @@ module Coniunctio
     end
 
 
-    def fetch_and_format_history(task_history: nil)
-      (task_history || Mnemosyne.fetch_history(limit: 7, max_tokens: 2200))
-        .flat_map(&method(:format_history_entry))
+    def fetch_and_format_history
+      # Fetch general chat history
+      Mnemosyne.fetch_history(limit: 7, max_tokens: 2200).flat_map(&method(:format_history_entry))
     end
 
 
@@ -76,6 +89,8 @@ module Coniunctio
 
 
     def prepend_summaries(history)
+      return history if history.empty?
+
       summaries = Mnemosyne.fetch_aegis_summaries \
         before: history.last[:ts],
         max_tokens: MAX_SUMMARY_TOKENS
@@ -86,7 +101,7 @@ module Coniunctio
 
     def format_summary_entry(summary)
       {
-        role:    'system',
+        role:    'assistant',
         content: "Summary: #{summary[:summary]}\n\nTags: #{summary[:tags]}"
       }
     end
@@ -95,19 +110,16 @@ module Coniunctio
     def build_extra_context(file, selection, project_files, aegis_notes, context = nil)
       hermetic_manifest = read_hermetic_manifest
 
-      puts "[ORACLE][CONIUNCTIO]: #{'NO ' unless hermetic_manifest[:present]}" \
-           'Manifest file found.'
-
-      {
-        project_files:,
+      # TODO: make project_files a nested list instead of full paths? pro: save space, contra: maybe ai can mistake the complete path
+      { project_files:,
         file:,
         selection:, # Selection is stored in history and rendered in code blocks for context
         snippet:           snippet_for(file, selection),
         aegis_orientation: { **Mnemosyne.aegis },
         aegis_notes:,
+        messages:          context&.dig(:messages),
         tool_context:      context,
-        hermetic_manifest:
-      }
+        hermetic_manifest: }
     end
 
 
@@ -138,16 +150,22 @@ module Coniunctio
     end
 
 
+    def hermetic_manifest_message(manifest)
+      'HERMETIC MANIFEST (Optional project guidance mutable by user and oracle) ' \
+        "hermetic.manifest.md:\n#{manifest}"
+    end
+
+
     def read_hermetic_manifest
       hermetic_manifest = Argonaut.read 'hermetic.manifest.md'
-      unless hermetic_manifest[:content]
-        return { content: 'Hermetic manifest file not found',
-                 present: false }
-      end
+      message = hermetic_manifest[:content] || 'Hermetic manifest file not found'
 
-      { content: hermetic_manifest[:content], present: true }
+      puts "[ORACLE][CONIUNCTIO]: #{'NO ' unless hermetic_manifest} Manifest file found."
+           
+      { role: :system, content: hermetic_manifest_message(message) }
     rescue StandardError => e
-      { content: "Error reading hermetic manifest: #{e.message}", present: false }
+      { role:    :system,
+        content: hermetic_manifest_message("Error reading hermetic manifest: #{e.message}") }
     end
 
 

@@ -11,22 +11,43 @@ using MetaprogrammingUtils
 # Aetherflux channel for oracle communication with functional purity
 class Aetherflux
   class << self
-    def channel_oracle_divination(params, tools:, context: nil, **kwargs)
+    def channel_oracle_divination(params, tools:, context: nil, timeout: nil)
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
-      # Merge any additional keyword arguments into the context
-      merged_context = context ? context.merge(kwargs) : kwargs
-      ctx = Coniunctio.build(params.merge(context: merged_context))
+      
+      # Pass the context parameters to Coniunctio for proper handling
+      ctx = Coniunctio.build(context:)
 
       begin
-        answer, arts, tool_results = Oracle.divination(params[:prompt], ctx, tools:,
+        # Use standard divination method for both normal and task execution
+        # The context flag will be handled by Coniunctio to exclude chat history
+        # The system prompt will be handled by Oracle.base_messages for proper message construction
+        # For task execution, pass empty prompt since messages contain the complete structure
+        divination_prompt = params[:messages] || params[:prompt]
+        result = Oracle.divination(divination_prompt, ctx, tools:,
 msg_uuid:) do |name, args, tool_ctx|
-          tools.handle tool: name, args:, context: tool_ctx
+          tools.handle tool: name, args:, context: tool_ctx, timeout: timeout
         end
-      rescue Oracle::RestartException
-        HorologiumAeternum.thinking 'Restarting oracle process...'
+      
+        puts "CHECK FOR DIVINE INTERRUPT #{result.inspect.truncate 200}"
+        # Check if we got a divine interruption signal instead of regular answer
+        if result&.is_a?(Hash) && result.key?(:__divine_interrupt)
+          puts "DIVINE INTERRUPT FOUND - returning directly"
+          # Return the divine interruption signal directly
+          return result
+        end
+        
+        # Normal response - destructure the array
+        answer, arts, tool_results = result
+
+      rescue Oracle::RestartException => error
+        puts "[ORACLE][RestartException]: #{error.inspect}"
+        HorologiumAeternum.thinking 'Restarting oracle process due to temperature change...'
+        Mnemosyne.record params, "<<temperature change handled>>" if params[:record]
         retry
       end
-
+      
+      
+      puts "CHECK FOR STANDARD ERROR"
       raise StandardError, answer unless answer.is_a? String
 
       html = Scriptorium.html_with_syntax_highlight answer.to_s

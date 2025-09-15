@@ -13,22 +13,6 @@ require_relative '../instrumentarium/scriptorium'
 # Channels cosmic energies through the digital aether for oracle divination
 class Conduit
   class << self
-    # Configuration and Utilities
-    def load_cfg
-      path = File.expand_path '../.aethercodex', __dir__
-      puts "[CONDUIT][LOAD CFG]: loading path: #{path} exist?=#{File.exist? path}"
-      if File.exist? path
-        config = YAML.load_file(path)
-        config.respond_to?(:deep_symbolize_keys) ? config.deep_symbolize_keys : {}
-      else
-        {}
-      end
-    rescue StandardError => e
-      HorologiumAeternum.system_error "Failed to load config: #{e.message[0..100]}"
-      {}
-    end
-
-
     def select_model(config, reasoning)
       if reasoning
         config['reasoning-model'] || 'deepseek-reasoner'
@@ -43,7 +27,7 @@ class Conduit
 
     def is_deepseek_reasoning_model?(model_name)
       model_name.to_s.downcase.include?('reason') ||
-      model_name.to_s.downcase.include?('deepseek-reasoner')
+        model_name.to_s.downcase.include?('deepseek-reasoner')
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to detect reasoning model: #{e.message.truncate 100}"
       false
@@ -93,16 +77,15 @@ class Conduit
 
     # API Request Building
     def build_body(prompt, ctx, reasoning: false)
-      cfg = load_cfg
       system_prompt = reasoning ? Oracle::REASONING_PROMPT : Oracle::SYSTEM_PROMPT
       {
-        model:       cfg['model'] || 'deepseek-chat',
+        model:       CONFIG::CFG[:model] || 'deepseek-chat',
         messages:    [
           { role: 'system', content: system_prompt },
           { role: 'user', content: prompt },
           { role: 'user', content: "Context: #{ctx.to_json}" }
         ],
-        tools:       [],
+        tools:       nil,
         max_tokens:  2048,
         temperature: 0.7
       }
@@ -112,21 +95,19 @@ class Conduit
     end
 
 
-    def build_body_with_messages_and_tools(messages, tools: [], reasoning: false)
-      cfg = load_cfg
-      model = select_model cfg, reasoning
+    def build_body_with_messages_and_tools(messages, tools: nil, reasoning: false, temperature: nil)
+      model = select_model CONFIG::CFG, reasoning
       max_tokens = select_max_tokens reasoning
-      temperature = (Mnemosyne.aegis[:temperature] || 1.0).to_f
-
+      temperature ||= (Mnemosyne.aegis[:temperature] || 1.0).to_f
       # For DeepSeek reasoning models, we must NOT include tools to enable advanced reasoning
       # Reasoning models cannot use tools, so we omit the tools field entirely
       # Also detect reasoning models by name pattern for future compatibility
       base_body = { model:, messages:, max_tokens:, temperature: }
-      
+
       if reasoning || is_deepseek_reasoning_model?(model)
-        base_body
+        base_body.merge tools: nil
       else
-        base_body.merge(tools: tools)
+        base_body.merge tools: tools
       end
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to build request body: #{e.message.truncate 100}"
@@ -134,11 +115,37 @@ class Conduit
     end
 
 
+    # Unified message building that handles both normal chat and task execution
+    # When messages array is provided, it's used directly (ignoring standard prompt)
+    # When prompt is provided, it builds standard system + user message structure
+    def build_body_for_execution(messages: nil,
+                                 prompt: nil,
+                                 tools: nil,
+                                 reasoning: false,
+                                 set_temperature: nil)
+      model = select_model CONFIG::CFG, reasoning
+      max_tokens = select_max_tokens reasoning
+      temperature = set_temperature || (Mnemosyne.aegis[:temperature] || 1.0).to_f
+
+      puts "[CONDUIT]: temperature=#{temperature}"
+
+      base_body = { model:, messages:, max_tokens:, temperature: }
+
+      if reasoning || is_deepseek_reasoning_model?(model)
+        base_body.merge tools: nil
+      else
+        base_body.merge tools: tools
+      end
+    rescue StandardError => e
+      HorologiumAeternum.system_error "Failed to build execution body: #{e.message.truncate 100}"
+      raise
+    end
+
+
     # API Communication
     def post(body, timeout = 120)
-      cfg = load_cfg
-      key = extract_api_key cfg
-      endpoint = extract_api_endpoint cfg
+      key = extract_api_key CONFIG::CFG
+      endpoint = extract_api_endpoint CONFIG::CFG
       validate_api_key key
 
       connection = create_faraday_connection
@@ -147,8 +154,11 @@ class Conduit
       response.body
     rescue Faraday::TimeoutError => e
       handle_timeout_error e, timeout
-    rescue Faraday::ConnectionFailed => e
-      handle_connection_error e
+    rescue Faraday::ConnectionFailed, EOFError => e
+      if :retry == handle_connection_error(e)
+        puts 'RETRY'
+        retry
+      end
     rescue Faraday::UnprocessableEntityError => e
       handle_unprocessable_entity_error e
     rescue Faraday::Error => e
@@ -172,6 +182,11 @@ class Conduit
       response
     rescue Faraday::ClientError => e
       ErrorHandler.handle_faraday_client_error e
+    rescue Faraday::ConnectionFailed, EOFError => e
+      if :retry == handle_connection_error(e)
+        puts 'RETRY'
+        retry
+      end
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to execute API request: #{e.message.truncate 100}"
       raise e
@@ -191,23 +206,36 @@ class Conduit
     end
 
 
-    def generate_ai_response(msgs, tools, reasoning)
+    def generate_ai_response(messages, tools, reasoning, set_temperature)
       # Handle nil tools case - use empty array for instrumenta_schema
-      tools_schema = tools.respond_to?(:instrumenta_schema) ? tools.instrumenta_schema : []
-      body = build_body_with_messages_and_tools(msgs, tools: tools_schema, reasoning:)
-      puts "[ORACLE][CONDUIT][GENERATE_AI_RESPONSE]: "\
-           "#{msgs.map{ |msg| msg.transform_values{ |v| v.to_s.truncate(200) }}.inspect}, #{tools}"
-      puts "[ORACLE][CONDUIT][BODY]: model=#{body[:model]}, max_tokens=#{body[:max_tokens]}, temperature=#{body[:temperature]}"
-      puts "[ORACLE][CONDUIT][BODY_MESSAGES_COUNT]: #{body[:messages].size}"
-      puts "[ORACLE][CONDUIT][BODY_MESSAGES_FIRST]: #{body[:messages].first.transform_values{ |v| v.to_s.truncate(100) }.inspect}"
-      puts "[ORACLE][CONDUIT][BODY_MESSAGES_LAST]: #{body[:messages].last.transform_values{ |v| v.to_s.truncate(100) }.inspect}"
+      instrumenta_schema = tools.respond_to?(:instrumenta_schema) ? tools.instrumenta_schema : []
+
+      # Use unified message building - when messages array is provided, it's used directly
+      # This allows task execution to provide complete message structure without interference
+      body = build_body_for_execution(messages:,
+                                      tools: instrumenta_schema, reasoning:, set_temperature:)
+
+      # puts '[ORACLE][CONDUIT][GENERATE_AI_RESPONSE]: ' \
+      #      "#{messages.map do |msg|
+      #        msg.transform_values do |v|
+      #          v.to_s.truncate 200
+      #        end
+      #      end.inspect}, #{tools}"
+      # puts "[ORACLE][CONDUIT][BODY]: model=#{body[:model]}, max_tokens=#{body[:max_tokens]}, temperature=#{body[:temperature]}"
+      # puts "[ORACLE][CONDUIT][BODY_MESSAGES_COUNT]: #{body[:messages].size}"
+      # puts "[ORACLE][CONDUIT][BODY_MESSAGES_FIRST]: #{body[:messages].first.transform_values do |v|
+      #   v.to_s.truncate(100)
+      # end.inspect}"
+      # puts "[ORACLE][CONDUIT][BODY_MESSAGES_LAST]: #{body[:messages].last.transform_values do |v|
+      #   v.to_s.truncate(100)
+      # end.inspect}"
       post(body, reasoning ? 600 : 300)
         .then { |raw| ensure_json raw }
         .tap do |json|
-          log_json(json: json.transform_values do |v|
-            v.to_s.truncate(200)
-          end)
-        end
+        log_json(json: json.transform_values do |v|
+          v.to_s.truncate(200)
+        end)
+      end
     rescue StandardError => e
       handle_api_error e
     end
@@ -221,7 +249,7 @@ class Conduit
       arts[:reasoning_content] = msg['reasoning_content'].to_s if msg['reasoning_content']
       [content, tcalls, arts]
     rescue StandardError => e
-      HorologiumAeternum.system_error "Failed to extract response data: #{e.message.truncate(100)}"
+      HorologiumAeternum.system_error "Failed to extract response data: #{e.message.truncate 100}"
       ['', [], arts]
     end
 
@@ -250,7 +278,17 @@ class Conduit
 
 
     def handle_connection_error(error)
-      raise "Connection Failed: #{error.wrapped_exception}"
+      if error.cause.is_a?(EOFError) || error.wrapped_exception.is_a?(EOFError) || error.is_a?(EOFError)
+        puts 'EOFError'
+        puts "#{error.wrapped_exception}, #{error.cause}"
+        # EOF reached - log and restart the request
+        HorologiumAeternum.system_error "EOF reached - restarting request: #{error.message.truncate 100}"
+        # Retry the entire post method
+      else
+        puts error.inspect.truncate 500
+        raise "Connection Failed: #{error.wrapped_exception}"
+      end
+      :retry
     end
 
 

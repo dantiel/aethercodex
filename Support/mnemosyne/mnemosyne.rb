@@ -7,7 +7,13 @@ require 'set'
 require 'json'
 require 'tiktoken_ruby'
 require 'timeout'
+require_relative '../config'
+require_relative '../argonaut/argonaut'
 
+# Alias for create_note for backward compatibility
+def self.remember(content:, links: nil, tags: nil)
+  create_note content: content, links: links, tags: tags
+end
 
 
 class Mnemosyne
@@ -54,7 +60,7 @@ class Mnemosyne
       puts "CREATE TASK #{title}:#{plan} (workflow: #{workflow_type})"
       x = db.execute 'INSERT INTO tasks (title, plan, status, workflow_type, parent_task_id) VALUES (?, ?, ?, ?, ?)',
                      [title, plan, 'pending', workflow_type, parent_task_id]
-      puts "x=#{x}, id=#{db.last_insert_row_id}"
+      # puts "x=#{x}, id=#{db.last_insert_row_id}"
       { ok: true, id: db.last_insert_row_id }
     end
 
@@ -68,18 +74,21 @@ class Mnemosyne
       end
     end
 
+
     # Get step name mapping for workflow type
     def step_name(workflow_type, step_number)
       case workflow_type.to_s
       when 'simple'
         case step_number
-        when 1 then 'Analyze'
-        when 2 then 'Implement'
-        when 3 then 'Validate'
+        when 0 then 'Initium'
+        when 1 then 'Solve'
+        when 2 then 'Coagula'
+        when 3 then 'Validatio'
         else "Step #{step_number}"
         end
-      when 'analysis'
+      when 'analysis' # TODO: hermetical name for this workflow type
         case step_number
+        when 0 then 'Initium'
         when 1 then 'Research'
         when 2 then 'Plan'
         when 3 then 'Analyze'
@@ -89,6 +98,7 @@ class Mnemosyne
         end
       else # full
         case step_number
+        when 0 then 'Initium'
         when 1 then 'Nigredo'
         when 2 then 'Albedo'
         when 3 then 'Citrinitas'
@@ -96,31 +106,37 @@ class Mnemosyne
         when 5 then 'Solve'
         when 6 then 'Coagula'
         when 7 then 'Test'
-        when 8 then 'Purify'
-        when 9 then 'Validate'
-        when 10 then 'Document'
+        when 8 then 'Purificatio'
+        when 9 then 'Validatio'
+        when 10 then 'Documentatio'
         else "Step #{step_number}"
         end
       end
     end
 
+
     # Get subtasks for a parent task
     def get_subtasks(parent_task_id)
-      db.execute('SELECT * FROM tasks WHERE parent_task_id = ? ORDER BY created_at', [parent_task_id])
-        .map { |t| t.transform_keys!(&:to_sym) }
+      db.execute('SELECT * FROM tasks WHERE parent_task_id = ? ORDER BY created_at',
+                 [parent_task_id])
+        .map do |t|
+        t.transform_keys!(&:to_sym)
+      end
     end
+
 
     # Update subtask results for a parent task
     def update_subtask_results(parent_task_id, subtask_id, result)
-      task = get_task(parent_task_id)
+      task = get_task parent_task_id
       return unless task
 
       subtask_results = JSON.parse(task[:subtask_results] || '{}')
       subtask_results[subtask_id.to_s] = result
 
-      db.execute('UPDATE tasks SET subtask_results = ? WHERE id = ?',
-                 [subtask_results.to_json, parent_task_id])
+      db.execute 'UPDATE tasks SET subtask_results = ? WHERE id = ?',
+                 [subtask_results.to_json, parent_task_id]
     end
+
 
     # Update the Aegis summary dynamically
     def update_aegis_summary(summary)
@@ -214,13 +230,11 @@ class Mnemosyne
 
 
     def db_path
-      cfg_path = File.expand_path '.aethercodex', __dir__
-      cfg = File.exist?(cfg_path) ? YAML.load_file(cfg_path) : {}
-      path = cfg['memory-db'] || '.tm-ai/memory.db'
+      path = CONFIG::CFG[:memory_db] || '.tm-ai/memory.db'
       project_root = ENV['TM_PROJECT_DIRECTORY'] || Dir.pwd
 
       if ENV['TM_DEBUG_PATHS']
-        puts "cfg_path=#{cfg_path}"
+        puts "cfg_path=#{CFG_PATH}"
         puts "path=#{path}"
         puts "project_root=#{project_root}"
       end
@@ -312,11 +326,6 @@ class Mnemosyne
       notes.map do |note|
         note.transform_keys!(&:to_sym)
 
-        # Apply content length limit if specified
-        if max_content_length && note[:content] && note[:content].length > max_content_length
-          note[:content] = truncate_note_content(note[:content], max_length: max_content_length)
-        end
-
         score = 0
 
         if query_tokens.empty?
@@ -333,9 +342,26 @@ class Mnemosyne
 
         { **note, score: }
       end
-        .select { |note| note[:score].positive? }
-           .sort_by { |note| -note[:score] }
-           .take(limit)
+      .select { |note| note[:score].positive? }
+      .sort_by { |note| -note[:score] }
+      .take(limit)
+      .map do |note|
+        # Apply content length limit if specified
+        # puts "RECALL NOTES: #{note}"
+        if max_content_length && note[:content] && note[:content].length > max_content_length
+          note[:content] =
+            truncate_note_content(note[:content], max_length: max_content_length)
+        end
+        # puts "RECALL NOTES: #{note[:links]}"
+        note[:links] = note[:links].split(',').map do |link|
+          if Argonaut.file_exists? link
+            link
+          else
+            "~~#{link}~~ (path not found)"
+          end
+        end.join ',' if note[:links]
+        note  # Ensure we return the note hash, not the links string
+      end
     end
 
 
@@ -403,11 +429,17 @@ class Mnemosyne
 
 
     def record(params, answer)
-      puts "[MNEMOSYNE][RECORD]: recording #{tok_len (params.to_json.inspect || '') + (answer || '')}"
+      puts "[MNEMOSYNE][RECORD]: recording #{tok_len (params.to_json.inspect || '') + (answer || '')}: #{answer}"
       db.execute \
         'INSERT INTO entries (prompt, answer, tags, file, selection) VALUES (?,?,?,?,?)',
         [params[:prompt], answer, Array(params[:tags]).join(','), params[:file],
          params[:selection]]
+    end
+
+
+    # Alias for create_note for backward compatibility
+    def self.remember(content:, links: nil, tags: nil)
+      create_note content: content, links: links, tags: tags
     end
 
 
@@ -419,6 +451,12 @@ class Mnemosyne
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
                  [truncated_content, links&.join(','), tags&.join(',')]
       db.last_insert_row_id
+    end
+
+
+    # Alias for create_note for backward compatibility
+    def remember(content:, links: nil, tags: nil)
+      create_note content: content, links: links, tags: tags
     end
 
 
@@ -468,7 +506,7 @@ class Mnemosyne
           workflow_type = params[:workflow_type] || 'full'
           parent_task_id = params[:parent_task_id]
           x = db.execute 'INSERT INTO tasks (title, plan, updates, status, current_step, workflow_type, parent_task_id) VALUES ' \
-                         '(?,?,?,?,?,?,?)', [params[:title], params[:plan].to_json, '[]', 'pending', 0, workflow_type, parent_task_id]
+                         '(?,?,?,?,?,?,?)', [params[:title], params[:plan], '[]', 'pending', 0, workflow_type, parent_task_id]
           { 'ok' => true,
             'id' => db.last_insert_row_id,
             title: params[:title],
@@ -491,13 +529,19 @@ class Mnemosyne
           logs << { timestamp: Time.now.to_f, message: params[:log] }
           db.execute 'UPDATE tasks SET logs = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
                      [logs.to_json, params[:id]]
-        elsif params[:step_results]
+        end
+        if params[:step_results]
           # Update step results
           db.execute 'UPDATE tasks SET step_results = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
                      [params[:step_results], params[:id]]
-        else
-          db.execute 'UPDATE tasks SET status = ?, current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                     [params[:status], params[:current_step], params[:id]]
+        end
+        if params[:status]
+          db.execute 'UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                     [params[:status], params[:id]]
+        end
+        if params[:current_step]
+          db.execute 'UPDATE tasks SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                     [params[:current_step], params[:id]]
         end
         { ok: true }
       when :activate
@@ -509,7 +553,7 @@ class Mnemosyne
                                         [params[:id]]).first['updates']) || []
         updates << { step: params[:current_step], plan: params[:plan], timestamp: Time.now.to_s }
         db.execute 'UPDATE tasks SET plan = ?, updates = ?, current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                   [params[:plan].to_json, updates.to_json, params[:current_step], params[:id]]
+                   [params[:plan], updates.to_json, params[:current_step], params[:id]]
         { ok: true }
       when :advance_step
         db.execute 'UPDATE tasks SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
@@ -521,6 +565,10 @@ class Mnemosyne
       else # list
         rows = db.execute 'SELECT * FROM tasks ORDER BY created_at DESC'
         rows.map { |r| r.transform_keys!(&:to_sym) }
+        
+        if params[:parent_task_id]
+          rows = rows.filter{ |task| params[:parent_task_id] == task[:parent_task_id] }
+        end
 
         max_tokens = 1111
         token_count = 0
@@ -543,7 +591,7 @@ class Mnemosyne
         end
 
         rows = included_rows
-        puts "ROWS=#{rows}"
+        # puts "ROWS=#{rows}"
         rows
       end
     end

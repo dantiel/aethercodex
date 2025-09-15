@@ -13,11 +13,9 @@
   transition: all 0.3s ease;
 }
 
-
 .status p {
   margin: 0.5rem 0;
 }
-
 
 body.fancy-animations .status::before {
   content: '';
@@ -29,7 +27,6 @@ body.fancy-animations .status::before {
   background: linear-gradient(90deg, transparent, rgba(100, 151, 197, 0.3), transparent);
   animation: statusPulse 2s ease-in-out infinite;
 }
-
 
 .status small {
   opacity: 0.6;
@@ -65,22 +62,28 @@ body.fancy-animations .status::before {
   overflow: hidden;
   vertical-align: bottom;
 }
+
 .status summary code:hover {
   white-space: normal;
 }
-
 
 .status summary pre:hover{
   max-height: 14em;
 }
+
 .status summary pre code,
 .status summary pre code:hover {
   white-space: pre;
 }
+
+.status summary pre code:hover {
+  text-overflow: initial !important;
+  overflow: auto;
+}
+
 .status summary code:hover {
   white-space: normal;
 }
-
 
 .status pre {
   display: inline;
@@ -104,7 +107,6 @@ body.fancy-animations .status::before {
   transition: all 0.3s ease;
 }
 
-
 /* Tool arguments display */
 .status .tool-args {
   color: var(--argonaut-ethereal);
@@ -113,13 +115,11 @@ body.fancy-animations .status::before {
   margin-left: 20px;
 }
 
-
 /* Thinking indicator with subtle animation */
 .status:has-text("🧠") {
   animation: thinkingPulse 1.5s ease-in-out infinite alternate;
   border-left-width: 4px;
 }
-
 
 @keyframes thinkingPulse {
   0% { opacity: 0.8; }
@@ -133,21 +133,15 @@ body.fancy-animations .status::before {
   background: linear-gradient(135deg, rgba(255, 206, 0, 0.1), rgba(217, 119, 6, 0.1));
 }
 
-
-
 .status:has-text("✅") {
   border-left-color: var(--argonaut-emerald);
   background: linear-gradient(135deg, rgba(6, 150, 14, 0.1), rgba(5, 150, 105, 0.1));
 }
 
-
-
 .status:has-text("❌") {
   border-left-color: var(--argonaut-crimson);
   background: linear-gradient(135deg, rgba(219, 0, 28, 0.1), rgba(220, 38, 38, 0.1));
 }
-
-
 
 .status:has-text("🎯") {
   border-left-color: var(--argonaut-azure);

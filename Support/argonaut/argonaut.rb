@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'open3'
 require 'tempfile'
@@ -12,57 +14,65 @@ require_relative 'aether_scopes_hierarchical'
 
 class Argonaut
   @diff_crepusculum ||= DiffCrepusculum::ChrysopoeiaDiff.new
-  
-  
+
+
   def self.relative_path(path)
     path = if path.start_with? '/'
-      absolute_path = Pathname.new path
-      relative_path = absolute_path.relative_path_from project_root
-      relative_path.to_s
-    else
-      path
-    end
+             absolute_path = Pathname.new path
+             relative_path = absolute_path.relative_path_from project_root
+             relative_path.to_s
+           else
+             path
+           end
   end
-  
+
 
   # Reads a file relative to base of project folder.
   def self.read(path, range = nil)
     base = project_root
-    src = File.read(File.join base, path)
-    
-    result = if range && range.size == 2
-      l0, l1 = range
-      
-      if l0 > src.lines.count
-        { error: "line range #{l0}-#{l1} exceeds lines in file = #{src.lines.count}" }
-      else
-        lines = src.lines[l0..l1] || []
-      
-        { content: lines.join, range: [l0, l1] }
-      end
-    else
-      { content: src }
-    end
+    src = File.read File.join base, path
+
+    result = if range && 2 == range.size
+               l0, l1 = range
+               l0 -= 1
+               l0 = [0, l0].max
+
+               if l0 > src.lines.count
+                 { error: "line range #{l0}-#{l1} exceeds lines in file = #{src.lines.count}" }
+               else
+                 lines = src.lines[l0..l1] || []
+
+                 { content: lines.join, range: [l0, l1] }
+               end
+             else
+               { content: src }
+             end
   end
-  
+
 
   def self.write(path, text)
     base = project_root
     full = File.join base, path
-    FileUtils.mkdir_p(File.dirname full)
+    FileUtils.mkdir_p File.dirname full
     File.write full, text
   end
-  
-  
+
+
+  def self.file_exists?(path)
+    fullpath = File.join project_root, path
+    File.exist?(fullpath) && File.readable?(fullpath)
+  end
+
+
   def self.multi_patch(patches:)
-    patches.each { |h| patch(h[:path], h[:diff]) }
+    patches.each { |h| patch h[:path], h[:diff] }
     { ok: true, count: patches.size }
   end
-  
-  
+
+
   def self.rename(from, to)
     root = project_root
-    FileUtils.mkdir_p(File.dirname(File.join root, to))
+    FileUtils.mkdir_p File.dirname(File.join(root, to))
     FileUtils.mv File.join(root, from), File.join(root, to)
   end
 
@@ -71,57 +81,64 @@ class Argonaut
   def self.patch(path, patch_text)
     base = project_root
     full = File.join base, path
-    
+
     # Read the original content
     original_content = File.read full
-    
+
     # Apply the converted diff
     result = @diff_crepusculum.apply_diff original_content, patch_text
     result => { success:, fail_parts: }
-    
-    raise "Patch failed: #{fail_parts.to_json}" unless success
 
-    content = result[:content]
-    File.write full, content
-    [original_content, content]
+    if success
+      content = result[:content]
+      File.write full, content
+      { ok: true, result: [original_content, content] }
+    else
+      { error: fail_parts }
+    end
   end
+
 
   def self.project_root
     if ENV['TM_DEBUG_PATHS']
-      puts "🔮 Dimensional Diagnostics:"
+      puts '🔮 Dimensional Diagnostics:'
       puts "TM_PROJECT_DIRECTORY: #{ENV['TM_PROJECT_DIRECTORY'].inspect}"
       puts "TM_DIRECTORY: #{ENV['TM_DIRECTORY'].inspect}"
       puts "TM_FILEPATH: #{ENV['TM_FILEPATH'].inspect}"
       puts "TM_SELECTED_FILE: #{ENV['TM_SELECTED_FILE'].inspect}"
       puts "Current directory: #{Dir.pwd}"
     end
-    
+
     root = ENV['TM_PROJECT_DIRECTORY'] || ENV['TM_DIRECTORY'] || Dir.pwd
-    
-    if root && File.file?(root)
-      root = File.dirname root
-    end
-    
+
+    root = File.dirname root if root && File.file?(root)
+
     root
   end
 
 
   def self.include_files
-    ["*", ".tm_properties", ".htaccess"] +
-    (`#{ENV['TM_QUERY']}`.scan(/includeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' })
+    ['*', '.tm_properties', '.htaccess'] +
+      `#{ENV.fetch 'TM_QUERY',
+                   nil}`.scan(/includeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject do |f|
+        f.empty? || '{}' == f
+      end
   end
 
 
   def self.exclude_files
-    ["*.{o", "pyc"] +
-    `#{ENV['TM_QUERY']}`.scan(/excludeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject { |f| f.empty? || f == '{}' }
+    ['*.{o', 'pyc'] +
+      `#{ENV.fetch 'TM_QUERY',
+                   nil}`.scan(/excludeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject do |f|
+        f.empty? || '{}' == f
+      end
   end
-  
-  
+
+
   def self.list_files(glob)
-    Dir.chdir(project_root) { Dir.glob(glob) }
+    Dir.chdir(project_root) { Dir.glob glob }
   end
-    
+
 
   def self.list_project_files
     root = project_root
@@ -129,73 +146,80 @@ class Argonaut
     excludes = exclude_files
 
     if ENV['TM_DEBUG_PATHS']
-      puts "list_project_files"
-      puts `#{ENV['TM_QUERY']}`
+      puts 'list_project_files'
+      puts `#{ENV.fetch 'TM_QUERY', nil}`
       puts root
       puts includes
       puts excludes
     end
-    
-    Dir.chdir(root) {
+
+    Dir.chdir root do
       Dir.glob(if includes.empty?
         then '**/*.{rb,js,ts,coffee,css,html,md}'
-        else  "**/{#{includes.join ','}}" end
-      ).reject { |f| excludes.any? { |ex|
-        File.fnmatch(ex, File.basename(f)) } } }
+               else
+                 "**/{#{includes.join ','}}"
+               end).reject do |f|
+        excludes.any? do |ex|
+          File.fnmatch ex, File.basename(f)
+        end
+      end
+    end
   end
-  
-  
+
+
   def self.file_overview(path:, max_notes: 3, max_content_length: 555, max_depth: nil)
-    fullpath = File.join(project_root, path)
-    
+    fullpath = File.join project_root, path
+
     # Get notes count and tags only - no full content to prevent context bloat
     notes_info = Mnemosyne.fetch_notes_by_links(path).map do |note|
       note.transform_keys!(&:to_sym)
       {
-        id: note[:id],
-        tags: note[:tags]&.split(',') || [],
-        excerpt: note[:content] ? Mnemosyne.truncate_note_content(note[:content], max_length: 50) : nil
+        id:      note[:id],
+        tags:    note[:tags]&.split(',') || [],
+        excerpt: note[:content] ? Mnemosyne.truncate_note_content(note[:content],
+                                                                  max_length: 50) : nil
       }
     end.take(max_notes)
-    
+
     # Handle nil notes gracefully
     notes_info ||= []
-    notes_info = notes_info.take(max_notes)
-    
+    notes_info = notes_info.take max_notes
+
     line_count = 0
-    File.foreach(fullpath) { |line| line_count += 1 }
-    
+    File.foreach(fullpath) { |_line| line_count += 1 }
+
     file_info = {
-      lines: line_count,
-      size: File.size(fullpath),
+      lines:         line_count,
+      size:          File.size(fullpath),
       last_modified: File.mtime(fullpath),
-      path: path
+      path:          path
     }
 
     # Add enhanced symbolic structural overview using AetherScopesEnhanced
     symbolic_overview = if File.exist?(fullpath) && File.readable?(fullpath)
-      puts "DEBUG: File exists and is readable: #{fullpath}"
-      begin
-        puts "DEBUG: Calling AetherScopesHierarchical.for_file_overview with max_depth: #{max_depth}"
-        result = AetherScopesHierarchical.for_file_overview(fullpath, max_notes: max_notes, max_content_length: max_content_length, max_depth: max_depth)
-        puts "DEBUG: AetherScopesHierarchical.for_file_overview returned: #{result.inspect}"
-        result
-      rescue => e
-        puts "DEBUG: AetherScopesHierarchical.for_file_overview failed: #{e.message}"
-        { error: "Enhanced symbolic parsing failed: #{e.message}" }
-      end
-    else
-      puts "DEBUG: File does not exist or is not readable: #{fullpath}"
-      { error: "File not readable" }
-    end
+                          puts "DEBUG: File exists and is readable: #{fullpath}"
+                          begin
+                            puts "DEBUG: Calling AetherScopesHierarchical.for_file_overview with max_depth: #{max_depth}"
+                            result = AetherScopesHierarchical.for_file_overview \
+                              project_root, path, max_notes: max_notes, max_content_length: max_content_length, max_depth: max_depth
+                            puts "DEBUG: AetherScopesHierarchical.for_file_overview returned: #{result.inspect}"
+                            result
+                          rescue StandardError => e
+                            puts "DEBUG: AetherScopesHierarchical.for_file_overview failed: #{e.message} #{max_notes}, #{max_content_length} #{max_depth}"
+                            { error: "Enhanced symbolic parsing failed: #{e.message}" }
+                          end
+                        else
+                          puts "DEBUG: File does not exist or is not readable: #{fullpath}"
+                          { error: 'File not readable' }
+                        end
 
     {
-      notes_count: notes_info.size,
-      notes_preview: notes_info,
-      file_info: file_info,
+      notes_count:       notes_info.size,
+      notes_preview:     notes_info,
+      file_info:         file_info,
       symbolic_overview: symbolic_overview
     }
-  rescue => e
+  rescue StandardError => e
     { error: e.inspect }
   end
 end

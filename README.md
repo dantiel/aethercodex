@@ -8,7 +8,7 @@ AetherCodex transforms TextMate into a living interface with hermetic AI reasoni
 
 ---
 
-## ✨ 9 Hermetic Manifestations
+## ✨ 10 Hermetic Manifestations
 
 ### 🔮 **Ethereal Code Divination**
 Peer through dimensional veils to understand code structure and intent with hermetic clarity. Each symbol reveals its deeper meaning through astral analysis.
@@ -23,7 +23,7 @@ Your favourite editor becomes a portal to hermetic code transmutation. Execute s
 The eternal memory palace stores cosmic knowledge across dimensions, while Aegis dynamically refines context through temperature-based reasoning and hermetic resonance alignment.
 
 ### ⚙️ **Magnum Opus Engine**
-Orchestrate complex multi-phase operations through 10-step alchemical processes: Nigredo, Albedo, Citrinitas, Rubedo, Solve, Coagula, Test, Test, Validate, Document. Context-aware execution with result persistence.
+Orchestrate complex multi-phase operations through 10-step alchemical processes: Nigredo, Albedo, Citrinitas, Rubedo, Solve, Coagula, Test, Purificatio, Validatio, Documentatio. Context-aware execution with result persistence.
 
 ### 🔍 **Argonaut**
 The legendary navigator who reveals symbolic structure across the astral plane. Extracts classes, methods, and patterns for AI vision without dimensional traversal of entire files.
@@ -36,6 +36,9 @@ Execute shell commands, file operations, and dimensional orchestration through u
 
 ### 🧠 **Coniunctio Token Alchemy**
 The sacred union of context and computation - intelligent token management orchestrating precise LLM interactions through hermetic encoding and dynamic context weaving across dimensional boundaries.
+
+### 🌊 **Divine Interruption System**
+The sacred communication channel enabling tasks to signal completion through hermetic interruption patterns, allowing seamless integration between task execution and oracle communication.
 
 ---
 
@@ -103,16 +106,16 @@ The AetherCodex Symbolic Overview system provides AI with comprehensive structur
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | **Oracle Chamber** | Interactive AI interface | `pythia/chamber.html` |
-| **Aetherflux** | Real-time response processing | `aetherflux.rb` |
-| **Argonaut** | Filebrowser | `argonaut.rb` |
+| **Aetherflux** | Real-time response processing | `oracle/aetherflux.rb` |
+| **Argonaut** | Filebrowser | `argonaut/argonaut.rb` |
 | **Coniunctio** | Context Creator | `coniunctio.rb` |
-| **Diff Crepusculum** | Fuzzy File Patches | `diff_crepusculum.rb` |
-| **Prima Materia** | Function execution engine | `prima_materia.rb` |
-| **Mnemosyne** | Memory management system | `mnemosyne.rb` |
+| **Diff Crepusculum** | Fuzzy File Patches | `instrumentarium/diff_crepusculum.rb` |
+| **Prima Materia** | Function execution engine | `instrumentarium/prima_materia.rb` |
+| **Mnemosyne** | Memory management system | `mnemosyne/mnemosyne.rb` |
 | **Limen** | Security and validation | `limen.rb` |
-| **Horologium Aeternum** | Real-time user communication | `horologium_aeternum.rb` |
-| **Scriptorium** | Markdown processor | `scriptorium.rb` |
-| **Magnum Opus Engine** | Multi-step orchestration | `magnum_opus_engine.rb` |
+| **Horologium Aeternum** | Real-time user communication | `instrumentarium/horologium_aeternum.rb` |
+| **Scriptorium** | Markdown processor | `instrumentarium/scriptorium.rb` |
+| **Magnum Opus Engine** | Multi-step orchestration | `magnum_opus/magnum_opus_engine.rb` |
 | **Aegis** | Context refinement system | Integrated in oracle |
 
 ### **Data Flow**
@@ -224,32 +227,6 @@ Remember this pattern as "user-auth-flow" for future reference
 
 ---
 
-## 🏗️ Architecture
-
-### **Astral Components**
-
-| Component | Purpose | Location |
-|-----------|---------|----------|
-| **Oracle Chamber** | Interactive AI interface | `pythia/chamber.html` |
-| **Aetherflux** | Real-time response processing | `aetherflux.rb` |
-| **Argonaut** | Filebrowser | `argonaut.rb` |
-| **Coniunctio** | Context Creator | `coniunctio.rb` |
-| **Diff Crepusculum** | Fuzzy File Patches | `diff_crepusculum.rb` |
-| **Prima Materia** | Function execution engine | `prima_materia.rb` |
-| **Mnemosyne** | Memory management system | `mnemosyne.rb` |
-| **Limen** | Security and validation | `limen.rb` |
-| **Horologium Aeternum** | Real-time user communication | `horologium_aeternum.rb` |
-| **Scriptorium** | Markdown processor | `scriptorium.rb` |
-| **Magnum Opus Engine** | Multi-step orchestration | `magnum_opus_engine.rb` |
-| **Aegis** | Context refinement system | Integrated in oracle |
-
-### **Data Flow**
-1. **Invocation** → Context gathering → API request
-2. **Streaming** → Real-time updates → Tool execution
-3. **Results** → Memory storage → Interface updates
-
----
-
 ## 🔧 Configuration
 
 ### **Environment Variables**
@@ -262,23 +239,6 @@ Location: `.tm-ai/memory.db` (auto-created)
 - Stores conversation context
 - Tag-based knowledge organization
 - Project-specific memory isolation
-
----
-
-## 🛡️ Security
-
-- **Limen validation** for all operations
-- **No secret file access** (.env, .aethercodex, keys)
-- **Sandboxed command execution** with allowlisting
-- **Local-only operations** - no external data transmission beyond API calls
-
-### **Aegis Context Refinement System**
-- **Dynamic Context Optimization**: Real-time refinement during conversations
-- **Temperature-Based Reasoning**: Adjust responsiveness (0.0-2.0 scale) for coding/math/creative tasks
-- **Tag-Based Focus**: Precision execution through targeted note retrieval
-- **Hermetic Resonance**: Aligns context with current hermetic focus and intent
-- **State Persistence**: Maintains conversation context across interactions
-- **Task Context Propagation**: Seamless context passing between task phases with step result persistence
 
 ---
 

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
+
 require 'net/protocol'
 require 'faraday'
+# Don't require Oracle to avoid circular dependency - use string constant instead
 
 # HermeticExecutionDomain provides isolated execution context for tool operations
 # with structured error handling, automatic retry mechanisms, and execution isolation
@@ -30,7 +32,11 @@ class HermeticExecutionDomain
       retries = 0
 
       begin
-        result = timeout ? with_timeout(timeout, &block) : block.call
+        result = if timeout && Float::INFINITY != timeout && 1_000_000 > timeout
+                   with_timeout(timeout, &block)
+                 else
+                   block.call
+                 end
         log_execution_success result
         result
       rescue Timeout::Error, Net::ReadTimeout => e
@@ -43,10 +49,17 @@ class HermeticExecutionDomain
         retries = handle_retry :network, e, retries, max_retries
         retry
       rescue JSON::ParserError, ArgumentError => e
-        raise ToolExecutionError, "Invalid response format: #{e.message.truncate 100}"
+        raise ToolExecutionError, "Invalid response format: #{e.message.truncate 300}"
+      rescue Oracle::StepTerminationException => e
+        puts "[HERMETIC_EXECUTION_DOMAIN][ORACLE::STEP_TERMINATION_ERROR]: #{e.inspect}"
+        # Step termination is expected - re-raise to allow proper handling at Oracle level
+        raise e
+      rescue MagnumOpusEngine::StepCompleted => e
+        # Step completion is expected - re-raise to allow proper handling at execute_step level
+        raise e
       rescue StandardError => e
         classified_error = classify_error e
-        raise classified_error, "Tool execution failed: #{e.message.truncate 100}"
+        raise classified_error, "Tool execution failed: #{e.message.truncate 300}"
       end
     end
 
@@ -65,7 +78,7 @@ class HermeticExecutionDomain
         retries
       else
         raise const_get("#{error_type.to_s.camelize}Error"),
-              "#{error_type.to_s.humanize}: #{error.message.truncate 100}"
+              "#{error_type.to_s.humanize}: #{error.message.truncate 300}"
       end
     end
 
@@ -97,3 +110,4 @@ class HermeticExecutionDomain
     end
   end
 end
+

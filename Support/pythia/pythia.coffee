@@ -23,6 +23,7 @@ class Pythia
     @STORAGE_KEY = 'aether_messages'
     @MAX_MESSAGES = 250
     @horologium = null
+    @activeTaskLogs = {}  # Track active task logs for persistence
 
 
   # WebSocket Connection Management
@@ -188,7 +189,11 @@ class Pythia
             #{data.content}
           </details>"""
       when 'file_read_fail'
-        @log 'status', uuid, "#{@replaceFileTags data.message}: #{error} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, """
+          <details>
+            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            #{data.error}
+          </details>"""
       when 'file_creating'
         @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"
       when 'file_created'
@@ -318,82 +323,84 @@ class Pythia
             #{@replaceFileTags data.content}
           </details>"""
       when 'file_overview'
-        # Use Horologium for file overview rendering
-        if window.Horologium
-          horologium = new window.Horologium()
-          overviewHtml = horologium.renderFileOverview(data)
-          @log 'status', uuid, overviewHtml
-        else
-          # Fallback to simple rendering if horologium not available
-          fileData = data.data || data
-          fileInfo = fileData.data || fileData.symbolic_data || fileData
-          symbolicData = fileInfo.symbolic_overview || fileInfo
-          
-          language = symbolicData.language || symbolicData.structural_summary?.language || 'unknown'
-          lines = fileInfo.file_info?.lines || symbolicData.lines || 0
-          size = fileInfo.file_info?.size || symbolicData.size || '0B'
-          
-          @log 'status', uuid, """
-            <div class="file-overview-status">
-              <div class="file-overview-header">
-                <span class="language-badge">#{language}</span>
-                <span class="line-count">#{lines} lines</span>
-                <span class="file-size">#{size}</span>
-              </div>
-            </div>
-          """
+        horologium = new window.Horologium()
+        overviewHtml = horologium.renderFileOverview data
+        @log 'status', uuid, """
+          <details>
+            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            #{overviewHtml}
+          </details>"""
       when 'task_started'
+        @isThinking = true
+        do @updateSendButton
         @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
         @renderTaskProgress data
       when 'task_completed'
+        @isThinking = false
+        do @updateSendButton
         @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
         @renderTaskProgress data
       when 'task_created'
         @log 'system', uuid, """
           <details>
             <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-            <div>#{@replaceFileTags data.plan}</div>
+            <div class=\"task-description\">#{data.plan}</div>
           </details>"""
         @renderTaskProgress data
       when 'task_updated'
-        @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        if data.show_progress
+          @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
         @renderTaskProgress data
+      when 'task_step_completed'
+        @log 'system', uuid, """
+          <details>
+            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            #{data.result}
+          </details>"""
+      when 'task_step_rejected'
+        @log 'system', uuid, """
+          <details>
+            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            #{data.reason}
+          </details>"""
       when 'task_removed'
+        @isThinking = false
+        do @updateSendButton
         @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
       when 'task_list'
         @log 'system', uuid, """
           <details>
             <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
-            <div class="task-list">#{@replaceFileTags data.content}</div>
+            <div class="task-list">#{data.content}</div>
           </details>"""
       when 'task_log_added'
         task_id = data.id or data.task_id
-        # Add to existing task log display or create new one
+        # Add to existing task log display in unified panel
         taskLogElement = document.getElementById "task-logs-#{task_id}"
-        unless taskLogElement
-          # Create task log container if it doesn't exist
-          taskLogElement = document.createElement 'div'
-          taskLogElement.id = "task-logs-#{task_id}"
-          taskLogElement.className = 'task-logs'
-          taskLogElement.innerHTML = """
-            <div class="task-log-header">
-              <h4>📋 Task ##{task_id} Execution Log</h4>
-              <button onclick="pythia.toggleTaskLogs('#{task_id}')"></button>
-            </div>
-            <div class="task-log-entries"></div>
-          """
-          document.getElementById('messages').appendChild taskLogElement
         
-        logTime = new Date(data.timestamp * 1000).toLocaleTimeString()
-        logEntry = document.createElement 'div'
-        logEntry.className = 'task-log-entry'
-        logEntry.innerHTML = """
-          <span class="log-time">#{logTime}</span>
-          <span class="log-message">#{@replaceFileTags data.content}</span>
-        """
-        task_log_entries = taskLogElement.querySelector('.task-log-entries')
-        task_log_entries.appendChild logEntry
-        task_log_entries.scrollTop = task_log_entries.scrollHeight
+        # If no log container exists in unified panel, ensure task progress is rendered first
+        unless taskLogElement
+          # Render the task progress panel which now includes logs container
+          @renderTaskProgress data
+          taskLogElement = document.getElementById "task-logs-#{task_id}"
+        
+        if taskLogElement
+          logTime = new Date(data.timestamp * 1000).toLocaleTimeString()
+          logEntry = document.createElement 'div'
+          logEntry.className = 'task-log-entry'
+          logEntry.innerHTML = """
+            <span class=\"log-time\">#{logTime}</span>
+            <span class=\"log-message\">#{data.content}</span>
+          """
+          task_log_entries = taskLogElement.querySelector('.task-log-entries')
+          task_log_entries.appendChild logEntry
+          
+          # Auto-scroll only if not manually scrolled up
+          isNearBottom = (task_log_entries.scrollHeight - task_log_entries.scrollTop - task_log_entries.clientHeight) < 50
+          task_log_entries.scrollTop = task_log_entries.scrollHeight if isNearBottom
+          
+          # Also store the log in localStorage for persistence
+          @storeTaskLog task_id, data.content, logTime
       when 'history'
         @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
         data.content.forEach (entry) =>
@@ -405,6 +412,14 @@ class Pythia
   toggleTaskProgress: (task_id) =>
     taskProgress = document.getElementById 'task_progress'
     taskProgress.classList.toggle('collapsed')
+    # Update button icon based on state
+    button = taskProgress.querySelector('.task-header button')
+    if taskProgress.classList.contains('collapsed')
+      button.textContent = '📄'
+      button.title = 'Expand task panel'
+    else
+      button.textContent = '📋'
+      button.title = 'Collapse task panel'
 
 
   renderTaskProgress: (task) =>
@@ -419,32 +434,134 @@ class Pythia
       inputBar = document.getElementById 'input-bar'
       inputBar.insertAdjacentElement "beforebegin", taskProgress
     
-    taskProgress.innerHTML = """
-      <div class=\"task-header\">
-        <strong>#{task.title}</strong>
-        <span>Step #{task.current_step}/10</span>
-        <button onclick="pythia.toggleTaskProgress('#{task_id}')"></button>
-      </div>
-      <div class=\"progress-bar\">
-        <div class="progress" style="width: #{Math.round(task.current_step/10*100)}%"></div>
-      </div>
-      <div class=\"task-plan\">
-        #{[task.plan].map((step, i) ->
-          "<div class='step #{if i < task.current_step then 'completed' else if i == task.current_step then 'current' else ''}'>#{step}</div>"
-        ).join ''}
-      </div>
-      <div class=\"task-controls\">
-        <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'pause', id: #{task_id} }}))\">⏸</button>
-        <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'resume', id: #{task_id} }}))\">▶</button>
-        <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'cancel', id: #{task_id} }}))\">✕</button>
-      </div>
-    """
+    # Fix step counting: current_step is number of completed steps (0-10)
+    # display_step should be current step number (1-10), 0 for Initium
+    current_step = task.current_step || 0
+    display_step = if current_step == 0 then 0 else current_step  # 0 for Initium, 1-10 for steps
+    progress_percent = Math.round(current_step/10*100)
+    
+    # Get alchemical stage based on progress
+    alchemical_stage = @getAlchemicalStage(display_step)
+    
+    # Add step results to display if available
+    step_results = task.step_results || []
+    result_display = if step_results.length > 0
+      latest_result = step_results[step_results.length - 1]
+      """<div class=\"step-result-preview\">Latest Result: #{latest_result.substring(0, 100)}#{if latest_result.length > 100 then '...' else ''}</div>"""
+    else
+      ''
+    
+    # Check if we already have progress elements
+    taskHeader = taskProgress.querySelector('.task-header')
+    progressBar = taskProgress.querySelector('.progress-bar')
+    taskControls = taskProgress.querySelector('.task-controls')
+    logsContainer = document.getElementById "task-logs-#{task_id}"
+    
+    # If we don't have a task progress structure yet, create it
+    unless taskHeader
+      # Display task plan as description (not individual steps)
+      task_plan_html = if task.plan
+        """<div class=\"task-description\"><strong>Plan:</strong> #{task.plan}</div>"""
+      else
+        ''
+      
+      # Create unified task panel with progress and logs
+      taskProgress.innerHTML = """
+        <div class=\"task-header\">
+          <strong>#{task.title}</strong>
+          <span>#{alchemical_stage} (#{if display_step == 0 then 'Initium' else display_step}/10)</span>
+          <button onclick=\"pythia.toggleTaskProgress('#{task_id}')\" title=\"Toggle task panel\">📋</button>
+        </div>
+        <div class=\"progress-bar\">
+          <div class=\"progress\" style=\"width: #{progress_percent}%\"></div>
+        </div>
+        #{result_display}
+        #{task_plan_html}
+        <div class=\"task-controls\">
+          <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'pause', id: #{task_id} }}))\" title=\"Pause task\">⏸</button>
+          <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'resume', id: #{task_id} }}))\" title=\"Resume task\">▶</button>
+          <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'cancel', id: #{task_id} }}))\" title=\"Cancel task\">✕</button>
+        </div>
+        <div class=\"task-logs-container\" id=\"task-logs-#{task_id}\">
+          <div class=\"task-log-header\">
+            <h4>📋 Task ##{task_id} Execution Log - #{alchemical_stage} (#{display_step}/10)</h4>
+            <button onclick=\"pythia.toggleTaskLogs('#{task_id}')\" title=\"Hide logs\">📋</button>
+          </div>
+          <div class=\"task-log-entries\"></div>
+        </div>
+      """
+      
+      # Load any existing logs from storage
+      @loadTaskLogs(task_id)
+    else
+      # Just update the progress elements without destroying logs
+      headerSpan = taskHeader.querySelector('span')
+      headerSpan.textContent = "#{alchemical_stage} (#{if display_step == 0 then 'Initium' else display_step}/10)" if headerSpan
+      
+      progress = progressBar.querySelector('.progress')
+      progress.style.width = "#{progress_percent}%" if progress
+      
+      # Update step result display if available
+      resultElement = taskProgress.querySelector('.step-result-preview')
+      if step_results.length > 0
+        latest_result = step_results[step_results.length - 1]
+        resultHtml = "Latest Result: #{latest_result.substring(0, 100)}#{if latest_result.length > 100 then '...' else ''}"
+        if resultElement
+          resultElement.innerHTML = resultHtml
+        else
+          resultElement = document.createElement 'div'
+          resultElement.className = 'step-result-preview'
+          resultElement.innerHTML = resultHtml
+          # Insert after progress bar
+          progressBar.insertAdjacentElement 'afterend', resultElement
+      else if resultElement
+        resultElement.remove()
+      
+      # Ensure logs container exists and is properly loaded
+      unless logsContainer
+        logsContainer = document.createElement 'div'
+        logsContainer.className = 'task-logs-container'
+        logsContainer.id = "task-logs-#{task_id}"
+        logsContainer.innerHTML = """
+          <div class=\"task-log-header\">
+            <h4>📋 Task ##{task_id} Execution Log - #{alchemical_stage} (#{display_step}/10)</h4>
+            <button onclick=\"pythia.toggleTaskLogs('#{task_id}')\" title=\"Hide logs\">📋</button>
+          </div>
+          <div class=\"task-log-entries\"></div>
+        """
+        taskProgress.appendChild logsContainer
+      else
+        # Preserve existing log entries - only update header and progress
+        logEntries = logsContainer.querySelector('.task-log-entries')
+        if logEntries
+          # Store current scroll position and content to preserve user view
+          scrollPosition = logEntries.scrollTop
+          logContent = logEntries.innerHTML
+          
+          # Update the log header to show current progress
+          logHeader = logsContainer.querySelector('.task-log-header h4')
+          logHeader.textContent = "📋 Task ##{task_id} Execution Log - #{alchemical_stage} (#{display_step}/10)" if logHeader
+          
+          # Restore the log content and scroll position
+          logEntries.innerHTML = logContent
+          logEntries.scrollTop = scrollPosition
+      
+      # Always load logs from storage when panel is accessed
+      @loadTaskLogs(task_id)
 
 
   toggleTaskLogs: (task_id) =>
     taskLogElement = document.getElementById "task-logs-#{task_id}"
     if taskLogElement
       taskLogElement.classList.toggle 'collapsed'
+      # Update button icon based on state
+      button = taskLogElement.querySelector('.task-log-header button')
+      if taskLogElement.classList.contains('collapsed')
+        button.textContent = '📄'
+        button.title = 'Show logs'
+      else
+        button.textContent = '📋'
+        button.title = 'Hide logs'
 
 
   # Message Handling
@@ -468,17 +585,104 @@ class Pythia
               when 'prelude' then @log 'ai', null, l.data
               when 'say'     then @log 'ai', null, l.data.message
       when 'toolResult'
-        resultJson = JSON.stringify data.result, null, 2
-        if resultJson.length > 300
-          @log 'system', null, "<details><summary>🔧 Tool Result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
+        # Special handling for task evaluation results
+        if data.result?.task?.id && data.result?.alchemical_progression
+          @renderTaskEvaluation data.result
         else
-          @log 'system', null, "<pre>#{resultJson}</pre>"    
+          resultJson = JSON.stringify data.result, null, 2
+          if resultJson.length > 300
+            @log 'system', null, "<details><summary>🔧 Tool Result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
+          else
+            @log 'system', null, "<pre>#{resultJson}</pre>"
       when 'completion'
         @log 'ai', null, "<pre>#{data.result.snippet}</pre>"
+      when 'attach'
+        @renderAttachmentPreview data.result.data
       when 'error'
         @log 'error', null, "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
       else
         @log 'system', null, "<pre>#{JSON.stringify data, null, 2}</pre>"
+
+  # Render comprehensive task evaluation results
+  renderTaskEvaluation: (evaluation) =>
+    task = evaluation.task
+    stepResults = evaluation.step_results || {}
+    executionLogs = evaluation.execution_logs || []
+    progression = evaluation.alchemical_progression || []
+    
+    # Create detailed evaluation HTML
+    evaluationHtml = """
+      <div class=\"task-evaluation\">
+        <div class=\"evaluation-header\">
+          <h3>📊 Task Evaluation: #{task.title}</h3>
+          <span class=\"task-status\">Status: #{task.status}</span>
+        </div>
+        
+        <div class=\"task-details\">
+          <div><strong>ID:</strong> #{task.id}</div>
+          <div><strong>Current Stage:</strong> #{task.current_stage} (Step #{task.current_step}/#{task.total_steps})</div>
+          <div><strong>Progress:</strong> #{task.progress_percentage}%</div>
+          <div><strong>Created:</strong> #{task.created_at}</div>
+          <div><strong>Updated:</strong> #{task.updated_at}</div>
+        </div>
+        
+        <div class=\"task-plan\">
+          <h4>Plan:</h4>
+          <p>#{task.plan || 'No plan specified'}</p>
+        </div>
+        
+        <div class=\"alchemical-progression\">
+          <h4>Alchemical Progression:</h4>
+          <div class=\"progression-steps\">
+    """
+    
+    # Add alchemical progression steps
+    progression.forEach (stage) =>
+      statusClass = if stage.completed then 'completed' else if stage.current then 'current' else 'pending'
+      evaluationHtml += """
+            <div class=\"progression-step #{statusClass}\">
+              <span class=\"step-number\">#{stage.step}</span>
+              <span class=\"stage-name\">#{stage.stage}</span>
+              <span class=\"status-indicator\">#{if stage.completed then '✅' else if stage.current then '⏳' else '⏱'}</span>
+            </div>
+      """
+    
+    evaluationHtml += """
+          </div>
+        </div>
+        
+        <div class=\"step-results\">
+          <h4>Step Results:</h4>
+          <pre>#{JSON.stringify(stepResults, null, 2)}</pre>
+        </div>
+        
+        <div class=\"execution-logs\">
+          <h4>Execution Logs (#{executionLogs.length} entries):</h4>
+          <div class=\"log-entries\">
+    """
+    
+    # Add execution logs
+    executionLogs.forEach (log, index) =>
+      if index < 10  # Show only last 10 logs to avoid overwhelming
+        evaluationHtml += """
+            <div class=\"log-entry\">
+              <span class=\"log-index\">#{index + 1}.</span>
+              <span class=\"log-content\">#{log}</span>
+            </div>
+        """
+    
+    if executionLogs.length > 10
+      evaluationHtml += """
+            <div class=\"log-more\">... and #{executionLogs.length - 10} more log entries</div>
+      """
+    
+    evaluationHtml += """
+          </div>
+        </div>
+      </div>
+    """
+    
+    @log 'system', null, evaluationHtml
 
   # Attachment Handling
   match_selection_range = /([0-9]+)(?:\:([0-9]+))?(?:-([0-9]+)(?:\:([0-9]+))?)?/
@@ -610,6 +814,83 @@ class Pythia
 
   # Hierarchy preview rendering moved to Horologium class
   # to eliminate code duplication and improve maintainability
+
+  # Alchemical stage mapping
+  getAlchemicalStage: (step) =>
+    stages = [
+      'Nigredo',      # Step 1: Understanding the prima materia
+      'Albedo',       # Step 2: Defining the purified solution
+      'Citrinitas',   # Step 3: Exploring golden implementation paths
+      'Rubedo',       # Step 4: Selecting the philosopher\'s stone
+      'Solve',        # Step 5: Identifying required dissolutions
+      'Coagula',      # Step 6: Implementing solid transformations
+      'Test',         # Step 7: Probing the elixir\'s purity
+      'Purify',       # Step 8: Edge cases as alchemical impurities
+      'Validate',     # Step 9: Ensuring the elixir\'s perfection
+      'Documentatio'  # Step 10: Inscribing the magnum opus
+    ]
+    stages[step - 1] || 'Initium'
+
+  # Task log persistence methods
+  storeTaskLog: (task_id, content, timestamp) =>
+    # Get existing logs or initialize empty array
+    logs = JSON.parse(localStorage.getItem("task_#{task_id}_logs") || '[]')
+    
+    # Add new log entry
+    logs.push {
+      content: content,
+      timestamp: timestamp,
+      added_at: new Date().toISOString()
+    }
+    
+    # Store back to localStorage
+    localStorage.setItem "task_#{task_id}_logs", JSON.stringify(logs)
+    
+    # Also update in-memory cache
+    @activeTaskLogs[task_id] = logs
+
+  loadTaskLogs: (task_id) =>
+    # Try to load from localStorage first
+    logs = JSON.parse(localStorage.getItem("task_#{task_id}_logs") || '[]')
+    
+    # Update in-memory cache
+    @activeTaskLogs[task_id] = logs
+    
+    # Render logs if container exists
+    taskLogElement = document.getElementById "task-logs-#{task_id}"
+    return unless taskLogElement
+    
+    task_log_entries = taskLogElement.querySelector('.task-log-entries')
+    return unless task_log_entries
+    
+    # Store current scroll position to preserve user view
+    currentScrollPosition = task_log_entries.scrollTop
+    isNearBottom = (task_log_entries.scrollHeight - currentScrollPosition - task_log_entries.clientHeight) < 50
+    
+    # Clear existing logs and render all stored logs
+    task_log_entries.innerHTML = ''
+    
+    logs.forEach (log) =>
+      logEntry = document.createElement 'div'
+      logEntry.className = 'task-log-entry'
+      logEntry.innerHTML = """
+        <span class=\"log-time\">#{log.timestamp}</span>
+        <span class=\"log-message\">#{log.content}</span>
+      """
+      task_log_entries.appendChild logEntry
+    
+    # Restore scroll position - only auto-scroll if user was near bottom
+    if isNearBottom
+      task_log_entries.scrollTop = task_log_entries.scrollHeight
+    else
+      task_log_entries.scrollTop = currentScrollPosition
+
+  clearTaskLogs: (task_id) =>
+    # Remove from localStorage
+    localStorage.removeItem "task_#{task_id}_logs"
+    
+    # Remove from in-memory cache
+    delete @activeTaskLogs[task_id]
 
 
   # UI Initialization

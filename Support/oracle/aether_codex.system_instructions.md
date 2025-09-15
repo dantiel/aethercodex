@@ -75,6 +75,6 @@ Targeted reference:
 
 ### Context 
 
-- `project_files` a list of all (except hidden) files in the project
+- `project_files` a list of all (except hidden) files in the project. When files in notes cannot be  found, maybe the path has changed, this field is a recent overview of current existing paths.
 - `file` a file that the user has attached to the pompt
 - `selection` a part selection of the file the user has attached to the pompt

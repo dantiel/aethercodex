@@ -3,13 +3,17 @@
 require 'json'
 require_relative '../instrumentarium/horologium_aeternum'
 
+
+
 # Hermetic Error Handler - Centralized error handling for Oracle and Conduit
 class ErrorHandler
   class << self
     # Oracle Error Handling
     def handle_divination_error(error, tool_results)
-      error_message = error.message.truncate 100
+      error_message = error.message.truncate 300
       backtrace = error.backtrace&.first(3)&.join "\n"
+      
+      puts "[ORACLE][HANDLE_DIVINATION_ERROR]: #{error.inspect}"
       
       HorologiumAeternum.system_error("Divination failed: #{error_message}", backtrace:)
 
@@ -23,16 +27,22 @@ class ErrorHandler
     end
 
 
-    def handle_restart_exception(error)
-      HorologiumAeternum.system_error "RestartException: #{error.message.truncate 100}"
-      raise error
+    # Exception Handling
+    def handle_restart_exception(exception)
+      # For temperature change restarts, we want to continue execution rather than fail
+      if exception.message.include?('Temperature change detected')
+        HorologiumAeternum.thinking "Temperature change handled gracefully - continuing execution"
+        return ['<<temperature change handled>>', {}, []]
+      else
+        HorologiumAeternum.system_error "Restart exception: #{exception.message.truncate 100}"
+        raise
+      end
+    rescue StandardError => e
+      error_msg = "Failed to handle restart exception: #{e.message.truncate 100}"
+      HorologiumAeternum.system_error error_msg
+      raise exception
     end
-
-
-    def handle_step_termination_exception(error, answer, arts, tool_results)
-      HorologiumAeternum.system_error "StepTerminationException: #{error.message.truncate 100}"
-      [answer || '<<empty>>', arts, tool_results]
-    end
+    
 
 
     def handle_hermetic_execution_error(error, context_message)
@@ -43,12 +53,6 @@ class ErrorHandler
     end
 
 
-    def handle_step_termination_error(error)
-      HorologiumAeternum.system_error \
-        "Step termination during tool execution: #{error.message.truncate 100}"
-
-      raise error
-    end
 
 
     # Conduit Error Handling (Extracted from Conduit)

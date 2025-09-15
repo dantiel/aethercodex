@@ -5,7 +5,6 @@ LOG.sync = true
 $stdout = $stderr = LOG
 
 require 'json'
-require 'yaml'
 ENV['BUNDLE_GEMFILE'] ||= File.expand_path 'Gemfile', __dir__
 begin
   require 'bundler/setup'
@@ -21,29 +20,26 @@ require_relative 'instrumentarium/horologium_aeternum'
 require_relative 'instrumentarium/prima_materia'
 require_relative 'instrumentarium/scriptorium'
 require_relative 'instrumentarium/instrumenta'
+require_relative 'instrumentarium/verbum'
 require_relative 'mnemosyne/mnemosyne'
 require_relative 'argonaut/argonaut'
 require_relative 'oracle/coniunctio'
 require_relative 'oracle/oracle'
 require_relative 'oracle/aetherflux'
+require_relative 'config'
 
-
-
-CFG_PATH = File.expand_path '.aethercodex', __dir__
-CFG = File.exist?(CFG_PATH) ? YAML.load_file(CFG_PATH) : {}
-PORT = (ENV['AETHER_PORT'] || CFG['port'] || 4567).to_i
 
 
 Faye::WebSocket.load_adapter 'thin'
 set :server, 'thin'
-set :port, PORT
+set :port, CONFIG.port
 set :bind, '0.0.0.0'
 
 # Daemon persistence protocol
 if ARGV.include?('--daemon') || ENV['AETHER_DAEMON']
   Process.daemon true, false
   at_exit do
-    File.delete File.expand_path('../.tm-ai/limen.pid', __dir__)
+    File.delete File.expand_path("../.tm-ai/limen.pid", __dir__)
   rescue StandardError
     nil
   end
@@ -82,7 +78,7 @@ get '/ws' do
 
   if defined? EventMachine
     ping_timer = EventMachine.add_periodic_timer 20 do
-      warn '[LIMEN][WS]: 💓->'
+      # warn '[LIMEN][WS]: 💓->'
       ws&.send '💓'
     end
   end
@@ -108,7 +104,7 @@ get '/ws' do
     begin
       case event.data
       when '💓'
-        warn '[LIMEN][WS]: ping received'
+        # warn '[LIMEN][WS]: ping received'
         last_pong = Time.now
       else
         req = JSON.parse event.data
@@ -126,7 +122,7 @@ get '/ws' do
       ws.send({ method: 'error', result: { error: e.message, backtrace: e.backtrace } }.to_json)
     end
 
-    warn '[LIMEN][WS]: message done'
+    # warn '[LIMEN][WS]: message done'
   end
 
   ws.on :close do |event|

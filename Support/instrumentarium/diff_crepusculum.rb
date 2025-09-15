@@ -49,7 +49,7 @@ module DiffCrepusculum
       if left_index >= start_index
         original_slice = lines[left_index, search_len]
 
-        if original_slice.length == search_len
+        if original_slice&.length == search_len
           similarity = get_chunk_similarity original_slice, search_lines
           if similarity > best_score
             best_score = similarity
@@ -63,7 +63,7 @@ module DiffCrepusculum
 
       original_slice = lines[right_index, search_len]
 
-      if original_slice.length == search_len
+      if original_slice&.length == search_len
         similarity = get_chunk_similarity original_slice, search_lines
         if similarity > best_score
           best_score = similarity
@@ -375,7 +375,7 @@ module DiffCrepusculum
 
         # Try exact match first
         original_slice = lines[exact_start_index, search_len]
-        if original_slice.length == search_len
+        if original_slice&.length == search_len
           similarity = DiffCrepusculum.get_chunk_similarity original_slice, search_lines
           if similarity >= @fuzzy_threshold
             return { success: true, match_index: exact_start_index, similarity_score: similarity }

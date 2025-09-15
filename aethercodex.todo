@@ -6,6 +6,7 @@
 ✔︎ AI Connection @done(27-07-2025 19:14)
 ✔︎ Reasoning-Model Tool Integration @done(12-08-2025 20:53)
 ✔︎ Add Reasoning Content @done(27-07-2025 19:11)
+◯ investigate about pair programming techniques
 
 ### 📁 FILE & MEMORY SYSTEMS
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
@@ -27,14 +28,22 @@
 ### 🌐 UI & INTEGRATION
 ✔︎ TextMate Integration @done(09-08-2025 13:51)
 ✔︎ Basic Website for GitHub.io @done(27-07-2025 19:18)
+◯ Make Contextmenu command for listing, selecting and starting tasks via shortcut
+◯ make more commands that use the (numbered) context menu
 
 ## 🎯 ACTIVE DEVELOPMENT FOCUS
 
 ### 🔧 CORE INFRASTRUCTURE
-◯ Task Engine & Automation
+◯ Task Engine & Automation'
+    ◯ Task UI polishing
+        ◯ when task UI is minimized show a compact version that displays only phase, progressbar and title
     ◯ Create/edit tasks from user prompts
+        ✔︎ Create Task Works @done(07-09-2025 16:03)
+        ◯ Update Tasks
+    ◯ when task step is rejected, use reasoning to estimate why it failed
+        ◯ use the reasoning output to create notes of rejected steps like "lessons learned"
     ◯ Generate detailed execution plans
-    ◯ Loop execution until task completion
+    ◯ Instead of Loop execution, the tasks should use the tool reject and finalize a task step
     ◯ Pause and add remarks during execution
 
 ◯ Error Handling & Rollback
@@ -51,6 +60,7 @@
 ### 🌐 ADVANCED INTEGRATION
 ◯ File Browser Actions
     ◯ AI actions in file browser context menus
+    ◯ when a file is renamed or deleted, update its references in notes
 
 ◯ Real-time Command Output
     ◯ Real-time streaming to HorologiumAeternum
@@ -80,10 +90,15 @@
 ◯ Astral Projection (Multi-File Context)
     ◯ Cross-file reasoning and navigation
     ◯ Consciousness threading across files
+    ◯ combine mnemosyne with code coverage system
 
 
 ◯ Ritualistic Command Sequences
     ◯ Straightforward way to define project specific commands
+    ◯ support template engines like Yeoman, Cookiecutter, Nx/Angular schematics, Hygen, Plop.js
+    ◯ support or integrate rewriting systems like OpenRewrite “recipes,” jscodeshift codemods, Comby "structural edits"
+    ◯ combine those patterns with AI planning, test-impact gates, tracker/VCS approvals, and an auditable Chronicle, then lets users “Save as Blueprint” and batch-replay across many repos. That’s the wedge for ÆtherCodex.
+    ◯ ability to create commands that are automatically integrated as textmate actions
     ◯ Complex workflow automation patterns
     ◯ Elemental-aligned command execution
 

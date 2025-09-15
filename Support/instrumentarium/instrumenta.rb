@@ -7,6 +7,7 @@ require_relative '../mnemosyne/mnemosyne'
 require_relative '../oracle/oracle'
 require_relative 'horologium_aeternum'
 require_relative 'prima_materia'
+require_relative 'verbum'
 require_relative '../instrumentarium/scriptorium'
 
 
@@ -20,7 +21,7 @@ class Instrumenta
   def initialize
     @prima_materia = PRIMA_MATERIA
   end
-  
+
 
   class << self
     def instrumenta_schema = PRIMA_MATERIA.instrumenta_schema
@@ -37,7 +38,7 @@ class Instrumenta
       filtered_instrumenta
     end
   end
-  
+
 
   # Delegate all methods to the wrapped PrimaMateria instance
   def method_missing(method_name, ...)
@@ -72,10 +73,14 @@ instrument :read_file,
 
   uuid = HorologiumAeternum.file_reading path, range
   result = Argonaut.read path, range
+  raise result[:error] unless result[:error].nil?
+
   bytes_read = result[:content]&.bytesize || 0
   HorologiumAeternum.file_read_complete(path, bytes_read, range, result[:content], uuid:)
   result
 rescue StandardError => e
+  # TODO: when a file path could not be found make some suggestions about similar paths...
+  # TODO likewise when a directory is tried to read then output its contents.
   HorologiumAeternum.file_read_fail(path, e.message, range, uuid:)
   { error: e.message.to_s }
 end
@@ -85,16 +90,16 @@ instrument :oracle_conjuration,
            description: <<~DESC,
              Invoke advanced reasoning for complex problem-solving. This conjuration provides
              only the final prompt and context to the reasoning model - no tool execution is possible.
-             
+
              **REQUIRED PREPARATION**: Before invocation, you MUST:
                - Perform comprehensive research using all available tools
                - Gather complete file contents and structural analysis
                - Prepare detailed reasoning plan and context
                - Include all relevant information in the prompt
                - Put explanations and thoughts in the prompt
-               
+             #{'  '}
                **CRITICAL**: In reasoning mode, you CANNOT call any tools including oracle_conjuration itself
-               
+             #{'  '}
                The reasoning model receives only your prepared prompt and context.
                Previous tool results (such as file reads, overviews, previous conjuration results)
                are automatically passed in the context.
@@ -105,36 +110,38 @@ instrument :oracle_conjuration,
                      context: { type:        Object,
                                 required:    false,
                                 description: 'Context object to pass through to oracle' } },
-           timeout: 600,
-           returns: { reasoning: String, content: String, context: Object } do |prompt:, context: nil|
+           timeout: 6600,
+           returns: { reasoning: String,
+                      content:   String,
+                      context:   Object } do |prompt:, context: nil|
   # Add reasoning flag to context for proper system prompt selection
   context_with_reasoning = context ? context.merge(reasoning: true) : { reasoning: true }
-  
+
   params = {
     prompt:  prompt,
-    context: context_with_reasoning,
+    context: context_with_reasoning
   }
   HorologiumAeternum.oracle_conjuration prompt
-  
+
   puts "CONJURATION TOOL CONTEXT=#{context.inspect.truncate 200}"
 
   # For DeepSeek reasoning, we must NOT pass any tools to enable advanced reasoning
   # The reasoning model cannot use tools, so we provide empty tools array
-  puts "[CONJURATION][DEBUG]: Starting conjuration with params: #{params.inspect.truncate(200)}"
+  puts "[CONJURATION][DEBUG]: Starting conjuration with params: #{params.inspect.truncate 200}"
   # For reasoning, we need to pass empty tools object, not nil
   result = Aetherflux.channel_oracle_conjuration params, tools: nil
-  puts "[CONJURATION][DEBUG]: Aetherflux result: #{result.inspect.truncate(300)}"
+  puts "[CONJURATION][DEBUG]: Aetherflux result: #{result.inspect.truncate 300}"
 
   if result[:error]
     puts "[CONJURATION][ERROR]: #{result[:error]}"
     raise result[:error]
   end
 
-  if result[:status] == :success && result[:response]
+  if :success == result[:status] && result[:response]
     reasoning = result[:response][:reasoning]
     answer = result[:response][:answer]
 
-    puts "[CONJURATION][DEBUG]: Success - reasoning: #{reasoning.to_s.truncate(100)}, answer: #{answer.to_s.truncate(100)}"
+    puts "[CONJURATION][DEBUG]: Success - reasoning: #{reasoning.to_s.truncate 100}, answer: #{answer.to_s.truncate 100}"
 
     unless reasoning.to_s.empty?
       HorologiumAeternum.oracle_conjuration_revelation 'Oracle Reasoning', reasoning
@@ -143,7 +150,7 @@ instrument :oracle_conjuration,
       HorologiumAeternum.oracle_conjuration_revelation 'Oracle Answer', answer
     end
   else
-    puts "[CONJURATION][DEBUG]: Failed - status: #{result[:status]}, response: #{result[:response].inspect.truncate(200)}"
+    puts "[CONJURATION][DEBUG]: Failed - status: #{result[:status]}, response: #{result[:response].inspect.truncate 200}"
     reasoning = nil
     content = nil
   end
@@ -162,11 +169,13 @@ instrument :run_command,
              cmds to this list if you like.
            DESC
            params: { cmd: { type: String, required: true } },
+           timeout: 30,
            returns: { ok:          Boolean,
                       exit_status: Integer,
                       result:      String,
                       error:       String } do |cmd:|
-  next { error: 'Blocked command' } unless PrimaMateria::ALLOW_CMDS.any? { |re| cmd =~ re }
+  # TODO: instead of blocked command, make a button to accept or decline execution...
+  raise "Blocked command: `#{cmd}`" unless PrimaMateria::ALLOW_CMDS.any? { |re| cmd =~ re }
 
   uuid = HorologiumAeternum.command_executing cmd
 
@@ -176,12 +185,13 @@ instrument :run_command,
 
     env_vars = run_command_env.merge({ 'BUNDLE_GEMFILE' => '' })
 
-    stdout, stderr, status = Open3.capture3 env_vars, cmd, chdir: project_root
+    stdout, stderr, status = Verbum.run_command_in_real_time env_vars, cmd, chdir: project_root
+    # Open3.capture3 env_vars, cmd, chdir: project_root
     out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
     HorologiumAeternum.command_completed(cmd, out.length, out, status.exitstatus, uuid:)
 
     # Use Scriptorium HTML utils for proper escaping
-    escaped_out = Scriptorium.escape_html(out)
+    escaped_out = Scriptorium.escape_html out
 
     { ok: true, exit_status: status.exitstatus, result: "Command output: #{escaped_out}" }
   rescue StandardError => e
@@ -202,7 +212,7 @@ instrument :create_file,
   uuid = HorologiumAeternum.file_creating path, bytes
 
   full = File.join Argonaut.project_root, path
-  
+
   next { error: "File exists: #{path} (set overwrite:true)" } if File.exist?(full) && !overwrite
 
   Argonaut.write path, content
@@ -259,16 +269,18 @@ instrument :tell_user,
 end
 
 
-# TODO match by ID, so it can be easily accessed from file_overview tool
+# TODO: match by ID, so it can be easily accessed from file_overview tool
+# TODO: match by task ID
 instrument :recall_notes,
            description: 'Recall notes from Mnemosyne by tags, content or context. ' \
                         'Uses fuzzy matching with enhanced scoring: content (4x), ' \
-                        'tags (3x), links (2x), path matches (+5). Current-state only.',
+                        'tags (3x), links (2x), path matches (+5). Current-state only. ' \
+                        'Max. content length will be reduced by higher limit.',
            params: { query: { type: String, required: false },
                      limit: { type: Integer, required: false, default: 3 } },
-           returns: { notes: Array, error: String } do |query: '', limit: 7|
+           returns: { notes: Array, error: String } do |query: '', limit: 2|
   # Use optimized parameters to prevent context bloat
-  result = { notes: Mnemosyne.recall_notes(query, limit: limit, max_content_length: 555) }
+  result = { notes: Mnemosyne.recall_notes(query, limit: limit, max_content_length: 1111 / limit) }
   HorologiumAeternum.notes_recalled query, limit, result[:notes]
   result
 rescue StandardError => e
@@ -279,15 +291,16 @@ end
 instrument :file_overview,
            description: <<~DESC,
              Fetch file information with symbolic parsing. Returns lightweight metadata:
-             note count, tags, 50-char excerpt. Enhanced symbolic analysis shows AI's
-             structural view with classes, methods, constants, and navigation hints.
+             note count, tags, 50-char excerpt. Enhanced symbolic analysis shows
+             structural view with classes, methods, constants, and navigation hints. Use this in
+             combination with read_file range to fetch minimal parts of a file.
            DESC
            params: { path: { type: String, required: true } },
            returns: { metadata: Hash, error: String } do |path:|
   path = Argonaut.relative_path path
 
   # Use optimized parameters to prevent context bloat
-  results = Argonaut.file_overview(path: path, max_notes: 3, max_content_length: 333)
+  results = Argonaut.file_overview path: path, max_notes: 3, max_content_length: 333
   raise results[:error] unless results[:error].nil?
 
   HorologiumAeternum.file_overview path, results
@@ -332,7 +345,7 @@ instrument :remove_note,
            returns: { ok: Boolean, error: String } do |id:|
   note = Mnemosyne.get_note id
   Mnemosyne.remove_note id
-  HorologiumAeternum.note_removed(note)
+  HorologiumAeternum.note_removed note
   { ok: true }
 end
 
@@ -420,12 +433,17 @@ instrument :patch_file,
   diff_lines = diff.lines.count
   uuid = HorologiumAeternum.file_patching path, diff, diff_lines
 
-  next { error: 'Diff too big' } if PrimaMateria::MAX_DIFF < diff.lines.count
+  raise 'Diff too big' if PrimaMateria::MAX_DIFF < diff.lines.count
 
-  old_content, new_content = Argonaut.patch path, diff
-
-  HorologiumAeternum.file_patched(path, old_content, new_content, uuid:)
-  { ok: true }
+  result = Argonaut.patch path, diff
+  if result[:ok]
+    old_content, new_content = result[:result]
+    HorologiumAeternum.file_patched(path, old_content, new_content, uuid:)
+    { ok: true }
+  else
+    HorologiumAeternum.file_patched_fail(path, result[:error], diff, uuid:)
+    { error: "patch failed: #{result[:error].to_json}" }
+  end
 rescue StandardError => e
   HorologiumAeternum.file_patched_fail(path, e.message, diff, uuid:)
   { error: "patch failed: #{e.message}" }
@@ -467,10 +485,10 @@ instrument :create_task,
                      plan:  { type:        String,
                               required:    true,
                               description: 'The task execution plan.' } },
-           returns: { id: Integer, error: String } do |title:, plan:|
+           returns: { id: Integer, error: String } do |title:, plan:, quiet: false|
   engine = MagnumOpusEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
 
-  result = engine.create_task(title:, plan:, workflow_type: 'full')
+  result = engine.create_task title:, plan:, workflow_type: 'full', quiet: quiet
 
   uuid = HorologiumAeternum.task_created(**result)
 
@@ -488,6 +506,7 @@ instrument :execute_task,
            params: { task_id: { type:        Integer,
                                 required:    true,
                                 description: 'The ID of the task to execute.' } },
+           timeout: 86_400,
            returns: { ok: Boolean, error: String } do |task_id:|
   task = Mnemosyne.get_task task_id
   next { error: 'Task not found' } unless task
@@ -495,9 +514,9 @@ instrument :execute_task,
   uuid = HorologiumAeternum.task_started(**task)
 
   engine = MagnumOpusEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
-  engine.execute_task task[:id]
+  result = engine.execute_task task[:id]
 
-  { ok: true }
+  { ok: true, result: }
 rescue StandardError => e
   HorologiumAeternum.system_error('Error Executing Task', message: e.message, uuid:)
 
@@ -524,25 +543,34 @@ end
 
 
 instrument :evaluate_task,
-           description: 'Check task progress and handle edge cases.',
+           description: 'Check task progress and handle edge cases. Returns comprehensive task information including step results, execution logs, and alchemical progression stages.',
            params: { task_id: { type:        Integer,
                                 required:    true,
                                 description: 'The ID of the task to evaluate.' } },
-           returns: { status:       Symbol,
-                      result:       Object,
-                      current_step: Integer,
-                      error:        String } do |task_id:|
-  task = Mnemosyne.get_task task_id
-  raise 'Task not found' unless task
+           returns: { status:                 Symbol,
+                      current_step:           Integer,
+                      task:                   Object,
+                      step_results:           Object,
+                      execution_logs:         Array,
+                      alchemical_progression: Array,
+                      error:                  String } do |task_id:|
+  # Use the enhanced MagnumOpusEngine evaluate_task method for comprehensive evaluation
+  engine = MagnumOpusEngine.new mnemosyne: Mnemosyne, aetherflux: Aetherflux
+  evaluation = engine.evaluate_task task_id
 
-  task[:current_step] ||= 0
-
-  result = if task[:current_step] >= 10 #task[:max_steps]
-             { status: :completed, result: 'Task successfully executed' }
-           else
-             { status: :in_progress, current_step: task[:current_step] }
-           end
-  result
+  if :success == evaluation[:status]
+    # Maintain backward compatibility with original format while adding enhanced data
+    {
+      status:                 evaluation[:task][:status].to_sym,
+      current_step:           evaluation[:task][:current_step],
+      task:                   evaluation[:task],
+      step_results:           evaluation[:step_results],
+      execution_logs:         evaluation[:execution_logs],
+      alchemical_progression: evaluation[:alchemical_progression]
+    }
+  else
+    { error: evaluation[:message] || 'Task evaluation failed' }
+  end
 rescue StandardError => e
   HorologiumAeternum.system_error 'Error Evaluating Task', message: e.message
   { error: e.message }

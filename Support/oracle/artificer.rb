@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'error_handler'
+
 # Instrumentator provides hermetic, side-effect-free execution of instrumenta
 # with proper message handling and error management. Designed for reuse across the system.
 class Artificer
@@ -14,11 +16,10 @@ class Artificer
   }.freeze
 
 
+
   # Exception to signal restart needed
   class RestartException < StandardError; end
 
-  # Exception to signal step completion/rejection - terminates current reasoning
-  class StepTerminationException < StandardError; end
 
 
   class << self
@@ -31,8 +32,19 @@ class Artificer
       log_instrumenta_call 'INSTRUMENTA_CALL', name, args
       safe_context = create_safe_context instrumenta_results
 
-      HermeticExecutionDomain.execute max_retries: 2, timeout: 3000 do
+      HermeticExecutionDomain.execute max_retries: 2, timeout: 86400 do
         result = execution_block.call name, args, safe_context
+        
+        # puts "execute_standard #{result.inspect}"
+        
+        # Check for divine interruption signal - terminate current oracle call if detected
+        if result.is_a?(Hash) && result.key?(:__divine_interrupt)
+          # puts "FOUND"
+          # Return the divine interruption signal directly without adding to messages
+          return [result, messages, instrumenta_results]
+        end
+        # puts "blah"
+        
         updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call['id'],
                                                                name:   name,
                                                                result: result }]
@@ -40,11 +52,9 @@ class Artificer
                                          tool_call_id: instrumenta_call['id'],
                                          content:      result.to_json }]
         [result, updated_messages, updated_instrumenta_results]
+      rescue HermeticExecutionDomain::Error => e
+        handle_hermetic_execution_error e, 'Hermetic execution failed'
       end
-    rescue HermeticExecutionDomain::Error => e
-      handle_hermetic_execution_error e, 'Hermetic execution failed'
-    rescue StepTerminationException => e
-      handle_step_termination_error e
     end
 
 
@@ -55,9 +65,16 @@ class Artificer
                            instrumenta_call[:args]
       safe_context = create_safe_context instrumenta_results
 
-      HermeticExecutionDomain.execute max_retries: 2, timeout: 30 do
+      HermeticExecutionDomain.execute max_retries: 2, timeout: 86400 do
         result = execution_block.call instrumenta_call[:name], instrumenta_call[:args],
                                       safe_context
+        
+        # Check for divine interruption signal - terminate current oracle call if detected
+        if result.is_a?(Hash) && result.key?(:__divine_interrupt)
+          # Return the divine interruption signal directly without adding to messages
+          return [result, messages, instrumenta_results]
+        end
+        
         instrumenta_call_id = instrumenta_call[:id] || SecureRandom.uuid
         updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call_id,
                                                                name:   instrumenta_call[:name],
@@ -69,8 +86,6 @@ class Artificer
       end
     rescue HermeticExecutionDomain::Error => e
       handle_hermetic_execution_error e, 'Hermetic execution failed'
-    rescue StepTerminationException => e
-      handle_step_termination_error e
     end
 
 
@@ -188,9 +203,5 @@ class Artificer
     end
 
 
-    def handle_step_termination_error(error)
-      # Don't log here - the error will be caught and handled by the calling context
-      raise error
-    end
   end
 end
