@@ -9,6 +9,7 @@ require_relative 'horologium_aeternum'
 require_relative 'prima_materia'
 require_relative 'verbum'
 require_relative '../instrumentarium/scriptorium'
+require_relative '../argonaut/temp_create_file'
 
 
 
@@ -224,7 +225,7 @@ end
 
 
 instrument :rename_file,
-           description: 'Rename a file with given content.',
+           description: 'Rename a file with given content. May also be used to move files.',
            params: { from: { type: String, required: true },
                      to:   { type: String, required: true } },
            returns: { ok: Boolean, error: String } do |from:, to:|
@@ -240,6 +241,40 @@ instrument :rename_file,
   { ok: true }
 rescue StandardError => e
   { error: e.message }
+end
+
+
+instrument :temp_create_file,
+           description: <<~DESC,
+             Create a temporary file with automatic context-based cleanup. The file will be
+             automatically removed when the oracle context terminates. Supports both system
+             temp files and project-relative paths with nested context management.
+           DESC
+           params: { content: { type:        String,
+                                required:    true,
+                                description: 'The content to write to the temporary file.' },
+                     path:    { type:        String,
+                                required:    false,
+                                description: 'Optional relative path within project (nil for system temp files)' } },
+           returns: { path:    String,
+                      success: Boolean,
+                      error:   String } do |content:, path: nil|  
+  # Debug: check what parameters are received
+  puts "[INSTRUMENTA] temp_create_file called with path: #{path.inspect}"
+  
+  result = Argonaut::TempFile.create(content, path: path)
+  
+  puts "[INSTRUMENTA] Argonaut::TempFile.create result: #{result.inspect}"
+  
+  if result[:success]
+    uuid = HorologiumAeternum.temp_file_created(path, content, content.bytesize)
+    result
+  else
+    { error: result[:error] }
+  end
+rescue StandardError => e
+  puts "[INSTRUMENTA] Error: #{e.message}"
+  { error: "Temporary file creation failed: #{e.message}" }
 end
 
 
@@ -323,6 +358,8 @@ instrument :remember,
                      tags:    { type: Array, required: false } },
            returns: { ok:    Boolean,
                       error: String } do |content:, id: nil, links: nil, tags: nil|
+  # links = if links.is_a? String
+    
   note = { content: content, links: links, tags: tags }
   if id.nil?
     Mnemosyne.create_note(**note)
@@ -478,7 +515,11 @@ end
 
 
 instrument :create_task,
-           description: 'Generate a task for complex prompts with fields for plan and title.',
+           description:  <<~DESC,
+           Generate a task for complex prompts with fields for plan and title. During Task
+           execution no other history context is given to the AI (you). Make sure that plan is very
+           descriptive.
+           DESC
            params: { title: { type:        String,
                               required:    true,
                               description: 'The title of the plan.' },

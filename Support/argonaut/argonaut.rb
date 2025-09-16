@@ -9,6 +9,7 @@ require_relative '../instrumentarium/diff_crepusculum'
 require_relative 'simple_scopes'
 require_relative 'aether_scopes_enhanced'
 require_relative 'aether_scopes_hierarchical'
+# require_relative 'temp_create_file'  # Moved to instrumentarium domain system
 
 
 

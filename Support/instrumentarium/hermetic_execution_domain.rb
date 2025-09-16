@@ -54,9 +54,6 @@ class HermeticExecutionDomain
         puts "[HERMETIC_EXECUTION_DOMAIN][ORACLE::STEP_TERMINATION_ERROR]: #{e.inspect}"
         # Step termination is expected - re-raise to allow proper handling at Oracle level
         raise e
-      rescue MagnumOpusEngine::StepCompleted => e
-        # Step completion is expected - re-raise to allow proper handling at execute_step level
-        raise e
       rescue StandardError => e
         classified_error = classify_error e
         raise classified_error, "Tool execution failed: #{e.message.truncate 300}"

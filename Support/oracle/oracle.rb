@@ -6,13 +6,14 @@ require 'fileutils'
 require 'timeout'
 require 'socket'
 require 'digest'
-require_relative '../instrumentarium/metaprogramming_utils'
+require_relative '../argonaut/temp_file_manager'
 require_relative '../instrumentarium/hermetic_execution_domain'
 require_relative '../instrumentarium/horologium_aeternum'
+require_relative '../instrumentarium/metaprogramming_utils'
 require_relative '../mnemosyne/mnemosyne'
+require_relative 'artificer'
 require_relative 'conduit'
 require_relative 'coniunctio'
-require_relative 'artificer'
 require_relative 'error_handler'
 
 
@@ -113,6 +114,10 @@ class Oracle
                    reasoning: false,
                    msg_uuid: nil,
                    &exec)
+      # Create and enter temp file context for this oracle execution
+      temp_context_id = Argonaut::TempFileManager.create_context
+      Argonaut::TempFileManager.enter_context temp_context_id
+      
       set_temperature = set_temperature_from_context context
       messages = base_messages prompt_or_messages, context, reasoning
       tool_results = []
@@ -134,6 +139,12 @@ class Oracle
       raise Oracle::RestartException.new (ErrorHandler.handle_restart_exception e)
     rescue StandardError => e
       ErrorHandler.handle_divination_error e, tool_results
+    ensure
+      # Clean up temp file context for this oracle execution
+      if defined?(Argonaut::TempFileManager) && temp_context_id
+        Argonaut::TempFileManager.cleanup_context temp_context_id
+        Argonaut::TempFileManager.exit_context
+      end
     end
 
 

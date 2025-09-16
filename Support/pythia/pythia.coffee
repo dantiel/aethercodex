@@ -202,6 +202,13 @@ class Pythia
             <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
             #{data.content}
           </details>"""
+      when 'temp_file_created'
+        @log 'status', uuid, """
+          <details>
+            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            #{data.content}
+          </details>"""
+
       when 'tool_starting'
         @log 'status', uuid, "⚡ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
         if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
@@ -411,15 +418,29 @@ class Pythia
   # Task Management
   toggleTaskProgress: (task_id) =>
     taskProgress = document.getElementById 'task_progress'
-    taskProgress.classList.toggle('collapsed')
-    # Update button icon based on state
+    
+    # Toggle between expanded, collapsed, and compact views
+    if taskProgress.classList.contains('collapsed')
+      # Currently collapsed -> switch to compact view
+      taskProgress.classList.remove('collapsed')
+      taskProgress.classList.add('compact-view')
+    else if taskProgress.classList.contains('compact-view')
+      # Currently compact -> expand fully
+      taskProgress.classList.remove('compact-view')
+    else
+      # Currently expanded -> collapse to minimal
+      taskProgress.classList.add('collapsed')
+    
     button = taskProgress.querySelector('.task-header button')
     if taskProgress.classList.contains('collapsed')
-      button.textContent = '📄'
-      button.title = 'Expand task panel'
+      button.textContent = '▶'
+      button.title = 'Show compact view'
+    else if taskProgress.classList.contains('compact-view')
+      button.textContent = '▼'
+      button.title = 'Expand fully'
     else
-      button.textContent = '📋'
-      button.title = 'Collapse task panel'
+      button.textContent = '▼'
+      button.title = 'Minimize task panel'
 
 
   renderTaskProgress: (task) =>
@@ -470,7 +491,7 @@ class Pythia
         <div class=\"task-header\">
           <strong>#{task.title}</strong>
           <span>#{alchemical_stage} (#{if display_step == 0 then 'Initium' else display_step}/10)</span>
-          <button onclick=\"pythia.toggleTaskProgress('#{task_id}')\" title=\"Toggle task panel\">📋</button>
+          <button onclick=\"pythia.toggleTaskProgress('#{task_id}')\" title=\"Toggle task panel\">▼</button>
         </div>
         <div class=\"progress-bar\">
           <div class=\"progress\" style=\"width: #{progress_percent}%\"></div>
@@ -491,6 +512,9 @@ class Pythia
         </div>
       """
       
+      # Start in compact view by default for better UX
+      taskProgress.classList.add('compact-view')
+      
       # Load any existing logs from storage
       @loadTaskLogs(task_id)
     else
@@ -499,6 +523,7 @@ class Pythia
       headerSpan.textContent = "#{alchemical_stage} (#{if display_step == 0 then 'Initium' else display_step}/10)" if headerSpan
       
       progress = progressBar.querySelector('.progress')
+      progress.classList.add do alchemical_stage.toLowerCase
       progress.style.width = "#{progress_percent}%" if progress
       
       # Update step result display if available
@@ -557,10 +582,10 @@ class Pythia
       # Update button icon based on state
       button = taskLogElement.querySelector('.task-log-header button')
       if taskLogElement.classList.contains('collapsed')
-        button.textContent = '📄'
+        button.textContent = '' #📄'
         button.title = 'Show logs'
       else
-        button.textContent = '📋'
+        button.textContent = '' #📋'
         button.title = 'Hide logs'
 
 

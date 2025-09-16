@@ -751,7 +751,8 @@ class MagnumOpusEngine
     end
   end
 
-
+  
+  # TODO this needs to display a special message when a step was rejected...
   # Format previous step results for context inclusion with aggressive truncation
   def format_previous_results(results, current_step)
     return 'No previous step results available.' if results.empty? || 1 == current_step
@@ -1001,7 +1002,7 @@ class MagnumOpusEngine
       # CURRENT STEP GUIDANCE (System message)
       {
         role: 'system',
-        content: <<~GUIDANCE
+        content: <<~STEP_GUIDANCE
           # CURRENT STEP GUIDANCE
           #{step_guidance}
           
@@ -1012,13 +1013,13 @@ class MagnumOpusEngine
           Workflow Type: #{workflow_type.upcase}
           Current Step: #{step_index}/#{max_steps} (#{remaining_steps} steps #{remaining_steps.positive? ? 'remaining' : 'completed'})
           Phase: #{4 >= step_index ? 'EXPLORATION (Reasoning Only)' : 'IMPLEMENTATION (Full Tool Access)'}
-        GUIDANCE
+        STEP_GUIDANCE
       },
       
       # EXECUTION INSTRUCTIONS (System message)
       {
         role: 'system',
-        content: <<~INSTRUCTIONS
+        content: <<~EXECUTION_INSTRUCTIONS
           # EXECUTION INSTRUCTIONS
           #{step_clarification}
           
@@ -1099,13 +1100,13 @@ class MagnumOpusEngine
                 IMPLEMENTATION
               end
             end}
-        INSTRUCTIONS
+        EXECUTION_INSTRUCTIONS
       },
       
       # TASK EXECUTION CONTEXT (User message)
       {
         role: 'user',
-        content: <<~CONTEXT
+        content: <<~EXECUTION_CONTEXT
           # TASK EXECUTION CONTEXT
           TASK TITLE: #{task[:title] || '--'}
           TASK DESCRIPTION: #{task[:description] || '--'}
@@ -1113,35 +1114,38 @@ class MagnumOpusEngine
           
           Execute Step #{step_index}: #{STEP_PURPOSES[step_index - 1]}
           
-          # STEP COMPLETION TOOLS - DIVINE INTERRUPTION:
+          # STEP COMPLETION TOOLS:
           - Call task_complete_step(result) when finished with this step
           - If you need to restart or refine, call task_reject_step(reason, restart_from_step)
-          - These tools return divine interruption signals that terminate reasoning
+          - These tools terminate reasoning and reasoning will proceed with the given result/reason 
+            from the next step, therefore it is crucial to put all gathered, necessary and relevant
+            information in the result/reason.
           - They are the only way to progress through the workflow
-        CONTEXT
-      },
-      
-      # STEP COMPLETION GUIDANCE (System message - initial instruction only, not automatic reminder)
-      {
-        role: 'system',
-        content: <<~GUIDANCE
-          # STEP COMPLETION REQUIREMENT
-          
-          **IMPORTANT**: You must use step completion tools to progress the workflow.
-          
-          ## STEP MANAGEMENT TOOLS:
-          - **task_complete_step(result)** - Complete current step (provide result if available)
-          - **task_reject_step(reason, restart_from_step)** - Reject current step and restart
-          
-          ## KEY BEHAVIOR:
-          1. These tools return divine interruption signals that terminate current reasoning
-          2. Do NOT continue reasoning after calling these functions
-          3. Do NOT call any other tools after step completion
-          4. Use these tools ONLY when the current step is complete
-          
-          **Call the appropriate step completion tool when this step is finished.**
-        GUIDANCE
+        EXECUTION_CONTEXT
       }
+      #,
+      
+      # # STEP COMPLETION GUIDANCE (System message - initial instruction only, not automatic reminder)
+      # {
+      #   role: 'system',
+      #   content: <<~GUIDANCE
+      #     # STEP COMPLETION REQUIREMENT
+      #
+      #     **IMPORTANT**: You must use step completion tools to progress the workflow.
+      #
+      #     ## STEP MANAGEMENT TOOLS:
+      #     - **task_complete_step(result)** - Complete current step (provide result if available)
+      #     - **task_reject_step(reason, restart_from_step)** - Reject current step and restart
+      #
+      #     ## KEY BEHAVIOR:
+      #     1. These tools return divine interruption signals that terminate current reasoning
+      #     2. Do NOT continue reasoning after calling these functions
+      #     3. Do NOT call any other tools after step completion
+      #     4. Use these tools ONLY when the current step is complete
+      #
+      #     **Call the appropriate step completion tool when this step is finished.**
+      #   GUIDANCE
+      # }
     ]
 
     begin

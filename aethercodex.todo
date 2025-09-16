@@ -92,7 +92,6 @@
     ◯ Consciousness threading across files
     ◯ combine mnemosyne with code coverage system
 
-
 ◯ Ritualistic Command Sequences
     ◯ Straightforward way to define project specific commands
     ◯ support template engines like Yeoman, Cookiecutter, Nx/Angular schematics, Hygen, Plop.js

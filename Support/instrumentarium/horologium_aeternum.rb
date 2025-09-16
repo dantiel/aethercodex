@@ -192,6 +192,48 @@ module HorologiumAeternum
   end
 
 
+  def self.temp_file_created(path, content, bytes, domain: nil, uuid: nil)
+    message = if domain
+                Scriptorium.html "📄 Created temporary file #{create_file_link path} (#{display_bytes bytes}) in domain #{domain[0..8]}..."
+              else
+                Scriptorium.html "📄 Created temporary file #{create_file_link path} (#{display_bytes bytes})"
+              end
+
+    send_status('temp_file_created', {
+                  message:   message,
+                  content:   Scriptorium.html_with_syntax_highlight(content),
+                  path:,
+                  bytes:,
+                  domain:,
+                  temporary: true
+                }, uuid:)
+  end
+
+
+  def self.temp_domain_created(domain_id, uuid: nil)
+    send_status('temp_domain_created', {
+                  message: Scriptorium.html("🏗️ Created temporary file domain #{domain_id[0..8]}..."),
+                  domain:  domain_id
+                }, uuid:)
+  end
+
+
+  def self.temp_domain_cleaned(domain_id, cleaned_files, error_files, uuid: nil)
+    message = if error_files.empty?
+                Scriptorium.html "🧹 Cleaned temporary file domain #{domain_id[0..8]}... (#{cleaned_files.size} files)"
+              else
+                Scriptorium.html "⚠️ Partially cleaned temporary file domain #{domain_id[0..8]}... (#{cleaned_files.size} cleaned, #{error_files.size} errors)"
+              end
+
+    send_status('temp_domain_cleaned', {
+                  message: message,
+                  domain:  domain_id,
+                  cleaned: cleaned_files,
+                  errors:  error_files
+                }, uuid:)
+  end
+
+
   def self.file_patching(path, diff_content, diff_lines, uuid: nil)
     send_status('file_patching', {
                   message:    Scriptorium.html("🔧 Applying patch to #{create_file_link path} (#{diff_lines} diff lines)"),
@@ -404,7 +446,7 @@ module HorologiumAeternum
   def self.task_completed(duration, uuid: nil, **task)
     task = render_task_fields task
     send_status('task_completed', {
-                  message:  Scriptorium.html("✅ Task completed: #{task[:title]} (#{duration.round 2}s)"),
+                  message:  Scriptorium.html("✅ Task completed: **#{task[:title]}** (#{duration.round 2}s)"),
                   **task,
                   duration:
                 }, uuid:)
