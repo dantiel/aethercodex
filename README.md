@@ -280,6 +280,50 @@ Extract hermetic symbols and forecast transformations
 - `TM_AI_DEBUG=1` - Enable debug logging
 - `TM_AI_PORT=4567` - Custom server port
 
+### **Environment Injection (.env.run_command)**
+Create `.env.run_command` in your project root to inject custom environment variables when the AI executes commands:
+
+```bash
+# Example .env.run_command
+PATH="/custom/path:$PATH"
+GEM_HOME=/path/to/gems
+RUBY_VERSION=3.1.7
+BUNDLE_GEMFILE=Support/Gemfile
+```
+
+This file is automatically sourced when executing `run_command` operations, allowing you to:
+- Set custom Library paths
+- Configure environment-specific variables
+- Ensure proper execution context
+- Maintain consistent execution environment across AI operations
+
+### **Custom Command Whitelist (.aethercodex)**
+Add `allowed-commands` to your `.aethercodex` configuration to customize which commands can be executed:
+
+```yaml
+# Allow specific additional commands
+allowed-commands:
+  - npm
+  - yarn
+  - python3
+  - pip3
+  - docker
+  - docker-compose
+  - node
+  - npx
+
+# Or allow ALL commands (use with caution!)
+allowed-commands: "*"
+```
+
+**Features:**
+- **Merges with defaults**: Custom commands are added to the existing allowlist
+- **Wildcard support**: Use `"*"` to allow all commands (bypasses security)
+- **Regex patterns**: Supports regular expressions for complex matching
+- **Project-specific**: Each project can have its own command allowlist
+
+**Default allowed commands:** `rspec`, `rubocop`, `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`, `bundle exec irb`, `bundle exec rspec`, `ruby`, `irb`, `cd`, `curl`, `ag`, `find`, `tail`, `ast-grep`, `which`, `wc`, `oc`, `file`, `hexdump`
+
 ### **Memory Database**
 Location: `.tm-ai/memory.db` (auto-created)
 - Stores conversation context

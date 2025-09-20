@@ -2,6 +2,8 @@ require 'yaml'
 require 'pathname'
 require 'dotenv'
 
+
+
 # Unified hierarchical configuration loading system
 # Loads .aethercodex files from multiple sources with precedence:
 # 1. Current project directory (highest priority)
@@ -206,4 +208,20 @@ class CONFIG
     resolve_path('.tm-ai/limen.pid')
   end
   
+  # Get custom allowed commands from configuration
+  def self.allowed_commands
+    custom_commands = CFG[:'allowed-commands'] || CFG['allowed-commands'] || []
+    
+    # Handle wildcard - allow all commands
+    return [//] if custom_commands == '*' || custom_commands == ['*']
+    
+    # Convert string commands to regex patterns
+    custom_commands.map do |cmd|
+      if cmd.is_a?(Regexp)
+        cmd
+      else
+        /^#{Regexp.escape(cmd.to_s)}\b/
+      end
+    end
+  end
 end

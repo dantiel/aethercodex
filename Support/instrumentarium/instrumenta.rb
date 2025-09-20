@@ -178,7 +178,13 @@ instrument :run_command,
                       result:      String,
                       error:       String } do |cmd:|
   # TODO: instead of blocked command, make a button to accept or decline execution...
-  raise "🚫 Blocked command: ` #{cmd}`" unless PrimaMateria::ALLOW_CMDS.any? { |re| cmd =~ re }
+  # Get merged allowed commands (default + custom from .aethercodex)
+  allowed_commands = PrimaMateria.allowed_commands
+  
+  # Allow all commands if wildcard is present
+  unless allowed_commands.any? { |re| re == // } || allowed_commands.any? { |re| cmd =~ re }
+    raise "🚫 Blocked command: `#{cmd}`"
+  end
 
   uuid = HorologiumAeternum.command_executing cmd
 

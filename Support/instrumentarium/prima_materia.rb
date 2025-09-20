@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative '../oracle/oracle'
+require_relative '../config'
 
 # Define Boolean type for schema compatibility
 Boolean = TrueClass
@@ -506,6 +507,19 @@ class PrimaMateria
     end
   end
 
+
+
+  # Get merged allowed commands (default + custom)
+  def self.allowed_commands
+    default_commands = ALLOW_CMDS
+    custom_commands = CONFIG::allowed_commands
+    
+    # If custom commands include wildcard, allow everything
+    return [//] if custom_commands.any? { |re| re == // }
+    
+    default_commands + custom_commands
+  end
+  
 
   ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/,
                   /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/,
