@@ -349,7 +349,7 @@ module AetherScopesHierarchical
   # Main API for file overview integration - hierarchical and language-aware
   def self.structural_overview(project_root, file_path, content = nil, max_depth: nil)
     full_path = File.join project_root, file_path
-    content ||= (File.read full_path if File.exist?(full_path))
+    content ||= (File.read full_path if File.exist? full_path)
     return empty_analysis unless content
 
     parser = HierarchicalParser.new content, nil, full_path
@@ -462,11 +462,13 @@ module AetherScopesHierarchical
   end
 
 
-  def self.extract_all_elements(hierarchy)
+  def self.extract_all_elements(hierarchy, depth = 0)
     elements = []
     hierarchy.each do |item|
-      elements << item
-      elements.concat extract_all_elements(item[:children])
+      new_item = item.clone
+      new_item[:depth] = depth
+      elements << new_item
+      elements.concat extract_all_elements(item[:children], depth + 1)
     end
     elements
   end
@@ -490,44 +492,38 @@ module AetherScopesHierarchical
 
 
   # Enhanced integration with file_overview tool - hierarchical and language-aware
-  def self.for_file_overview(project_root, file_path, max_notes: 3, max_content_length: 150, max_depth: nil)
+  def self.for_file_overview(project_root,
+                             file_path,
+                             max_notes: 3,
+                             max_content_length: 150,
+                             max_depth: nil)
     overview = structural_overview project_root, file_path, nil, max_depth: max_depth
 
-    # Get relevant notes based on hierarchical structure
-    symbol_names = extract_symbol_names overview[:hierarchy]
+    # Get all notes related to this file
+    notes = Mnemosyne.recall_notes file_path, limit: 50
 
-    # Get relevant notes with content length limits
-    notes = if symbol_names.any?
-              # Search for notes related to symbols found in the file
-              symbol_names.flat_map do |symbol|
-                Mnemosyne.recall_notes(symbol, limit: 2, max_content_length: max_content_length)
-              end.uniq { |note| note[:id] }
-            else
-              # Fallback to file-based notes
-              Mnemosyne.recall_notes file_path, limit: max_notes,
-                                                max_content_length: max_content_length
-            end
-
-    # Debug: check what we're returning
-    # puts "DEBUG: overview[:navigation_hints] = #{overview[:navigation_hints].inspect}"
-    # puts "DEBUG: overview[:line_hints] = #{overview[:line_hints].inspect}"
+    # Generate tag cloud and file cloud from notes instead of full note content
+    tag_cloud = generate_tag_cloud notes
+    file_cloud = generate_file_cloud notes
+    
+    # Generate hermetic symbolic overview using LexiconResonantia
+    symbolic_overview = LexiconResonantia.generate_from_notes(notes)
 
     # Format for AI consumption - enhanced with hierarchical data
     {
-      language:           overview[:language],
-      structural_summary: overview[:summary],
-      hierarchy:          overview[:hierarchy],
-      imports:            overview[:imports],
-      exports:            overview[:exports],
-      navigation_hints:   overview[:navigation_hints],
-      significant_lines:  (overview[:line_hints] || {}).keys.map(&:to_i).sort,
-      relevant_notes:     notes.map do |note|
-        {
-          id:      note[:id],
-          content: note[:content],
-          tags:    note[:tags]
-        }
-      end
+      language:               overview[:language],
+      structural_summary:     overview[:summary],
+      hierarchy:              overview[:hierarchy],
+      imports:                overview[:imports],
+      exports:                overview[:exports],
+      navigation_hints:       overview[:navigation_hints],
+      significant_lines:      (overview[:line_hints] || {}).keys.map(&:to_i).sort,
+      tag_cloud:,
+      file_cloud:,
+      tag_cloud_text:         tag_cloud.map { |tag| "#{tag[0]}: #{tag[1]}" }.join('\n'),
+      file_cloud_text:        file_cloud.map { |tag| "#{tag[0]}: #{tag[1]}" }.join('\n'),
+      symbolic_overview_text: generate_symbolic_overview_text(overview),
+      hermetic_overview:      symbolic_overview.join("\n")
     }
   end
 
@@ -539,6 +535,63 @@ module AetherScopesHierarchical
       names.concat extract_symbol_names(item[:children])
     end
     names
+  end
+
+
+  def self.generate_symbolic_overview_text(overview)
+    # Add hierarchy elements in compact format
+    lines = extract_all_elements(overview[:hierarchy]).map do |element|
+      "#{'  ' * element[:depth]}#{element[:line]}: #{element[:type][..2]} #{element[:name]}"
+    end
+
+    # Add imports
+    overview[:imports].each do |import|
+      lines << "#{import[:line]}: import #{import[:type]} -> #{import[:target]}"
+    end
+
+    # Add exports
+    overview[:exports].each do |export|
+      lines << "#{export[:line]}: export #{export[:type]}"
+    end
+
+    lines.join "\n"
+  end
+
+
+  # Generate tag cloud from notes related to this file
+  def self.generate_tag_cloud(notes)
+    # Extract and count tags
+    tag_counts = Hash.new 0
+    notes.each do |note|
+      next unless note[:tags]
+
+      tags = note[:tags].is_a?(String) ? note[:tags].split(',') : note[:tags]
+      tags.each { |tag| tag_counts[tag.strip] += 1 }
+    end
+
+    # Convert to array of [tag, count] sorted by frequency
+    tag_counts.sort_by { |_tag, count| -count }
+  end
+
+
+  # Generate file cloud showing related files based on note links
+  def self.generate_file_cloud(notes)
+    # Extract file links from notes
+    file_counts = Hash.new 0
+    notes.each do |note|
+      next unless note[:links]
+
+      links = note[:links].is_a?(String) ? note[:links].split(',') : note[:links]
+      links.each do |link|
+        # Only count files, not other types of links
+        # if link.include?('/') || link.include?('.') || link.include?('_') || link.include?('-') || link.include?(' ')
+          file_counts[link.strip] += 1
+        # end
+      end
+    end
+
+    # Convert to array of [file, count] sorted by frequency
+    file_counts.sort_by { |_file, count| -count }
   end
 
 

@@ -510,7 +510,8 @@ class PrimaMateria
   ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/,
                   /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/,
                   /^bundle exec irb\b/, /^bundle exec rspec\b/, /^ruby\b/, /^irb\b/, /^cd\b/, 
-                  /^curl\b/, /^ag\b/, /^find\b/, /^tail\b/].freeze
+                  /^curl\b/, /^ag\b/, /^find\b/, /^tail\b/, /^ast-grep\b/, /^which\b/, /^wc\b/,
+                  /^oc\b/, /^file\b/, /^hexdump\b/].freeze
   DENY_PATHS   = [/\.aethercodex$/, /\.env$/, %r{\.git/}].freeze
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10

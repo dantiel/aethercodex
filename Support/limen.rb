@@ -141,9 +141,10 @@ def startThinkingThread(ws, req)
   stopThinkingThread if @ask_thread
 
   @ask_thread = Thread.new do
-    warn "[LIMEN][WS]: message: #{req['params'].inspect}"
+    params = req['params'].transform_keys(&:to_sym)
+    warn "[LIMEN][WS]: message: #{params.inspect}"
     
-    res = Aetherflux.channel_oracle_divination( req['params'].transform_keys!(&:to_sym), tools: Instrumenta)
+    res = Aetherflux.channel_oracle_divination(params, tools: Instrumenta)
     raise res[:error] if 'error' == res[:result]
 
     # warn "[WS][DEBUG] #{res.inspect}"
@@ -189,7 +190,26 @@ end
 
 def do_ask(p)
   uuid = HorologiumAeternum.thinking 'Initializing astral connection...'
-  ctx = Coniunctio.build p
+  
+  # Handle both old single attachment format and new multiple attachments format
+  attachments = p['attachments'] || []
+  if p['file'] && attachments.empty?
+    # Convert old format to new format for backward compatibility
+    attachments = [{
+      file: p['file'],
+      selection: p['selection'],
+      line: p['line'],
+      column: p['column'],
+      selection_range: p['selection_range']
+    }]
+  end
+  
+  # Send each attachment to frontend for preview
+  attachments.each do |attachment|
+    do_attach(attachment.transform_keys(&:to_sym))
+  end
+  
+  ctx = Coniunctio.build p.merge(attachments: attachments)
 
   # Enhanced streaming callback for real-time tool feedback
   answer, arts, tool_results =

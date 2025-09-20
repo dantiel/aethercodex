@@ -18,7 +18,7 @@
 ### 🛠️ TOOLING & COMMANDS
 ✔︎ Allow Safe Commands @done(27-07-2025 19:12)
 ✔︎ replace pygments by rouge @done(29-07-2025 23:52)
-◯ add instrument: temp_create_file. this action creates a file for use as a temporary script or utility that isnt supposed to be part of the project but for the ai handling. it will be automatically cleaned up after termination or request.
+✔︎ add instrument: temp_create_file. this action creates a file for use as a temporary script or utility that isnt supposed to be part of the project but for the ai handling. it will be automatically cleaned up after termination or request. @done(17-09-2025 00:35)
 ◯ when the max tool calls commands are exceeded, instead of finishing the call, make a button that requires proceed so its not disrupted.
 ◯ make a (very short) overview  about last tools calls
 ◯ add a button to "pause" the current execution rather than stopping it, in in this state some arbitrary information and hints and additional requirements may be added by the user as prompt.
@@ -35,8 +35,8 @@
 
 ### 🔧 CORE INFRASTRUCTURE
 ◯ Task Engine & Automation'
-    ◯ Task UI polishing
-        ◯ when task UI is minimized show a compact version that displays only phase, progressbar and title
+    ✔︎ Task UI polishing @done(17-09-2025 00:45)
+        ✔︎ when task UI is minimized show a compact version that displays only phase, progressbar and title @done(17-09-2025 00:45)
     ◯ Create/edit tasks from user prompts
         ✔︎ Create Task Works @done(07-09-2025 16:03)
         ◯ Update Tasks
@@ -45,6 +45,7 @@
     ◯ Generate detailed execution plans
     ◯ Instead of Loop execution, the tasks should use the tool reject and finalize a task step
     ◯ Pause and add remarks during execution
+    ◯ improve inner task communication: more internal context. use description field. update inner todo list etc.
 
 ◯ Error Handling & Rollback
     ◯ Syntax validation for created/patched files
@@ -53,8 +54,8 @@
     ◯ Error history tracking
 
 ◯ Dynamic Configuration
-    ◯ Aegis state management with temperature parameters
-    ◯ Dynamic temperature in task execution
+    ✔︎ Aegis state management with temperature parameters @done(17-09-2025 00:42)
+    ✔︎ Dynamic temperature in task execution @done(17-09-2025 00:42)
     ◯ Multiple Aegis state preservation
 
 ### 🌐 ADVANCED INTEGRATION

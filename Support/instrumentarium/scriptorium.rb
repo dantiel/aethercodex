@@ -14,8 +14,7 @@ class RougeRenderer < Redcarpet::Render::HTML
   def block_code(code, language)
     if language && !language.empty?
       lexer = Rouge::Lexer.find_fancy(language) || Rouge::Lexers::PlainText
-      formatter = Rouge::Formatters::HTMLPygments.new Rouge::Formatters::HTML.new,
-                                                      css_class: 'highlight'
+      formatter = Rouge::Formatters::HTMLPygments.new Rouge::Formatters::HTML.new, 'highlight'
       formatter.format lexer.lex(code)
     else
       "<pre><code>#{html_escape code}</code></pre>"

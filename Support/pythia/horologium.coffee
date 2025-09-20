@@ -2,7 +2,6 @@
 Horologium - Hierarchical File Overview Rendering
 Enhances file overview display with proper hierarchical visualization
 ###
-
 class Horologium
   constructor: ->
     @hierarchyData = null
@@ -10,39 +9,94 @@ class Horologium
     @pythia = window.pythia
 
 
+  # Render hermetic overview section for celestial pattern visibility
+  renderHermeticOverview: (hermetic_data) ->
+    return '' unless hermetic_data
+    
+    # Handle both string format and array format
+    if 'string' is typeof hermetic_data 
+      hermetic_data = hermetic_data.split '\n'
+    
+    return '' unless hermetic_data.length
+    
+    html = """
+      <div class="hermetic-overview-preview">
+        <details>
+          <summary>⚡️ Hermetic Overview</summary>
+          <div class="hermetic-patterns">
+    """
+    
+    hermetic_data.forEach (pattern) =>
+      # Parse pattern format: "file>tag*count,tag*count"
+      if pattern.includes '>'
+        [file_part, tags_part] = pattern.split '>'
+        tags = tags_part.split ','
+        
+        file_html = if @pythia && file_part 
+          match_file_name = /^\/?(.+\/)*(.+?)(\.(.+))?$/
+          link_href = @pythia.createTextMateLink file_part
+          [_, file_path = '', file_name] = file_part.match match_file_name
+          """<a href="#{link_href}"  class="file-link">
+            #{file_path} <strong>📄 #{file_name}</strong></a>"""
+        else if file_part 
+          "<strong>#{@pythia. file_part}</strong>" 
+        else ''
+        
+        tags_html = tags.map (tag) =>
+          if tag.includes '*'
+            [tag_name, count] = tag.split '*'
+            """<span class='hermetic-tag' title='#{tag_name}'>
+                 #{tag_name}<small>#{count}</small></span>"""
+          else
+            "<span class='hermetic-tag'>#{tag}</span>"
+        .join ''
+        
+        html += """
+          <div class="hermetic-pattern">
+            #{file_html}#{tags_html}
+          </div>
+        """
+    
+    html += """
+          </div>
+        </details>
+      </div>
+    """
+    
+    return html
+
+
   renderFileOverview: (fileData) ->
-    console.log "renderFileOverview", fileData
-    # Data structure: data.result.data.data contains the actual file info
-    # Handle nested structure: data.result.data.data.file_info and data.result.data.data.symbolic_overview
-    resultData = fileData.data || fileData
-    fileInfo = resultData.file_info || resultData.data?.file_info || {}
-    symbolicData = resultData.symbolic_overview || resultData.data?.symbolic_overview || resultData
-    { imports, exports } = symbolicData
+    result_data = fileData.data || fileData
+    file_info = result_data.file_info || result_data.data?.file_info || {}
+
+    symbolic_data = result_data.symbolic_overview || result_data.data?.symbolic_overview || result_data
+    { imports, exports } = symbolic_data
     
     # Handle the case where data is nested under result.data
-    if resultData.data
-      fileInfo = resultData.data.file_info || fileInfo
-      symbolicData = resultData.data.symbolic_overview || symbolicData
+    if result_data.data
+      file_info = result_data.data.file_info || file_info
+      symbolic_data = result_data.data.symbolic_overview || symbolic_data
     
     # Handle deeply nested data structure: data.result.data.data.file_info
-    if resultData.result?.data?.file_info
-      fileInfo = resultData.result.data.file_info
-      symbolicData = resultData.result.data.symbolic_overview || symbolicData
-    
-    language = symbolicData.language || symbolicData.structural_summary?.language || 'unknown'
-    lines = fileInfo.lines || symbolicData.lines || 0
-    size = if fileInfo.size then @formatFileSize(fileInfo.size) else '0B'
-    containers = symbolicData.structural_summary?.containers || symbolicData.structure?.containers || 0
-    members = symbolicData.structural_summary?.members || symbolicData.structure?.members || 0
+    if result_data.result?.data?.file_info
+      file_info = result_data.result.data.file_info
+      symbolic_data = result_data.result.data.symbolic_overview || symbolic_data
+
+    language = symbolic_data.language || symbolic_data.structural_summary?.language || 'unknown'
+    lines = file_info.lines || symbolic_data.lines || 0
+    size = if file_info.size then @formatFileSize(file_info.size) else '0B'
+    containers = symbolic_data.structural_summary?.containers || symbolic_data.structure?.containers || 0
+    members = symbolic_data.structural_summary?.members || symbolic_data.structure?.members || 0
     
     # Get comprehensive statistics from structure data
-    structure = symbolicData.structure || symbolicData.structural_summary || {}
+    structure = symbolic_data.structure || symbolic_data.structural_summary || {}
     import_count = structure.import_count || imports.length
     export_count = structure.export_count || exports.length
-    symbol_count = structure.symbol_count || (symbolicData.symbols?.length || 0)
+    symbol_count = structure.symbol_count || (symbolic_data.symbols?.length || 0)
     variables = structure.variables || 0
     
-    overviewHtml = """
+    overview_html = """
       <div class="file-overview-status">
         <div class="file-overview-header">
           <span class="language-badge">#{language}</span>
@@ -57,27 +111,27 @@ class Horologium
     """
     
     # Add hierarchy if available - handle both flat and nested structures
-    hierarchy = symbolicData.hierarchy || fileInfo.hierarchy
+    hierarchy = symbolic_data.hierarchy || file_info.hierarchy
     
     # If hierarchy is empty but we have structural data, try to build it
-    if (!hierarchy || hierarchy.length == 0) && symbolicData.structural_summary
-      hierarchy = @buildHierarchyFromStructuralData(symbolicData)
+    if (!hierarchy || hierarchy.length == 0) && symbolic_data.structural_summary
+      hierarchy = @buildHierarchyFromStructuralData(symbolic_data)
     
     if hierarchy?.length
-      overviewHtml += """
+      overview_html += """
         <div class="hierarchy-preview">
           <details>
             <summary>🌳 Hierarchical Structure</summary>
             <div class="hierarchy-tree-preview">
-              #{@renderHierarchyPreview(hierarchy, symbolicData)}
+              #{@renderHierarchyPreview(hierarchy, symbolic_data, 0, file_info)}
             </div>
           </details>
         </div>
       """
     
     # Add imports/exports if available
-    imports = symbolicData.imports || fileInfo.imports || []
-    exports = symbolicData.exports || fileInfo.exports || []
+    imports = symbolic_data.imports || file_info.imports || []
+    exports = symbolic_data.exports || file_info.exports || []
     if imports?.length || exports?.length
       renderImportExport = (items, type) ->
         if items?.length
@@ -93,7 +147,7 @@ class Horologium
       importsHtml = renderImportExport(imports, '📥 Imports')
       exportsHtml = renderImportExport(exports, '📤 Exports')
       
-      overviewHtml += """
+      overview_html += """
         <div class="imports-exports-preview">
           <details>
             <summary>📦 Imports & Exports</summary>
@@ -105,25 +159,42 @@ class Horologium
         </div>
       """
     
-    # Add notes if available
-    notes = fileData.notes_metadata || symbolicData.relevant_notes || fileInfo.notes_preview || []
-    if notes?.length
-      overviewHtml += """
-        <div class="notes-preview">
+    # Add tag cloud and file cloud if available
+    tag_cloud = off # file_info.tag_cloud || symbolic_data.tag_cloud
+    file_cloud = off # file_info.file_cloud || symbolic_data.file_cloud
+    
+    if tag_cloud
+      overview_html += """
+        <div class="tag-cloud-preview">
           <details>
-            <summary>📝 Related Notes (#{notes.length})</summary>
-            <div class="notes-list">
-              #{notes.map((note) =>
-                "<div class='note-item'><strong>#{note.title || 'Note'}:</strong> #{note.content?.substring(0, 100) || note.excerpt || 'No content'}...</div>"
-              ).join('')}
+            <summary>🏷️ Tag Cloud</summary>
+            <div class="tag-cloud">
+              #{tag_cloud.map((tag) => "<span class='tag'>#{tag}</span>").join('')}
             </div>
           </details>
         </div>
       """
     
-    overviewHtml += "</div>"
+    if file_cloud 
+      overview_html += """
+        <div class="file-cloud-preview">
+          <details>
+            <summary>📁 File Cloud</summary>
+            <div class="file-cloud">
+              #{file_cloud.map((file) => "<span class='file-link'>#{file}</span>").join('')}
+            </div>
+          </details>
+        </div>
+      """
     
-    return overviewHtml
+    # Add hermetic overview if available
+    hermetic_hverview = file_info.hermetic_overview || symbolic_data.hermetic_overview
+    if hermetic_hverview
+      overview_html += @renderHermeticOverview(hermetic_hverview)
+    
+    overview_html += "</div>"
+    
+    return overview_html
 
 
   renderHierarchy: (data) ->
@@ -193,7 +264,7 @@ class Horologium
       isExpanded = hasChildren && @expandedNodes.has(node.name)
       
       # Handle Ruby class methods showing as "self" - extract actual method name
-      displayName = if node.name == 'self' and node.type == 'class_method'
+      display_name = if node.name == 'self' and node.type == 'class_method'
         @extractRubyMethodName(node, @hierarchyData) || 'class_method'
       else
         node.name
@@ -201,7 +272,7 @@ class Horologium
       item.innerHTML = """
         <div class="tree-node" data-node-id="#{node.name}">
           <span class="tree-icon">#{icon}</span>
-          <span class="tree-name">#{displayName}</span>
+          <span class="tree-name">#{display_name}</span>
           <span class="tree-line">@ line #{node.line}</span>
           #{if hasChildren then '<span class="tree-toggle">' + (if isExpanded then '▼' else '▶') + '</span>' else ''}
         </div>
@@ -279,23 +350,23 @@ class Horologium
 
 
   # Hierarchy preview rendering for file overview status
-  renderHierarchyPreview: (nodes, symbolicData = {}, level = 0) ->
+  renderHierarchyPreview: (nodes, symbolic_data = {}, level = 0, file_info = {}) ->
     html = ''
     nodes.forEach (node) =>
       indent = '&nbsp;'.repeat(level * 2)
       icon = @getHierarchyIcon(node.type)
       
       # Handle Ruby class methods showing as "self" - extract actual method name from context
-      displayName = if node.name == 'self' and node.type == 'class_method'
+      display_name = if node.name == 'self' and node.type == 'class_method'
         # Try to extract method name from navigation hints or parent context
-        @extractRubyMethodName(node, symbolicData) || 'class_method'
+        @extractRubyMethodName(node, symbolic_data) || 'class_method'
       else
         node.name
       
-      scopeIndicator = if node.scope then " <small class='scope'>(#{node.scope})</small>" else ''
+      scope_indicator = if node.scope then " <small class='scope'>(#{node.scope})</small>" else ''
       
       # Create clickable link for hierarchical items
-      filePath = symbolicData.file_path || symbolicData.path
+      filePath = file_info.path || symbolic_data.file_path || symbolic_data.path
       line = node.line
       
       # Generate TextMate link if pythia is available
@@ -307,7 +378,7 @@ class Horologium
       html += """
         <div class="hierarchy-preview-item" style="margin-left: #{level * 10}px">
           <a#{linkAttrs}>
-            #{indent}#{icon} #{displayName}#{scopeIndicator} <small class="line-number">@#{node.line}</small>
+            #{indent}#{icon} #{display_name}#{scope_indicator} <small class="line-number">@#{node.line}</small>
           </a>
         </div>
       """
@@ -316,14 +387,15 @@ class Horologium
       # Handle both array children and object children with children property
       children = node.children || node.members || []
       if children?.length
-        html += @renderHierarchyPreview(children, symbolicData, level + 1)
+        html += @renderHierarchyPreview(children, symbolic_data, level + 1, file_info)
     html
+
 
   getHierarchyIcon: (type) ->
     switch type
       when 'module', 'class' then '📦'
       when 'method', 'function', 'instance_method' then '🔧'
-      when 'class_method', 'singleton_method' then '⚡'
+      when 'class_method', 'singleton_method' then '⚡️'
       when 'constant', 'variable' then '📌'
       when 'local_variable', 'local' then '📋'
       when 'instance_variable', 'ivar' then '🏷️'
@@ -350,9 +422,9 @@ class Horologium
 
 
   # Build hierarchy from structural summary data
-  buildHierarchyFromStructuralData: (symbolicData) ->
+  buildHierarchyFromStructuralData: (symbolic_data) ->
     hierarchy = []
-    summary = symbolicData.structural_summary
+    summary = symbolic_data.structural_summary
     
     if summary
       # Add classes
@@ -409,11 +481,11 @@ class Horologium
 
 
   # Extract Ruby method name from navigation hints for class methods showing as "self"
-  extractRubyMethodName: (node, symbolicData) ->
+  extractRubyMethodName: (node, symbolic_data) ->
     return unless node.type == 'class_method' && node.name == 'self'
     
     # Look for navigation hints that reference this line
-    navigationHints = symbolicData.navigation_hints || symbolicData.navigationHints || []
+    navigationHints = symbolic_data.navigation_hints || symbolic_data.navigationHints || []
     
     # Find hints for this specific line
     lineHints = navigationHints.filter (hint) ->
@@ -433,6 +505,8 @@ class Horologium
     
     # Final fallback
     'class_method'
+    
+    
 
 # Global class
 window.Horologium = Horologium
@@ -446,4 +520,5 @@ document.addEventListener 'DOMContentLoaded', ->
   window.renderFileOverview = (data) ->
     horologium = new Horologium()
     horologium.renderFileOverview(data)
+      
       

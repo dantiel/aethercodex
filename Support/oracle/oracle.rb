@@ -272,6 +272,7 @@ class Oracle
                                 end
 
       hermetic_manifest = context.dig :extra_context, :hermetic_manifest
+      attachments = context.dig :extra_context, :attachments
 
       system_prompt = reasoning ? REASONING_PROMPT : SYSTEM_PROMPT
 
@@ -294,7 +295,8 @@ class Oracle
                      hermetic_manifest,
                      *context[:history],
                      ({ role: 'system', content: SYSTEM_PROMPT_BRIEFING } unless reasoning),
-                     { role: 'user', content: prompt }
+                     { role: 'user', content: prompt },
+                     ({ role: 'user', content: render_attachments(attachments) } if attachments)
                    ]
                  end.compact
 
@@ -307,6 +309,17 @@ class Oracle
       end
 
       messages
+    end
+    
+    
+    def render_attachments attachments
+      x = <<~ATTACHMENT_PROMPT
+        # ATTACHMENTS
+        #{attachments.inspect}
+      ATTACHMENT_PROMPT
+      
+      puts "[ORACLE][RENDER_ATTACHMENTS]: #{x}"
+      x 
     end
 
 

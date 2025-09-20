@@ -198,10 +198,12 @@ module HorologiumAeternum
               else
                 Scriptorium.html "📄 Created temporary file #{create_file_link path} (#{display_bytes bytes})"
               end
+                  
+    type = Scriptorium.language_tag_from_path path
 
     send_status('temp_file_created', {
                   message:   message,
-                  content:   Scriptorium.html_with_syntax_highlight(content),
+                  content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```"),
                   path:,
                   bytes:,
                   domain:,
@@ -265,7 +267,6 @@ module HorologiumAeternum
       msg
     }
 
-
     error_message = if error.is_a? Hash
                       error = error.deep_symbolize_keys
                       render_error.call error
@@ -283,10 +284,116 @@ module HorologiumAeternum
   end
 
 
+  def self.symbolic_patch_start(path, operation, uuid: nil)
+    send_status('symbolic_patch_start', {
+                  message:   Scriptorium.html("🔮 Starting symbolic **#{operation.hermetic_humanize}** on #{create_file_link path}"),
+                  path:      path,
+                  operation: operation
+                }, uuid:)
+  end
+
+
+  def self.symbolic_patch_fail(path, operation, error, uuid: nil)
+    # Format error details for better display with syntax highlighting
+    error_display = if error.is_a? Hash
+                      "\n\n**Error details:**\n```json\n#{JSON.pretty_generate error}\n```"
+                    else
+                      "\n\n**Error:** #{error}"
+                    end
+
+    send_status('symbolic_patch_fail', {
+                  message:   Scriptorium.html("❌ Symbolic **#{operation.hermetic_humanize}** failed on #{create_file_link path}#{error_display}"),
+                  path:      path,
+                  operation: operation,
+                  error:     error
+                }, uuid:)
+  end
+
+
+  def self.symbolic_patch_complete(path, operation, result, uuid: nil)
+    # Format the result for better display - show actual changes made with proper syntax highlighting
+    result_display = if result.is_a?(Hash) && result[:success]
+                       if result[:result] && !result[:result].empty?
+                         formatSymbolicPatchResult result[:result], path
+                       else
+                         Scriptorium.html "\n\n**Operation completed successfully**"
+                       end
+                     else
+                       Scriptorium.html  "\n\n**Result:** #{result.inspect}"
+                     end
+    count = result[:result]&.count || ''
+
+    send_status('symbolic_patch_complete', {
+                  message:        Scriptorium.html("✅ 🔮 #{count} Symbolic **#{operation.hermetic_humanize}** completed on #{create_file_link path}"),
+                  path:,
+                  operation:,
+                  result:,
+                  result_display:
+                }, uuid:)
+  end
+
+
+  def self.formatSymbolicPatchResult(result_data, file_path)
+    return Scriptorium.html "\n\n**No transformations found**" if result_data.empty?
+
+    language = Scriptorium.language_tag_from_path file_path
+
+    # Create beautiful chunk-based HTML for transformations
+    transformations_html = result_data.each_with_index.map do |transformation, index|
+      # Get location information
+      line = begin
+        transformation.dig(:range, :start, :line) + 1
+      rescue StandardError
+        nil
+      end
+      column = begin
+        transformation.dig(:range, :start, :column) + 1
+      rescue StandardError
+        nil
+      end
+
+      # Create file link with precise location
+      file_link = create_file_link file_path, "#{file_path} Line #{line}, Column #{column}", line, column
+
+      # Build transformation chunk
+      <<~HTML
+        <div class="symbolic-patch-chunk diff">
+          <div class="chunk-header">
+            <div class="chunk-meta info">
+              <span class="language-badge">#{transformation[:language] || language}</span>
+              <span class="file-link">#{file_link}</span>
+            </div>
+          </div>
+          <div class="chunk-content">
+            <div class="del">
+            #{Scriptorium.html_with_syntax_highlight "```#{language}\n#{transformation[:text]}\n```"}
+            </div>
+            <div class="ins">
+            #{Scriptorium.html_with_syntax_highlight "```#{language}\n#{transformation[:replacement]}\n```"}
+            </div>
+          </div>
+        </div>
+      HTML
+    end.join("\n")
+
+    # Wrap all transformations in a container
+    <<~HTML
+      <div class="symbolic-patch-results">
+        <div class="results-header">
+          <p class="results-count">#{result_data.size} transformation#{unless 1 == result_data.size
+                                                                         's'
+                                                                       end} detected</p>
+        </div>
+        #{transformations_html}
+      </div>
+    HTML
+  end
+
+
   def self.command_executing(cmd, uuid: nil)
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
     send_status('command_executing', {
-                  message: Scriptorium.html("⚡ Executing: #{cmd_str}"),
+                  message: Scriptorium.html("⚡️ Executing: #{cmd_str}"),
                   command: cmd
                 }, uuid:)
   end
@@ -294,7 +401,7 @@ module HorologiumAeternum
 
   # Command output containing HTML is properly escaped to prevent rendering issues
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
-    symbol = if exit_status.zero? then '✅ ⚡' else '❌ ⚡' end
+    symbol = if exit_status.zero? then '✅ ⚡️' else '❌ ⚡️' end
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
 
     # Escape HTML in content to prevent UI corruption
@@ -555,6 +662,7 @@ module HorologiumAeternum
 
 
   def self.notes_recalled(query, limit, notes, uuid: nil)
+    query = "no query" if query.empty?
     send_status('notes_recalled', {
                   query:   query,
                   count:   notes.count,
@@ -631,7 +739,7 @@ module HorologiumAeternum
         links:   note[:links] || []
       }
     end
-
+    
     # Format the symbolic data properly for display
     symbolic_summary = if symbolic_data[:structural_summary]
                          "**Classes:** #{symbolic_data[:structural_summary][:classes]}, " \

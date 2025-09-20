@@ -167,15 +167,19 @@ body {
 /* Message Styling */
 
 .user {
-  background: linear-gradient(135deg, rgba(100, 151, 197, 0.15) 0%, rgba(160, 163, 249, 0.1) 100%);
-  border: 0.1rem solid rgba(100, 151, 197, 0.3);
+/*  background: linear-gradient(135deg, rgba(100, 151, 197, 0.15) 0%, rgba(160, 163, 249, 0.1) 100%);*/
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--argonaut-cosmic) 15%, transparent) 0%, 
+    color-mix(in srgb, var(--argonaut-hermetic) 10%, transparent) 100%);
+
+  border: 0.1rem solid color-mix(in srgb, var(--argonaut-cosmic) 30%, transparent);
   border-radius: 1.2rem;
   padding: 1.2rem 1.5rem;
   margin: 1.5rem 0;
   color: var(--argonaut-ethereal);
   box-shadow: 
-    0 0.3rem 1rem rgba(100, 151, 197, 0.2),
-    inset 0 0.1rem 0.3rem rgba(160, 163, 249, 0.1);
+    0 0.3rem 1rem color-mix(in srgb, var(--argonaut-cosmic) 20%, transparent),
+    inset 0 0.1rem 0.3rem color-mix(in srgb, var(--argonaut-hermetic) 10%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);  
   position: relative;
@@ -235,10 +239,10 @@ body {
   font-feature-settings: "liga" 1, "calt" 1;
   background: rgba(0, 12, 22, 0.6);
   color: var(--argonaut-nexus);
-  border: 0.1rem solid rgba(100, 151, 197, 0.4);
+  border: 0.1rem solid color-mix(in srgb, var(--argonaut-cosmic) 40%, transparent);
   border-radius: 0.4rem;
   padding: 0.2rem 0.4rem;
-  font-size: 0.9rem;
+  font-size: 0.9em;
   box-shadow: inset 0 0.1rem 0.2rem rgba(0, 166, 255, 0.1);
 }
 
@@ -395,7 +399,7 @@ pre > code {
   opacity: 0.8;
   margin: 0.5rem 0;
   padding: 0.5rem 1rem;
-  background: rgba(100, 151, 197, 0.08);
+  background: color-mix(in srgb, var(--argonaut-cosmic) 8%, transparent);
   border-left: 0.2rem solid var(--argonaut-cosmic);
   border-radius: 0 0.4rem 0.4rem 0;
   animation: fadeIn 0.3s ease-in;
@@ -470,12 +474,12 @@ a.file-link:hover {
   background: color-mix(in srgb, var(--argonaut-azure) 40%, transparent);
 }
 
-span.info a.file-link {
+span.info a.file-link , div.info a.file-link {
   color: color-mix(in srgb, var(--ethereal-white) 40%, transparent);
   background: color-mix(in srgb, var(--argonaut-azure) 20%, transparent);
 }
 
-span.info a.file-link:hover {
+span.info a.file-link:hover, div.info a.file-link:hover {
   color: color-mix(in srgb, var(--ethereal-white) 80%, transparent);
   background: color-mix(in srgb, var(--argonaut-azure) 40%, transparent);
 }
@@ -491,7 +495,8 @@ span.info a.file-link:hover {
     margin: 0em 0.5em 0em -1em;
 }
 
-pre.diff > code {
+pre.diff > code,
+div.diff > code {
     color: var(--ethereal-white);
     color: var(--argonaut-steel) !important;
     line-height: 1.35em;
@@ -504,7 +509,8 @@ pre.diff > code {
     position: relative;
 }
 
-pre.diff {
+pre.diff,
+div.diff {
     poition: relative;
     padding:0 0.3em !important;
     overflow-x: hidden !important;
@@ -513,7 +519,8 @@ pre.diff {
     
 }
 
-pre.diff span.info {
+pre.diff span.info,
+div.diff span.info {
     color: var(--argonaut-shadow);
     border-bottom: 0.1em solid var(--argonaut-shadow);
     padding: 0.2em 0.8em;
@@ -526,6 +533,10 @@ pre.diff span.info {
     left: 0em;
     right: 0em;
     top: 0;
+}
+
+div.diff span.info {
+  padding: 0.5em 0.8em;
 }
 
 pre.diff ins {
@@ -543,3 +554,27 @@ div.hunk-content {
     overflow-x:auto;
     margin-bottom: 1em !important;
 }
+
+
+
+
+
+
+div.diff div.ins  {
+    background: color-mix(in srgb, var(--argonaut-emerald) 90%, transparent);
+    color: color-mix(in srgb, var(--argonaut-emerald) 20%, var(--ethereal-white));
+    display: block;
+    text-decoration: underline;
+}
+
+div.diff  pre {
+    margin:0
+}
+
+div.diff div.del  {
+    background: color-mix(in srgb, var(--argonaut-crimson) 90%, transparent);
+    color: color-mix(in srgb, var(--argonaut-crimson) 50%, var(--ethereal-white));
+    display: block;
+    text-decoration: line-through;
+}
+

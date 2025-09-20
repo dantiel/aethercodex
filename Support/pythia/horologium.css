@@ -65,6 +65,11 @@
   line-height: 1.6;
 }
 
+.hierarchy-tree-preview a.file-link {
+    background: transparent;
+    color: inherit
+}
+
 .tree-item {
   margin: 0.25rem 0;
 }
@@ -221,4 +226,103 @@
     opacity: 0.5;
     font-size: 0.8em;
     color: var(--argonaut-shadow);
+}
+
+/* Hermetic Overview Styles */
+.hermetic-overview-preview {
+    /* background: rgba(138, 43, 226, 0.1); */
+    /* border: 1px solid var(--argonaut-mystic); */
+    border-radius: 8px;
+/*    margin-bottom: 1rem;*/
+}
+
+.hermetic-overview-preview details {
+    /* padding: 1rem; */
+
+}
+
+.hermetic-overview-preview .file-link {
+    display: inline-block;
+    display: block;
+    clear:both;
+    margin: 0 0 0.5em 0;
+    color: var(--argonaut-shadow);
+    background:transparent;
+    border-bottom: 0.1em  solid color-mix(in srgb, var(--argonaut-shadow) 20%, transparent);
+    padding-bottom: 0.4em;
+    border-radius: 0;
+    white-space: nowrap ;
+    overflow:hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+    text-align: left;
+}
+
+.hermetic-overview-preview .file-link:hover {
+    color: var(--argonaut-hermetic);
+}
+
+.hermetic-pattern strong {
+    /* display: block; */
+    /*margin-bottom: 0.5rem;*/
+    color: var(--ethereal-white);
+    font-weight: 500;
+    margin-left: 0.2em
+}
+
+
+.hermetic-overview-preview summary {
+    cursor: pointer;
+    /* color: var(--argonaut-mystic); */
+    font-weight: 500;
+    /* font-size: 1.1em; */
+
+}
+
+.hermetic-patterns {
+    margin-top: 1rem;
+
+}
+
+.hermetic-pattern {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: rgba(138, 43, 226, 0.05);
+    border-radius: 6px;
+    border-left: 3px solid color-mix(in srgb, var(--argonaut-mystic) 20%, transparent);
+
+}
+
+
+.hermetic-tag {
+  display: inline-block;
+  background: rgba(138, 43, 226, 0.2);
+  color: var(--argonaut-mystic);
+  padding: 0.2rem 0.5rem;
+  margin: 0.2rem;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-family: var(--mono);
+  border: 1px solid rgba(138, 43, 226, 0.3);
+  transition: all 0.2s ease;
+}
+
+.hermetic-tag:hover {
+  background: rgba(138, 43, 226, 0.3);
+  transform: translateY(-1px);
+}
+
+.hermetic-tag small {
+  margin-left: 0.25rem;
+  opacity: 0.5;
+  font-size: 1.1em;
+  font-weight: bold;
+  background: var(--argonaut-deep);
+  border-radius: 1em;
+  text-align: center;
+  line-height: 1.8em;
+  display: inline-block;
+  width: 1.8em;
+  height: 1.8em;
+  margin: -0.2em -0.5em -0.2em 0.5em;
 }

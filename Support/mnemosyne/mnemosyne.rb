@@ -307,7 +307,6 @@ class Mnemosyne
       SQL
     end
 
-
     # Search notes with scoring based on content, tags, and links
     def recall_notes(query, limit: 5, max_content_length: nil)
       query_tokens = tokenize query
@@ -433,9 +432,9 @@ class Mnemosyne
       db.execute \
         'INSERT INTO entries (prompt, answer, tags, file, selection) VALUES (?,?,?,?,?)',
         [params[:prompt], answer, Array(params[:tags]).join(','), params[:file],
-         params[:selection]]
+         params[:attachments].to_json]
     end
-
+   
 
     # Alias for create_note for backward compatibility
     def self.remember(content:, links: nil, tags: nil)

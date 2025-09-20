@@ -6,9 +6,11 @@ require 'tempfile'
 require 'pathname'
 require_relative '../mnemosyne/mnemosyne'
 require_relative '../instrumentarium/diff_crepusculum'
+require_relative '../instrumentarium/semantic_patch'
 require_relative 'simple_scopes'
 require_relative 'aether_scopes_enhanced'
 require_relative 'aether_scopes_hierarchical'
+require_relative 'lexicon_resonantia'
 # require_relative 'temp_create_file'  # Moved to instrumentarium domain system
 
 
@@ -78,6 +80,27 @@ class Argonaut
   end
 
 
+  # TODO: doesnt work
+  # patch as unified diff string
+  def self.new_patch(path, patch_text)
+    base = project_root
+    full = File.join base, path
+
+    # Use hybrid patching - semantic first, fallback to line-based
+    result = SemanticPatch.apply_hybrid_patch full, patch_text
+
+    # Maintain backward compatibility with existing return format
+    if result[:ok] || result[:success]
+      # For semantic patches, we need to read the file to get original content
+      original_content = result[:original_content] || File.read(full)
+      modified_content = File.read full
+      { ok: true, result: [original_content, modified_content] }
+    else
+      { error: result[:error] || result[:fail_parts] }
+    end
+  end
+
+
   # patch as unified diff string
   def self.patch(path, patch_text)
     base = project_root
@@ -88,14 +111,14 @@ class Argonaut
 
     # Apply the converted diff
     result = @diff_crepusculum.apply_diff original_content, patch_text
-    result => { success:, fail_parts: }
+    result => { success: }
 
     if success
       content = result[:content]
       File.write full, content
       { ok: true, result: [original_content, content] }
     else
-      { error: fail_parts }
+      { error: result[:fail_parts] || result[:error] }
     end
   end
 
@@ -171,20 +194,8 @@ class Argonaut
   def self.file_overview(path:, max_notes: 3, max_content_length: 555, max_depth: nil)
     fullpath = File.join project_root, path
 
-    # Get notes count and tags only - no full content to prevent context bloat
-    notes_info = Mnemosyne.fetch_notes_by_links(path).map do |note|
-      note.transform_keys!(&:to_sym)
-      {
-        id:      note[:id],
-        tags:    note[:tags]&.split(',') || [],
-        excerpt: note[:content] ? Mnemosyne.truncate_note_content(note[:content],
-                                                                  max_length: 50) : nil
-      }
-    end.take(max_notes)
-
-    # Handle nil notes gracefully
-    notes_info ||= []
-    notes_info = notes_info.take max_notes
+    # Get notes count for statistics only
+    notes_count = Mnemosyne.fetch_notes_by_links(path).size
 
     line_count = 0
     File.foreach(fullpath) { |_line| line_count += 1 }
@@ -198,27 +209,37 @@ class Argonaut
 
     # Add enhanced symbolic structural overview using AetherScopesEnhanced
     symbolic_overview = if File.exist?(fullpath) && File.readable?(fullpath)
-                          puts "DEBUG: File exists and is readable: #{fullpath}"
+                          # puts "DEBUG: File exists and is readable: #{fullpath}"
                           begin
-                            puts "DEBUG: Calling AetherScopesHierarchical.for_file_overview with max_depth: #{max_depth}"
+                            # puts "DEBUG: Calling AetherScopesHierarchical.for_file_overview with max_depth: #{max_depth}"
                             result = AetherScopesHierarchical.for_file_overview \
-                              project_root, path, max_notes: max_notes, max_content_length: max_content_length, max_depth: max_depth
-                            puts "DEBUG: AetherScopesHierarchical.for_file_overview returned: #{result.inspect}"
+                              project_root, path, max_notes: max_notes,
+                                                  max_content_length: max_content_length,
+                                                  max_depth: max_depth
+                            # puts "DEBUG: AetherScopesHierarchical.for_file_overview returned: #{result.inspect}"
                             result
                           rescue StandardError => e
-                            puts "DEBUG: AetherScopesHierarchical.for_file_overview failed: #{e.message} #{max_notes}, #{max_content_length} #{max_depth}"
+                            # puts "DEBUG: AetherScopesHierarchical.for_file_overview failed: #{e.message} #{max_notes}, #{max_content_length} #{max_depth}"
                             { error: "Enhanced symbolic parsing failed: #{e.message}" }
                           end
                         else
-                          puts "DEBUG: File does not exist or is not readable: #{fullpath}"
+                          # puts "DEBUG: File does not exist or is not readable: #{fullpath}"
                           { error: 'File not readable' }
                         end
 
+    # Generate hermetic symbolic overview from Mnemosyne notes
+    hermetic_overview = begin
+      notes = Mnemosyne.fetch_notes_by_links(path)
+      LexiconResonantia.generate_from_notes(notes, min_count: 1, top_k: 5)
+    rescue StandardError => e
+      { error: "Hermetic overview failed: #{e.message}" }
+    end
+
     {
-      notes_count:       notes_info.size,
-      notes_preview:     notes_info,
-      file_info:         file_info,
-      symbolic_overview: symbolic_overview
+      notes_count:       notes_count,
+      file_info:,
+      symbolic_overview:,
+      hermetic_overview:
     }
   rescue StandardError => e
     { error: e.inspect }

@@ -24,6 +24,7 @@ class Pythia
     @MAX_MESSAGES = 250
     @horologium = null
     @activeTaskLogs = {}  # Track active task logs for persistence
+    @attachments = []     # Array for multiple attachments
 
 
   # WebSocket Connection Management
@@ -210,7 +211,7 @@ class Pythia
           </details>"""
 
       when 'tool_starting'
-        @log 'status', uuid, "⚡ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "⚡️ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
         if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
           @log 'status', uuid, "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
       when 'file_patching'
@@ -231,11 +232,25 @@ class Pythia
             <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
             #{data.diff}
           </details>"""
+      when 'symbolic_patch_start'
+        @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"
+      when 'symbolic_patch_complete'
+        @log 'status', uuid, """
+          <details>
+            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            #{@replaceFileTags data.result_display}
+          </details>"""
+      when 'symbolic_patch_fail'
+        @log 'status', uuid, """
+          <details>
+            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            #{data.error}
+          </details>"""
       when 'command_executing'
         @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
       when 'command_completed'
         @log 'status', uuid, """
-          <details>
+          <details class="run_command">
             <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
             <pre>#{data.content}</pre>
           </details>"""
@@ -622,7 +637,7 @@ class Pythia
       when 'completion'
         @log 'ai', null, "<pre>#{data.result.snippet}</pre>"
       when 'attach'
-        @renderAttachmentPreview data.result.data
+        @attachSelection data.result.data
       when 'error'
         @log 'error', null, "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
       else
@@ -709,16 +724,17 @@ class Pythia
     
     @log 'system', null, evaluationHtml
 
+
   # Attachment Handling
   match_selection_range = /([0-9]+)(?:\:([0-9]+))?(?:-([0-9]+)(?:\:([0-9]+))?)?/
 
 
-  renderAttachmentPreview: (data) =>
-    console.log "renderAttachmentPreview", data
-    { line, column, selection_range, file_html, content, selection_html, lines } = data
+  renderAttachmentPreview: (data, args = {}) =>
+    { is_preview = true } = args
+    { line, column, selection_range, file_html, content, selection_html, 
+      lines, uuid: attachment_uuid } = data
+
     content ||= 'No content preview available.'
-    attachment_uuid = do crypto.randomUUID
-    @attachment_context = data
     
     preview = document.createElement 'div'
     preview.id = "attachment_#{attachment_uuid}"
@@ -728,9 +744,12 @@ class Pythia
         <div>#{selection_html}</div>
       </div>
     """ else ''
+    
+    console.log "SELECTION RANGE", selection_range
       
     [selection_range, line, column] = if selection_range
-      [_, from_line, from_column, to_line, to_column] = selection_range.match @match_selection_range
+      [_, from_line, from_column, to_line, to_column] = 
+        selection_range.match @match_selection_range
       if to_line
         ["<span>Selection: <span>#{selection_range}</span></span>", 0, 0]
       else
@@ -739,26 +758,51 @@ class Pythia
       
     line = unless line then '' else "<span>Line: <span>#{line}</span></span>"
     column = unless column then '' else "<span>Column: <span>#{column}</span></span>"
+    remove_attachment_button = if is_preview
+      """<button onclick=\"pythia.removeAttachment('#{attachment_uuid}')\">✕
+         </button>"""
+    else ''
+      
+    attachment_meta = if selection_range.length 
+      """<div class=\"attachment-meta\">
+        #{line}
+        #{column}
+        #{selection_range}
+      </div>""" 
+    else ''
 
     preview.innerHTML = """
       <div class=\"attachment-header\">
         <span>📎 #{@replaceFileTags file_html}</span>
-        <button onclick=\"pythia.removeAttachment('#{attachment_uuid}')\">✕</button>
+        #{remove_attachment_button}
       </div>
-      <div class=\"attachment-meta\">
-        #{line}
-        #{column}
-        #{selection_range}
-      </div>
+      #{attachment_meta}
       #{attachment_content}
     """
+    
+    preview
+    
+
+  attachSelection: (data) =>
+    console.log "attachSelection", data
+        
+    attachment_uuid = do crypto.randomUUID
+    
+    # Add to attachments array with UUID
+    attachment_data = { data..., uuid: attachment_uuid }
+    @attachments.push(attachment_data)
+    
+    preview = @renderAttachmentPreview attachment_data
     
     inputBar = document.getElementById 'input-bar'
     inputBar.insertAdjacentElement "beforebegin", preview
 
 
   removeAttachment: (attachment_uuid) =>
-    @attachment_context = null
+    # Remove from attachments array
+    @attachments = @attachments.filter((att) => att.uuid != attachment_uuid)
+    
+    # Remove from DOM
     do document.getElementById("attachment_#{attachment_uuid}").remove
 
 
@@ -774,18 +818,47 @@ class Pythia
   askAI: =>
     text = document.getElementById('chat-input').value
     return unless text?.length
-    { file, selection } = @attachment_context || {}
-    @ws.send JSON.stringify method: 'askAI', params: { 
-      prompt: text, record: true, file, selection }
-    @log 'user', null, @escapeHtml text
+    
+    # remove old attachments
+    
+    
+    # Prepare all attachments for sending
+    attachments_data = @attachments.map (att) =>       
+      (
+        file: att.file,
+        selection: att.selection,
+        line: att.line,
+        column: att.column,
+        selection_range: att.selection_range
+      )
+    
+    @ws.send JSON.stringify method: 'askAI', params: (
+      prompt: text, record: true, attachments: attachments_data )
+    
+    # Log user message with attachments in history
+    attachments_html = if @attachments.length > 0
+      @attachments.map((att) =>
+        @removeAttachment att.uuid
+        
+        (@renderAttachmentPreview att, is_preview: false).innerHTML
+      ).join('<br>')
+    else
+      ''
+    
+    message_html = @escapeHtml(text)
+    message_html += "<div class=\"message-attachments\">#{attachments_html}</div>" if attachments_html
+    
+    uuid = @log 'user', null, message_html
     document.getElementById('chat-input').value = ''
     @isThinking = true
     do @updateSendButton
+
 
   stopThinking: =>
     @ws.send JSON.stringify method: 'stopThinking'
     @isThinking = false
     do @updateSendButton
+    
 
   updateSendButton: =>
     sendBtn = document.getElementById 'send-btn'
@@ -795,7 +868,7 @@ class Pythia
       sendBtnGlyph.textContent = '⏹'
       sendBtn.classList.add 'thinking'
     else
-      sendBtnGlyph.textContent = '⚡'
+      sendBtnGlyph.textContent = '⚡️'
       sendBtn.classList.remove 'thinking'
 
 
@@ -935,6 +1008,94 @@ class Pythia
     textarea = document.getElementById 'chat-input'
     textarea.style.height = 'auto'
     textarea.style.height = "#{textarea.scrollHeight}px"
+
+
+  # Format symbolic patch results for human-readable display with syntax highlighting
+  formatSymbolicPatchResult: (result, filePath) =>
+    # Parse the result if it's a JSON string
+    try
+      parsedResult = if typeof result is 'string' then JSON.parse(result) else result
+    catch e
+      console.error 'Failed to parse symbolic patch result:', e, result
+      return 'No transformations applied'
+    
+    return 'No transformations applied' unless parsedResult?.length > 0
+    
+    output = ""
+    parsedResult.forEach (transformation, index) =>
+      # Generate chunk ID for the transformation
+      chunkId = "symbolic-chunk-#{index + 1}"
+      
+      # Create a beautiful chunk with syntax highlighting
+      output += """
+        <div class=\"chunk\" id=\"#{chunkId}\">
+          <div class=\"chunk-header\">
+            <span class=\"chunk-number\">#{index + 1}</span>
+            <span class=\"chunk-title\">Symbolic Transformation</span>
+            <span class=\"chunk-badge\">#{transformation.language || 'text'}</span>
+          </div>
+          <div class=\"chunk-content\">
+      """
+      
+      # Show file location if available
+      if transformation.file
+        output += """
+          <div class=\"chunk-meta\">
+            <strong>File:</strong> <file path=\"#{transformation.file}\">#{transformation.file}</file>
+          </div>
+        """
+      else if filePath
+        output += """
+          <div class=\"chunk-meta\">
+            <strong>File:</strong> <file path=\"#{filePath}\">#{filePath}</file>
+          </div>
+        """
+      
+      # Show line/column information
+      if transformation.range?.start
+        line = transformation.range.start.line + 1  # Convert 0-based to 1-based
+        column = transformation.range.start.column + 1
+        output += """
+          <div class=\"chunk-meta\">
+            <strong>Location:</strong> Line #{line}, Column #{column}
+          </div>
+        """
+      
+      # Show original text and replacement with beautiful diff styling
+      if transformation.text && transformation.replacement
+        # Determine language for syntax highlighting
+        lang = transformation.language || 'text'
+        
+        output += """
+          <div class=\"chunk-diff\">
+            <div class=\"diff-section\">
+              <div class=\"diff-header\">Original</div>
+              <pre><code class=\"language-#{lang}\">#{@escapeHtml(transformation.text)}</code></pre>
+            </div>
+            <div class=\"diff-section\">
+              <div class=\"diff-header\">Replacement</div>
+              <pre><code class=\"language-#{lang}\">#{@escapeHtml(transformation.replacement)}</code></pre>
+            </div>
+          </div>
+        """
+      
+      output += """
+          </div>
+        </div>
+      """
+    
+    output
+
+
+  # HTML escape utility
+  escapeHtml: (text) =>
+    return '' unless text
+    text.toString()
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
 
 
   setupEventListeners: =>

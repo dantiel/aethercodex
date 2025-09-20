@@ -10,6 +10,8 @@ require_relative 'prima_materia'
 require_relative 'verbum'
 require_relative '../instrumentarium/scriptorium'
 require_relative '../argonaut/temp_create_file'
+require_relative 'symbolic_patch_file'
+
 
 
 
@@ -166,7 +168,7 @@ instrument :run_command,
            description: <<~DESC,
              Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`,
              `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`,
-             `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`. Please suggest to add more
+             `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`, `ast-grep`. Please suggest to add more
              cmds to this list if you like.
            DESC
            params: { cmd: { type: String, required: true } },
@@ -176,7 +178,7 @@ instrument :run_command,
                       result:      String,
                       error:       String } do |cmd:|
   # TODO: instead of blocked command, make a button to accept or decline execution...
-  raise "Blocked command: `#{cmd}`" unless PrimaMateria::ALLOW_CMDS.any? { |re| cmd =~ re }
+  raise "🚫 Blocked command: ` #{cmd}`" unless PrimaMateria::ALLOW_CMDS.any? { |re| cmd =~ re }
 
   uuid = HorologiumAeternum.command_executing cmd
 
@@ -258,16 +260,16 @@ instrument :temp_create_file,
                                 description: 'Optional relative path within project (nil for system temp files)' } },
            returns: { path:    String,
                       success: Boolean,
-                      error:   String } do |content:, path: nil|  
+                      error:   String } do |content:, path: nil|
   # Debug: check what parameters are received
   puts "[INSTRUMENTA] temp_create_file called with path: #{path.inspect}"
-  
-  result = Argonaut::TempFile.create(content, path: path)
-  
+
+  result = Argonaut::TempFile.create content, path: path
+
   puts "[INSTRUMENTA] Argonaut::TempFile.create result: #{result.inspect}"
-  
+
   if result[:success]
-    uuid = HorologiumAeternum.temp_file_created(path, content, content.bytesize)
+    uuid = HorologiumAeternum.temp_file_created path, content, content.bytesize
     result
   else
     { error: result[:error] }
@@ -323,26 +325,41 @@ rescue StandardError => e
 end
 
 
+# TODO: reduce output... at the moment the overview output is much larger than original
 instrument :file_overview,
-           description: <<~DESC,
-             Fetch file information with symbolic parsing. Returns lightweight metadata:
-             note count, tags, 50-char excerpt. Enhanced symbolic analysis shows
-             structural view with classes, methods, constants, and navigation hints. Use this in
-             combination with read_file range to fetch minimal parts of a file.
-           DESC
-           params: { path: { type: String, required: true } },
-           returns: { metadata: Hash, error: String } do |path:|
-  path = Argonaut.relative_path path
+         description: <<~DESC,
+           Fetch file information with symbolic parsing. Returns lightweight metadata:
+           note count, tags, 50-char excerpt. Enhanced symbolic analysis shows
+           structural view with classes, methods, constants, and navigation hints. Use this in
+           combination with read_file range to fetch minimal parts of a file.
+         DESC
+         params: { path: { type: String, required: true } },
+         returns: { metadata: Hash, error: String } do |path:|
+path = Argonaut.relative_path path
 
-  # Use optimized parameters to prevent context bloat
-  results = Argonaut.file_overview path: path, max_notes: 3, max_content_length: 333
-  raise results[:error] unless results[:error].nil?
+# Use optimized parameters to prevent context bloat
+results = Argonaut.file_overview path: path, max_notes: 3, max_content_length: 333
+raise results[:error] unless results[:error].nil?
 
-  HorologiumAeternum.file_overview path, results
-  results
+HorologiumAeternum.file_overview path, results
+
+result = {
+  notes_count:        results[:notes_count],
+  notes_preview:      results[:notes_preview],
+  file_info:          results[:file_info],
+  structural_summary: results[:symbolic_overview][:structural_summary],
+  symbolic_overview:  results[:symbolic_overview][:symbolic_overview_text],
+  tag_cloud:          results[:symbolic_overview][:tag_cloud_text],
+  file_cloud:         results[:symbolic_overview][:file_cloud_text],
+  hermetic_overview:  results[:hermetic_overview]
+}
+# puts results.inspect
+# puts '==================================================='
+puts result.inspect
+result
 rescue StandardError => e
-  puts "[PRIMA MATERIA][ERROR]: #{e.inspect}"
-  { error: "File overview for #{path} failed: #{e.message || e.error}" }
+puts "[PRIMA MATERIA][ERROR]: #{e.inspect}"
+{ error: "File overview for #{path} failed: #{e.message || e.error}" }
 end
 
 
@@ -359,7 +376,7 @@ instrument :remember,
            returns: { ok:    Boolean,
                       error: String } do |content:, id: nil, links: nil, tags: nil|
   # links = if links.is_a? String
-    
+
   note = { content: content, links: links, tags: tags }
   if id.nil?
     Mnemosyne.create_note(**note)
@@ -516,9 +533,9 @@ end
 
 instrument :create_task,
            description:  <<~DESC,
-           Generate a task for complex prompts with fields for plan and title. During Task
-           execution no other history context is given to the AI (you). Make sure that plan is very
-           descriptive.
+             Generate a task for complex prompts with fields for plan and title. During Task
+             execution no other history context is given to the AI (you). Make sure that plan is very
+             descriptive.
            DESC
            params: { title: { type:        String,
                               required:    true,
@@ -667,3 +684,94 @@ end
 #                       task_id: Integer } do |result:, task_id:|
 #   { status: :completed, result: result, task_id: task_id }
 # end
+
+
+instrument :symbolic_patch_file,
+           description: <<~DESC,
+             Apply semantic patches using AST-GREP for pattern-based transformations.
+             This tool uses semantic patterns instead of line numbers, enabling multi-file
+             operations and language-agnostic transformations.
+
+             Supports:
+             - Method/class renaming across files
+             - Documentation addition
+             - Pattern-based search and replace
+             - Multi-language support (Ruby, JavaScript, Python, etc.)
+
+             Use for semantic transformations where line-based patching is impractical.
+           DESC
+           params: { path:            { type:        String,
+                                        required:    true,
+                                        description: 'File path or pattern to patch' },
+                     operation:       { type:        String,
+                                        required:    true,
+                                        enum:        %w[transform_method transform_class
+                                                        document_method find_and_replace apply],
+                                        description: 'Type of semantic operation to perform' },
+                     search_pattern:  { type:        String,
+                                        required:    false,
+                                        description: 'Search pattern for AST-GREP' },
+                     replace_pattern: { type:        String,
+                                        required:    false,
+                                        description: 'Replace pattern for AST-GREP' },
+                     method_name:     { type:        String,
+                                        required:    false,
+                                        description: 'Method name for transformation' },
+                     class_name:      { type:        String,
+                                        required:    false,
+                                        description: 'Class name for transformation' },
+                     new_method_name: { type:        String,
+                                        required:    false,
+                                        description: 'New method name for renaming' },
+                     new_class_name:  { type:        String,
+                                        required:    false,
+                                        description: 'New class name for renaming' },
+                     documentation:   { type:        String,
+                                        required:    false,
+                                        description: 'Documentation text to add' },
+                     lang:            { type:        String,
+                                        required:    false,
+                                        description: 'Language hint (auto-detected if nil)' } },
+           returns: { success: Boolean,
+                      result:  Hash,
+                      error:   String } do |path:, operation:, search_pattern: nil, replace_pattern: nil,
+                                                 method_name: nil, class_name: nil, new_method_name: nil,
+                                                 new_class_name: nil, documentation: nil, lang: nil|
+
+  uuid = HorologiumAeternum.symbolic_patch_start path, operation
+
+  begin
+    case operation
+    when 'transform_method'
+      result = SymbolicPatchFile.transform_method(
+        path, method_name,
+        new_method_name: new_method_name
+      )
+    when 'transform_class'
+      result = SymbolicPatchFile.transform_class(
+        path, class_name,
+        new_class_name: new_class_name
+      )
+    when 'document_method'
+      result = SymbolicPatchFile.document_method(
+        path, method_name, documentation
+      )
+    when 'find_and_replace'
+      result = SymbolicPatchFile.find_and_replace(
+        path, search_pattern, replace_pattern
+      )
+    when 'apply'
+      result = SymbolicPatchFile.apply(
+        path, search_pattern, replace_pattern, lang: lang
+      )
+    else
+      raise "Unknown operation: #{operation}"
+    end
+
+    HorologiumAeternum.symbolic_patch_complete(path, operation, result, uuid:)
+    result
+  rescue StandardError => e
+    HorologiumAeternum.symbolic_patch_fail(path, operation, e.message, uuid:)
+    { error: "Symbolic patch failed: #{e.message}" }
+  end
+end

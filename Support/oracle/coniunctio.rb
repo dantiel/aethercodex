@@ -37,10 +37,24 @@ module Coniunctio
     def build(params)
       inject_tm_env params[:tm_env] if params[:tm_env]
 
-      file, selection, context = params.values_at :file, :selection, :context
-      puts "TEST#{file}"
+      # Handle both single file/selection and multiple attachments
+      attachments = params[:attachments] || []
+      
+      # For backward compatibility, support old single file/selection format
+      if attachments.empty? && (params[:file] || params[:selection])
+        attachments = [{
+          file: params[:file],
+          selection: params[:selection],
+          line: params[:line],
+          column: params[:column],
+          selection_range: params[:selection_range]
+        }]
+      end
+      
+      puts "[CONIUNCTIO] ATTACHMENTS=#{attachments}"
+
       project_files = Argonaut.list_project_files
-      puts "PROJECT_FILES#{project_files}"
+      puts "[CONIUNCTIO] PROJECT_FILES=#{project_files}"
 
       # Handle history parameter: nil/true = fetch general history, false/[] = no history, array = use provided history
       history = case params[:history]
@@ -58,10 +72,12 @@ module Coniunctio
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
 
       ctx = { history:       prepend_summaries(history),
-              extra_context: build_extra_context(file, selection, project_files, aegis_notes,
-                                                 context) }
+              extra_context: build_extra_context(attachments, project_files, aegis_notes,
+                                                 params[:context]) }
 
-      update_aegis_orientation ctx, file, selection
+      # Update aegis orientation with first attachment if available
+      first_attachment = attachments.first
+      update_aegis_orientation ctx, first_attachment&.[](:file), first_attachment&.[](:selection)
       ctx
     end
 
@@ -107,14 +123,14 @@ module Coniunctio
     end
 
 
-    def build_extra_context(file, selection, project_files, aegis_notes, context = nil)
+    def build_extra_context(attachments, project_files, aegis_notes, context = nil)
       hermetic_manifest = read_hermetic_manifest
 
-      # TODO: make project_files a nested list instead of full paths? pro: save space, contra: maybe ai can mistake the complete path
+      # For backward compatibility, include first attachment as primary file/selection
+      first_attachment = attachments.first || {}
+
       { project_files:,
-        file:,
-        selection:, # Selection is stored in history and rendered in code blocks for context
-        snippet:           snippet_for(file, selection),
+        attachments:,
         aegis_orientation: { **Mnemosyne.aegis },
         aegis_notes:,
         messages:          context&.dig(:messages),

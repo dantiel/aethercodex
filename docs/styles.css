@@ -4,9 +4,15 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 */
 @import url('https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne+Tactile&family=Syne:wght@400..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Marcellus SC&family=Syne+Mono&family=Syne+Tactile&family=Syne:wght@400..800&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond');
+@import url('https://iosevka-webfonts.github.io/iosevka-curly/iosevka-curly.css');
+@import url('https://iosevka-webfonts.github.io/iosevka-etoile/iosevka-etoile.css');
+
 
 :root {
-  --mono: "Iosevka Curly", "Fira Code", monospace;
+  --mono: "Syne Mono","Iosevka Curly", "Fira Code", monospace;
   --sans: "Syne","General Sans","Plus Jakarta Sans","Inter",sans-serif;
   --sigil:"Fraunces Soft","Syne",serif;
 }
@@ -28,7 +34,16 @@
     --void-violet: #7c3aed;
 }
 
+em {
+    font-style: normal;
+    font-family: "Iosevka Curly Web Oblique";
 
+}
+
+strong {
+    color: color-mix(in srgb, inherit 20%, white);
+    font-weight: 700;
+}
 * {
     margin: 0;
     padding: 0;
@@ -127,6 +142,16 @@ body {
   color: var(--ethereal-white);
   font-size: 1.2em;
 }
+
+
+.enhanced-description strong {
+  color: color-mix(in srgb, var(--hermetic-gold) 40%, var(--ethereal-white));
+}
+
+.enhanced-description em {
+  color: color-mix(in srgb, var(--argonaut-mystic) 50%, var(--ethereal-white));
+}
+
 
 .description {
     text-align: center;
@@ -238,6 +263,7 @@ body {
   display: block;
   color: color-mix(in srgb, var(--argonaut-cosmic) 70%, var(--ethereal-white));
 }
+
 .future-features li {
     padding: 2rem;
     border-radius: 10px;
@@ -264,11 +290,28 @@ body {
     backdrop-filter: blur(0.3rem);
 }
 
+
+.future-features .feature-list strong {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 70%, var(--ethereal-white));
+}
+
+.future-features .feature-list em {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 50%, var(--ethereal-white));
+}
+
 .card-transformations {
   border-left-color: var(--argonaut-cosmic);
   color: color-mix(in srgb, var(--argonaut-cosmic) 50%, var(--ethereal-white));
   font-size: 1.15em;
   background: linear-gradient(135deg, color-mix(in srgb, var(--argonaut-cosmic) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-transformations strong {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 70%, var(--ethereal-white));
+}
+
+.card-transformations em {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 20%, var(--ethereal-white));
 }
 
 .card-transformations h3 {
@@ -280,6 +323,14 @@ body {
   color: color-mix(in srgb, var(--mystic-rose) 50%, var(--ethereal-white));
   font-size: 1.15em;
   background: linear-gradient(135deg, color-mix(in srgb, var(--mystic-rose) 10%, transparent), color-mix(in srgb, var(--dimensional-purple) 10%, transparent));
+}
+
+.card-divination strong {
+  color: color-mix(in srgb, var(--mystic-rose) 70%, var(--ethereal-white));
+}
+
+.card-divination em {
+  color: color-mix(in srgb, var(--mystic-rose) 20%, var(--ethereal-white));
 }
 
 .card-divination h3 {
@@ -295,6 +346,14 @@ body {
 /*    background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(245, 158, 11, 0.1));*/
 }
 
+.card-textmate strong {
+  color: color-mix(in srgb, var(--divine-crimson) 70%, var(--ethereal-white));
+}
+
+.card-textmate em {
+  color: color-mix(in srgb, var(--divine-crimson) 20%, var(--ethereal-white));
+}
+
 
 .card-textmate h3 {
     color: var(--divine-crimson);
@@ -307,18 +366,39 @@ body {
     background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(139, 69, 19, 0.1));
 }
 
+.card-mnemosyne strong {
+  color: color-mix(in srgb, var(--void-violet) 70%, var(--ethereal-white));
+}
+
+.card-mnemosyne em {
+  color: color-mix(in srgb, var(--void-violet) 20%, var(--ethereal-white));
+}
+
 .card-mnemosyne h3 {
     color: var(--void-violet);
 }
 
-.card-dimensional {
+.card-memory {
     border-left-color: var(--ethereal-green);
     color: color-mix(in srgb, var(--ethereal-green) 50%, var(--ethereal-white));
     font-size: 1.15em;
     background: linear-gradient(135deg, color-mix(in srgb, var(--ethereal-green) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
 }
 
-.card-hermetic-resonance h3 {
+.card-memory strong {
+  color: color-mix(in srgb, var(--ethereal-green) 70%, var(--ethereal-white));
+}
+
+.card-memory em {
+  color: color-mix(in srgb, var(--ethereal-green) 20%, var(--ethereal-white));
+}
+
+.card-memory h3 {
+    color: var(--ethereal-green);
+}
+
+
+.card-hermetic h3 {
     color: var(--arcane-teal);
 }
 
@@ -327,6 +407,14 @@ body {
     color: color-mix(in srgb, var(--dimensional-purple) 50%, var(--ethereal-white));
     font-size: 1.15em;
     background: linear-gradient(135deg, color-mix(in srgb, var(--dimensional-purple) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-pythia strong {
+  color: color-mix(in srgb, var(--dimensional-purple) 70%, var(--ethereal-white));
+}
+
+.card-pythia em {
+  color: color-mix(in srgb, var(--dimensional-purple) 20%, var(--ethereal-white));
 }
 
 .card-pythia h3 {
@@ -351,29 +439,53 @@ body {
     background: linear-gradient(135deg, color-mix(in srgb, var(--hermetic-gold) 10%, transparent), color-mix(in srgb, var(--dimensional-purple) 10%, transparent));
 }
 
+.card-task-engine strong {
+  color: color-mix(in srgb, var(--hermetic-gold) 70%, var(--ethereal-white));
+}
+
+.card-task-engine em {
+  color: color-mix(in srgb, var(--hermetic-gold) 20%, var(--ethereal-white));
+}
+
 .card-task-engine h3 {
     color: var(--hermetic-gold);
 }
 
-.card-aegis {
+.card-coniunctio {
     border-left-color: var(--dimensional-purple);
     color: color-mix(in srgb, var(--dimensional-purple) 50%, var(--ethereal-white));
     font-size: 1.15em;
     background: linear-gradient(135deg, color-mix(in srgb, var(--dimensional-purple) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
 }
 
-.card-aegis h3 {
+.card-coniunctio strong {
+  color: color-mix(in srgb, var(--dimensional-purple) 70%, var(--ethereal-white));
+}
+
+.card-coniunctio em {
+  color: color-mix(in srgb, var(--dimensional-purple) 20%, var(--ethereal-white));
+}
+
+.card-coniunctio h3 {
     color: var(--dimensional-purple);
 }
 
-.card-hermetic-resonance {
+.card-hermetic {
     border-left-color: var(--arcane-teal);
     color: color-mix(in srgb, var(--arcane-teal) 50%, var(--ethereal-white));
     font-size: 1.15em;
     background: linear-gradient(135deg, color-mix(in srgb, var(--arcane-teal) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
 }
 
-.card-hermetic-resonance h3 {
+.card-hermetic strong {
+  color: color-mix(in srgb, var(--arcane-teal) 70%, var(--ethereal-white));
+}
+
+.card-hermetic em {
+  color: color-mix(in srgb, var(--arcane-teal) 20%, var(--ethereal-white));
+}
+
+.card-hermetic h3 {
     color: var(--arcane-teal);
 }
 
@@ -432,12 +544,15 @@ body {
 }
 
 pre {
-    background: var(--void-black);
+    background: color-mix(in srgb, var(--void-black) 50%, transparent);
     padding: 1.5rem;
     border-radius: 8px;
     border: 1px solid var(--dimensional-purple);
     margin: 1rem 0;
     overflow-x: auto;
+    -webkit-backdrop-filter: blur(0.2rem);
+    backdrop-filter: blur(0.2rem);
+
 }
 
 code {
@@ -540,6 +655,14 @@ li strong {
     border-left: 4px solid var(--mystic-rose);
 }
 
+.tool-card strong {
+  color: color-mix(in srgb, var(--mystic-rose) 70%, var(--ethereal-white));
+}
+
+.tool-card em {
+  color: color-mix(in srgb, var(--mystic-rose) 20%, var(--ethereal-white));
+}
+
 .tool-card:hover {
     transform: translateY(-5px);
     border-color: var(--mystic-rose);
@@ -553,7 +676,9 @@ li strong {
     margin-bottom: 0.8rem;
     font-size: 1.2rem;
     font-weight: 600;
+    font-family: var(--mono);
     text-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+
 }
 
 .tool-card p {

@@ -24,7 +24,7 @@ This directory contains the GitHub Pages site for ÆtherCodex.
 ### 🔮 **Ethereal Code Divination**
 Peer through dimensional veils to understand code structure and intent with hermetic clarity. Each symbol reveals its deeper meaning through astral analysis.
 
-### ⚡ **Hermetic Transformations**
+### ⚡️ **Hermetic Transformations**
 Apply precise modifications through unified diff transmutations across the astral plane. Surgical precision meets arcane wisdom.
 
 ### 📝 **TextMate Divine Integration**

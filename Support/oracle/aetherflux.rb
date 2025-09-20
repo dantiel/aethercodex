@@ -15,7 +15,7 @@ class Aetherflux
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
       
       # Pass the context parameters to Coniunctio for proper handling
-      ctx = Coniunctio.build(context:)
+      ctx = Coniunctio.build(context:, **params)
 
       begin
         # Use standard divination method for both normal and task execution

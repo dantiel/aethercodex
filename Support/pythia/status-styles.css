@@ -68,8 +68,13 @@ body.fancy-animations .status::before {
 }
 
 .status summary pre:hover{
-  max-height: 14em;
+  max-height: 17em;
 }
+
+.status details.run_command summary  pre:hover{
+  max-height: 21em;
+}
+
 
 .status summary pre code,
 .status summary pre code:hover {
@@ -107,6 +112,10 @@ body.fancy-animations .status::before {
   transition: all 0.3s ease;
 }
 
+.status .run_command summary pre {
+  max-height: 4em;
+}
+
 /* Tool arguments display */
 .status .tool-args {
   color: var(--argonaut-ethereal);
@@ -128,7 +137,7 @@ body.fancy-animations .status::before {
 
 
 /* Tool execution status colors */
-.status:has-text("⚡") {
+.status:has-text("⚡️") {
   border-left-color: var(--argonaut-amber);
   background: linear-gradient(135deg, rgba(255, 206, 0, 0.1), rgba(217, 119, 6, 0.1));
 }
@@ -290,4 +299,104 @@ body.fancy-animations .status::before {
   .file-overview-status {
     padding: 0.75rem;
   }
+}
+/* Multiple attachment styles */
+/*
+.attachment-preview {
+  background: rgba(100, 151, 197, 0.08);
+  border: 1px solid rgba(100, 151, 197, 0.2);
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  position: relative;
+}
+
+.attachment-preview:first-child {
+  margin-top: 0;
+}
+
+.attachment-preview:last-child {
+  margin-bottom: 0;
+}
+
+.attachment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--argonaut-mystic);
+}
+
+.attachment-header button {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 1.1em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.attachment-header button:hover {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff4444;
+}
+
+.attachment-meta {
+  font-size: 0.8em;
+  color: #666;
+  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.attachment-meta span {
+  background: rgba(100, 151, 197, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.attachment-content {
+  background: rgba(100, 151, 197, 0.05);
+  border: 1px solid rgba(100, 151, 197, 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-family: monospace;
+  font-size: 0.9em;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+*/
+/* Tag cloud styles */
+.tag-cloud-preview,
+.file-cloud-preview {
+  margin: 0.5rem 0;
+}
+
+.tag-cloud,
+.file-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.tag-cloud .tag,
+.file-cloud .file-link {
+  background: rgba(100, 151, 197, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8em;
+  color: var(--argonaut-mystic);
+  border: 1px solid rgba(100, 151, 197, 0.2);
+}
+
+.tag-cloud .tag:hover,
+.file-cloud .file-link:hover {
+  background: rgba(100, 151, 197, 0.2);
+  border-color: rgba(100, 151, 197, 0.4);
 }

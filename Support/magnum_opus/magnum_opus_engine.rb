@@ -34,12 +34,8 @@ TASK_SYSTEM_PROMPT = <<~PROMPT
   - Exploration (Steps 1-4): Read-only analysis tools only
   - Implementation (Steps 5-10): Full tool access including modifications
   
-  # TEMPERATURE GUIDANCE:
-  - Exploration: Higher temperature (1.2-1.5) for creative planning
-  - Implementation: Lower temperature (0.7-1.0) for precise execution
-
-  # CURRENT STEP GUIDANCE:
-  %<step_guidance>s
+  # STEP GUIDANCE:
+  %<step_guidance>
 PROMPT
 
 # =============================================================================

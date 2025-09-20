@@ -195,20 +195,43 @@ details[open] summary {
   border-radius: 0.6rem;
   overflow: hidden;
   transition: all 0.3s ease;
-  
+}
+
+.message-attachments {
+    display: flex;
+    flex-direction: column;
+    margin: 1em 0;
+    background: rgba(129, 93, 179, 0.08);
+    border: 0.1rem solid rgba(129, 93, 179, 0.25);
+    border-radius: 0.6rem;
+    overflow: hidden;
+    /* transition: all 0.3s ease; */
+    white-space: normal;
+
 }
 
 .attachment-header {
-  background: linear-gradient(135deg, rgba(129, 93, 179, 0.15) 0%, rgba(129, 93, 179, 0.08) 100%);
-  padding: 0.8rem 1rem;
-  border-bottom: 0.1rem solid var(--argonaut-hermetic);
-  font-weight: 500;
-  color: var(--argonaut-mystic);
-  font-size: 0.9rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    background: linear-gradient(135deg, rgba(129, 93, 179, 0.15) 0%, rgba(129, 93, 179, 0.08) 100%);
+    padding: 0.3rem 1rem;
+    border-bottom: 0.1rem solid var(--argonaut-hermetic);
+    font-weight: 500;
+    color: var(--argonaut-mystic);
+    font-size: 0.9em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
 }
+
+.message-attachments {
+    font-size:0.8em
+}
+
+
+.message-attachments .attachment-header {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--argonaut-void) 90%, transparent) 0%, color-mix(in srgb, var(--argonaut-void) 30%, transparent) 100%);
+}
+
 
 .attachment-header button {
   background: none;
@@ -225,13 +248,14 @@ details[open] summary {
 
 .attachment-content {
   overflow: auto;
+  background: color-mix(in srgb, var(--argonaut-hermetic) 20%, transparent)
 }
 
 .attachment-content pre {
   margin: 0;
   background: rgba(0, 12, 22, 0.4);
   color: var(--argonaut-steel);
-  font-size: 0.85rem;
+  font-size: 0.85em;
   line-height: 1.4;
   border: none;
   border-radius: 0;

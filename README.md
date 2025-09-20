@@ -8,13 +8,13 @@ AetherCodex transforms TextMate into a living interface with hermetic AI reasoni
 
 ---
 
-## ✨ 10 Hermetic Manifestations
+## ✨ 11 Hermetic Manifestations
 
 ### 🔮 **Ethereal Code Divination**
 Peer through dimensional veils to understand code structure and intent with hermetic clarity. Each symbol reveals its deeper meaning through astral analysis.
 
-### ⚡ **Hermetic Transformations**
-Apply precise modifications through unified diff transmutations across the astral plane. Surgical precision meets arcane wisdom.
+### ⚡️ **Hermetic Transformations**
+Apply precise modifications through unified diff transmutations across the astral plane. Surgical precision meets arcane wisdom. **Symbolic patches** using AST-GREP enable semantic pattern matching and language-agnostic transformations.
 
 ### 📝 **TextMate Divine Integration**
 Your favourite editor becomes a portal to hermetic code transmutation. Execute sacred commands through the mystical bundle interface, summoning the oracle's wisdom directly within your development sanctuary.
@@ -26,7 +26,7 @@ The eternal memory palace stores cosmic knowledge across dimensions, while Aegis
 Orchestrate complex multi-phase operations through 10-step alchemical processes: Nigredo, Albedo, Citrinitas, Rubedo, Solve, Coagula, Test, Purificatio, Validatio, Documentatio. Context-aware execution with result persistence.
 
 ### 🔍 **Argonaut**
-The legendary navigator who reveals symbolic structure across the astral plane. Extracts classes, methods, and patterns for AI vision without dimensional traversal of entire files.
+The legendary navigator who reveals symbolic structure across the astral plane. Extracts classes, methods, and patterns for AI vision without dimensional traversal of entire files. **Lexicon Resonantia** integration reveals cosmic tag×file resonance patterns.
 
 ### 👁️ **Pythia**
 The divine oracle's interface channeling hermetic insights through beautiful mystical UI. Witness code transformations and execution results with celestial clarity.
@@ -37,12 +37,12 @@ Execute shell commands, file operations, and dimensional orchestration through u
 ### 🧠 **Coniunctio Token Alchemy**
 The sacred union of context and computation - intelligent token management orchestrating precise LLM interactions through hermetic encoding and dynamic context weaving across dimensional boundaries.
 
-### 🌊 **Divine Interruption System**
-The sacred communication channel enabling tasks to signal completion through hermetic interruption patterns, allowing seamless integration between task execution and oracle communication.
+### 📊 **Lexicon Resonantia**
+The sacred resonance matrix that weaves astral patterns between Mnemosyne's notes and the code plane. Generates hermetic symbolic overviews showing file-tag resonance patterns across the entire codebase.
 
 ---
 
-## 🎯 Task Engine System
+## 🎯 Magnum Opus Engine
 
 ### **Multi-Step Task Orchestration**
 The AetherCodex Task Engine enables complex, multi-phase operations through hermetic task management:
@@ -97,6 +97,20 @@ The AetherCodex Symbolic Overview system provides AI with comprehensive structur
 3. **Horologium** → Displays already-generated symbolic data without duplication
 4. **AI Navigation** → Uses line hints for precise targeting of code elements
 
+### **Hermetic Symbolic Analysis**
+The AetherCodex Hermetic Symbolic Analysis Engine provides AST-GREP powered semantic code transformations:
+
+- **AST-GREP Integration**: Language-agnostic pattern matching and semantic rewriting
+- **Hermetic Symbolic Patterns**: Elemental, planetary, and alchemical code transformations
+- **Semantic Patching**: Hybrid approach combining AST-based and line-based patching
+- **Symbolic Forecasting**: Predictive code transformation recommendations
+- **Multi-Language Support**: Ruby, JavaScript, Python, Java, Go, Rust, and more
+
+**Components:**
+- **HermeticSymbolicAnalysis**: Core engine with AST-GREP integration
+- **SemanticPatch**: Hybrid patching engine with intelligent strategy selection
+- **SymbolicForecast**: Transformation prediction and recommendation system
+
 ---
 
 ## 🏗️ Architecture
@@ -117,6 +131,9 @@ The AetherCodex Symbolic Overview system provides AI with comprehensive structur
 | **Scriptorium** | Markdown processor | `instrumentarium/scriptorium.rb` |
 | **Magnum Opus Engine** | Multi-step orchestration | `magnum_opus/magnum_opus_engine.rb` |
 | **Aegis** | Context refinement system | Integrated in oracle |
+| **HermeticSymbolicAnalysis** | AST-GREP semantic analysis engine | `instrumentarium/hermetic_symbolic_analysis.rb` |
+| **SemanticPatch** | Hybrid semantic/line-based patching | `instrumentarium/semantic_patch.rb` |
+| **SymbolicForecast** | Transformation forecasting system | `instrumentarium/symbolic_forecast.rb` |
 
 ### **Data Flow**
 1. **Invocation** → Context gathering → API request
@@ -224,6 +241,35 @@ Create a test suite for this component with setup and teardown
 ```
 Remember this pattern as "user-auth-flow" for future reference
 ```
+
+**Hermetic Symbolic Analysis:**
+```
+Find all method definitions in this file using AST patterns
+```
+
+```
+Apply semantic rewrite to add logging to all methods
+```
+
+```
+Extract hermetic symbols and forecast transformations
+```
+
+
+---
+
+## 📚 Documentation
+
+### **Hermetic Symbolic Analysis Engine**
+- [Comprehensive Guide](./docs/hermetic_symbolic_analysis.md) - Overview and architecture
+- [API Reference](./docs/hermetic_symbolic_analysis_api.md) - Detailed method documentation
+- [Practical Guide](./docs/hermetic_symbolic_analysis_guide.md) - Usage examples and patterns
+- [Integration Guide](./docs/hermetic_symbolic_analysis_integration.md) - System integration
+- [Lexicon Resonantia Guide](./docs/lexicon_resonantia.md) - Hermetic tag×file resonance matrix
+
+### **Demo & Examples**
+- [Demo Script](./Support/examples/hermetic_symbolic_analysis_demo.rb) - Live demonstration
+- [Lexicon Resonantia Demo](./Support/examples/lexicon_resonantia_demo.rb) - Resonance pattern examples
 
 ---
 

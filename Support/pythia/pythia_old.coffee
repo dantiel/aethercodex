@@ -264,7 +264,7 @@ showStatus = (type, data, uuid) ->
           #{data.content}
         </details>"""
     when 'tool_starting'
-      log 'status', uuid, "⚡ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
+      log 'status', uuid, "⚡️ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
       if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
         log 'status', uuid, "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
     when 'file_patching'
@@ -596,7 +596,7 @@ updateSendButton = ->
     sendBtnGlyph.textContent = '⏹'
     sendBtn.classList.add 'thinking'
   else
-    sendBtnGlyph.textContent = '⚡'
+    sendBtnGlyph.textContent = '⚡️'
     sendBtn.classList.remove 'thinking'
 
 
