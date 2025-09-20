@@ -20,7 +20,7 @@ class Pythia
     @MESSAGE_THROTTLE_TIME = 1300
     @stored = null
     @connectWebSocketTimeout = null
-    @STORAGE_KEY = 'aether_messages'
+    @STORAGE_KEY = "aether_messages_#{@port}"
     @MAX_MESSAGES = 250
     @horologium = null
     @activeTaskLogs = {}  # Track active task logs for persistence

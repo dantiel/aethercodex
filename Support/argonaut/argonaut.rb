@@ -124,13 +124,14 @@ class Argonaut
 
 
   def self.project_root
-    if ENV['TM_DEBUG_PATHS']
+    if true or ENV['TM_DEBUG_PATHS']
       puts '🔮 Dimensional Diagnostics:'
       puts "TM_PROJECT_DIRECTORY: #{ENV['TM_PROJECT_DIRECTORY'].inspect}"
       puts "TM_DIRECTORY: #{ENV['TM_DIRECTORY'].inspect}"
       puts "TM_FILEPATH: #{ENV['TM_FILEPATH'].inspect}"
       puts "TM_SELECTED_FILE: #{ENV['TM_SELECTED_FILE'].inspect}"
       puts "Current directory: #{Dir.pwd}"
+      puts "TM_QUERY: #{`#{ENV.fetch 'TM_QUERY', nil}`}"
     end
 
     root = ENV['TM_PROJECT_DIRECTORY'] || ENV['TM_DIRECTORY'] || Dir.pwd
@@ -143,17 +144,19 @@ class Argonaut
 
   def self.include_files
     ['*', '.tm_properties', '.htaccess'] +
-      `#{ENV.fetch 'TM_QUERY',
-                   nil}`.scan(/includeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject do |f|
+      `#{ENV.fetch 'TM_QUERY', nil}`
+      .scan(/includeInArgonaut=\{([^\n]*)\}/).flatten.first.to_s.gsub(/\{|\}/,'').split(',')
+      .reject do |f|
         f.empty? || '{}' == f
       end
   end
-
+  "excludeInArgonaut={{,*.orig,*.rej,*.js},*/target/debug,debug}"
 
   def self.exclude_files
-    ['*.{o', 'pyc'] +
-      `#{ENV.fetch 'TM_QUERY',
-                   nil}`.scan(/excludeInArgonaut=\{\{?([^\n]*?)\}\}?/).flatten.first.to_s.split(',').reject do |f|
+    ['*.{o}', 'pyc'] +
+      `#{ENV.fetch 'TM_QUERY', nil}`
+      .scan(/excludeInArgonaut=\{([^\n]*)\}/).flatten.first.to_s.gsub(/\{|\}/,'').split(',')
+      .reject do |f|
         f.empty? || '{}' == f
       end
   end
@@ -178,16 +181,48 @@ class Argonaut
     end
 
     Dir.chdir root do
-      Dir.glob(if includes.empty?
-        then '**/*.{rb,js,ts,coffee,css,html,md}'
+      Dir.glob(if includes.empty? then '**/*.{rb,js,ts,coffee,css,html,md}'
                else
                  "**/{#{includes.join ','}}"
                end).reject do |f|
         excludes.any? do |ex|
-          File.fnmatch ex, File.basename(f)
+          argonaut_match? ex, f
         end
       end
     end
+  end
+
+
+  def self.argonaut_match?(pattern, path)
+    clean_path = Pathname.new(path).cleanpath.to_s
+
+    rooted_pattern = pattern.start_with?('/') ? pattern.sub('/', '') : "**/#{pattern}"
+
+    rest_pattern = rooted_pattern.sub '**/', ''
+
+    if rest_pattern.end_with? '/**'
+      dir_pattern = rest_pattern.sub '/**', ''
+      return clean_path.start_with? dir_pattern
+    end
+
+    pattern_segments = rest_pattern.split '/'
+    path_segments = clean_path.split '/'
+
+    (0..path_segments.size).each do |i|
+      sub_path_segments = path_segments[i..]
+      next if pattern_segments.size > sub_path_segments.size
+
+      match = true
+      pattern_segments.each_with_index do |p_seg, j|
+        unless File.fnmatch? p_seg, sub_path_segments[j].to_s, File::FNM_DOTMATCH
+          match = false
+          break
+        end
+      end
+      return true if match
+    end
+
+    false
   end
 
 
@@ -229,8 +264,8 @@ class Argonaut
 
     # Generate hermetic symbolic overview from Mnemosyne notes
     hermetic_overview = begin
-      notes = Mnemosyne.fetch_notes_by_links(path)
-      LexiconResonantia.generate_from_notes(notes, min_count: 1, top_k: 5)
+      notes = Mnemosyne.fetch_notes_by_links path
+      LexiconResonantia.generate_from_notes notes, min_count: 1, top_k: 5
     rescue StandardError => e
       { error: "Hermetic overview failed: #{e.message}" }
     end

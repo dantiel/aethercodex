@@ -56,6 +56,8 @@ class CONFIG
       merged_config[:__loaded_from] = merged_config[:__source]
       merged_config.delete(:__source)
       
+      # puts "[CONFIG][LOAD_HIERARCHICAL_CONFIG]: merged_config: #{merged_config.inspect}"
+      
       merged_config
     end
     
@@ -172,6 +174,36 @@ class CONFIG
       reasoning_model: self[:'reasoning-model'],
       config_sources: CFG.select { |k, _| k.to_s.start_with?('__loaded_from') }
     }
+  end
+  
+  # Resolve a path relative to project root, handling absolute paths
+  def self.resolve_path(relative_path)
+    # Handle absolute paths (starting with "/")
+    return relative_path if relative_path.start_with?('/')
+    
+    # For relative paths, resolve relative to project root
+    project_root = ENV['TM_PROJECT_DIRECTORY'] || Dir.pwd
+    File.join(project_root, relative_path)
+  end
+  
+  # Get the tm-ai directory path
+  def self.tm_ai_dir
+    resolve_path(self[:'tm-ai'] || '.tm-ai/')
+  end
+  
+  # Get the memory database path
+  def self.memory_db_path
+    resolve_path(self[:'memory-db'] || '.tm-ai/memory.db')
+  end
+  
+  # Get the log file path
+  def self.log_file_path
+    resolve_path('.tm-ai/limen.log')
+  end
+  
+  # Get the PID file path
+  def self.pid_file_path
+    resolve_path('.tm-ai/limen.pid')
   end
   
 end

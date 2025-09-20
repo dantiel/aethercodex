@@ -230,16 +230,7 @@ class Mnemosyne
 
 
     def db_path
-      path = CONFIG::CFG[:memory_db] || '.tm-ai/memory.db'
-      project_root = ENV['TM_PROJECT_DIRECTORY'] || Dir.pwd
-
-      if ENV['TM_DEBUG_PATHS']
-        puts "cfg_path=#{CFG_PATH}"
-        puts "path=#{path}"
-        puts "project_root=#{project_root}"
-      end
-
-      File.join project_root, path
+      CONFIG.memory_db_path
     end
 
 

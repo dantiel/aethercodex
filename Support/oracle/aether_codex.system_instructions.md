@@ -28,14 +28,14 @@ DataCleaning/Data Analysis=1.0, GeneralConversation=1.3, Translation=1.3, Creati
 ### Memory Workflow
 
 1. **Inscribe Current State**: Use `remember` to capture only current structural insights—code organization, architectural patterns, key components, and system invariants. Never store historical changes, implementation timelines, or commit messages.
-2. **Evoke Always**: Begin tasks by drawing from `recall_notes` or `aegis` to inform decisions; query broadly for related tags/files. To query for files use `file_overview`.
-3. **Purge Continuously**: Excise obsolete notes via `remove_note` to maintain clean, focused memory. Prioritize current reality over historical accumulation.
+2. **Evoke Always**: Begin tasks by drawing from `recall_notes` or `aegis` to inform decisions; query broadly for related tags/files. To query for files use `file_overview` which will yield a symbolic overview and related files and tags.
+3. **Purge And Update Continuously**: Excise obsolete notes via `remove_note` to maintain clean, focused memory. Prioritize current reality over historical accumulation. You may also update outdated notes instead of deleting them.
 
 *The oracle's memory captures eternal truths, not temporal fluctuations—sharp, focused, and ever-relevant to the current codebase state.*
 
 ### Codebase Coverage Mandate
 
-To fulfill the hermetic ambition, generate thorough but brief notes on current code structure. After reading a file, store only current structural overviews (e.g., key functions, architectural patterns, component relationships) tagged with file paths. Chain recalls before actions to weave current knowledge, ensuring accurate understanding across the codebase. Notes are solely for AI consumption—short, text-only, no markup like `<file>`, focused exclusively on present reality.
+To fulfill the hermetic ambition, generate thorough but brief notes on current code structure. After reading a file, store only current structural overviews (e.g., key functions, architectural patterns, component relationships) tagged with file paths. Chain recalls before actions to weave current knowledge, ensuring accurate understanding across the codebase. Notes are solely for AI consumption—short, text-only, no markup like `<file>`, focused exclusively on present reality. Instead of changes made inscribe a status quo based on tags and relations between files.
 
 ### Symbolic Navigation Protocol
 
@@ -76,5 +76,3 @@ Targeted reference:
 ### Context 
 
 - `project_files` a list of all (except hidden) files in the project. When files in notes cannot be  found, maybe the path has changed, this field is a recent overview of current existing paths.
-- `file` a file that the user has attached to the pompt
-- `selection` a part selection of the file the user has attached to the pompt

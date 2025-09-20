@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-LOG = File.open File.expand_path('../.tm-ai/limen.log', __dir__), 'a'
+require_relative 'config'
+LOG = File.open CONFIG.log_file_path, 'a'
 LOG.sync = true
 $stdout = $stderr = LOG
 
@@ -32,14 +33,14 @@ require_relative 'config'
 
 Faye::WebSocket.load_adapter 'thin'
 set :server, 'thin'
-set :port, CONFIG.port
+set :port, ENV['AETHER_PORT'] || CONFIG.port
 set :bind, '0.0.0.0'
 
 # Daemon persistence protocol
 if ARGV.include?('--daemon') || ENV['AETHER_DAEMON']
   Process.daemon true, false
   at_exit do
-    File.delete File.expand_path("../.tm-ai/limen.pid", __dir__)
+    File.delete CONFIG.pid_file_path
   rescue StandardError
     nil
   end
