@@ -37,7 +37,7 @@
 em {
     font-style: normal;
     font-family: "Iosevka Curly Web Oblique";
-
+    margin: 0 0.3em;
 }
 
 strong {
@@ -114,6 +114,10 @@ body {
     text-shadow: 0 0 20px rgba(74, 144, 226, 0.5);
 }
 
+.aether,
+.codex {
+  font-weight: 700;
+}
 .aether {
     color: var(--argonaut-cosmic);
     text-shadow: 0 0 30px var(--argonaut-cosmic);
@@ -143,15 +147,15 @@ body {
   font-size: 1.2em;
 }
 
-
-.enhanced-description strong {
+.enhanced-description strong,
+.hero-description strong {
   color: color-mix(in srgb, var(--hermetic-gold) 40%, var(--ethereal-white));
 }
 
-.enhanced-description em {
+.enhanced-description em,
+.hero-description em {
   color: color-mix(in srgb, var(--argonaut-mystic) 50%, var(--ethereal-white));
 }
-
 
 .description {
     text-align: center;
