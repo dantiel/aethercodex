@@ -76,6 +76,12 @@ class FakeMnemosyne
         self.class.tasks[task_id] = @tasks[task_id].dup if self.class.tasks[task_id]
       end
 
+      # Update step_results
+      if params[:step_results]
+        @tasks[task_id]['step_results'] = params[:step_results]
+        self.class.tasks[task_id] = @tasks[task_id].dup if self.class.tasks[task_id]
+      end
+
       # Log handling
       if params[:log]
         @logs[task_id] ||= []

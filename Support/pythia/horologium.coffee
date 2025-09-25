@@ -33,7 +33,7 @@ class Horologium
         tags = tags_part.split ','
         
         file_html = if @pythia && file_part 
-          match_file_name = /^\/?(.+\/)*(.+?)(\.(.+))?$/
+          match_file_name = /^\/?(.+\/)*((.+?)\.(.+))?$/
           link_href = @pythia.createTextMateLink file_part
           [_, file_path = '', file_name] = file_part.match match_file_name
           """<a href="#{link_href}"  class="file-link">

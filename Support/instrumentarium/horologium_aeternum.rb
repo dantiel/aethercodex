@@ -96,9 +96,12 @@ module HorologiumAeternum
 
   def self.history(history, uuid: nil)
     entries_html = history.map do |entry|
+      puts "entry #{entry}"
       {
-        prompt: Scriptorium.html_with_syntax_highlight(entry[:prompt]),
-        answer: Scriptorium.html_with_syntax_highlight(entry[:answer])
+        prompt:    Scriptorium.html_with_syntax_highlight(entry[:prompt]),
+        answer:    Scriptorium.html_with_syntax_highlight(entry[:answer]),
+        completed: Scriptorium.html("🎯 Response ready with **#{entry[:tool_call_count] || 0}** "\
+                                    "tools executed in #{(entry[:execution_time] || 0).round 2}s")
       }
     end
 
@@ -198,12 +201,12 @@ module HorologiumAeternum
               else
                 Scriptorium.html "📄 Created temporary file #{create_file_link path} (#{display_bytes bytes})"
               end
-                  
+
     type = Scriptorium.language_tag_from_path path
 
     send_status('temp_file_created', {
                   message:   message,
-                  content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```"),
+                  content:   Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```"),
                   path:,
                   bytes:,
                   domain:,
@@ -314,12 +317,13 @@ module HorologiumAeternum
     # Format the result for better display - show actual changes made with proper syntax highlighting
     result_display = if result.is_a?(Hash) && result[:success]
                        if result[:result] && !result[:result].empty?
-                         formatSymbolicPatchResult result[:result], path
+                         formatSymbolicPatchResult result[:result], path, operation,
+                                                   result[:patterns]
                        else
                          Scriptorium.html "\n\n**Operation completed successfully**"
                        end
                      else
-                       Scriptorium.html  "\n\n**Result:** #{result.inspect}"
+                       Scriptorium.html "\n\n**Result:** #{result.inspect}"
                      end
     count = result[:result]&.count || ''
 
@@ -333,13 +337,38 @@ module HorologiumAeternum
   end
 
 
-  def self.formatSymbolicPatchResult(result_data, file_path)
+  def self.formatSymbolicPatchResult(result_data, file_path, operation = nil, patterns = nil)
     return Scriptorium.html "\n\n**No transformations found**" if result_data.empty?
 
     language = Scriptorium.language_tag_from_path file_path
 
+    # Include operation and pattern information if available
+    operation_info = if operation
+                       "<div class='operation-info'><strong>Operation:</strong> #{operation.hermetic_humanize}</div>"
+                     else
+                       ''
+                     end
+
+    # Include pattern details if available
+    pattern_details = if patterns
+                        <<~HTML
+                          <div class='pattern-details'>
+                            <div><strong>Search Pattern:</strong> <code>#{Scriptorium.escape_html patterns[:search_pattern]}</code></div>
+                            <div><strong>Replace Pattern:</strong> <code>#{Scriptorium.escape_html patterns[:replace_pattern]}</code></div>
+                            #{if patterns[:method_name]
+                                "<div><strong>Method:</strong> #{patterns[:method_name]}</div>"
+                              end}
+                            #{if patterns[:class_name]
+                                "<div><strong>Class:</strong> #{patterns[:class_name]}</div>"
+                              end}
+                          </div>
+                        HTML
+                      else
+                        ''
+                      end
+
     # Create beautiful chunk-based HTML for transformations
-    transformations_html = result_data.each_with_index.map do |transformation, index|
+    transformations_html = result_data.each_with_index.map do |transformation, _index|
       # Get location information
       line = begin
         transformation.dig(:range, :start, :line) + 1
@@ -353,7 +382,8 @@ module HorologiumAeternum
       end
 
       # Create file link with precise location
-      file_link = create_file_link file_path, "#{file_path} Line #{line}, Column #{column}", line, column
+      file_link = create_file_link file_path, "#{file_path} Line #{line}, Column #{column}", line,
+                                   column
 
       # Build transformation chunk
       <<~HTML
@@ -383,7 +413,9 @@ module HorologiumAeternum
           <p class="results-count">#{result_data.size} transformation#{unless 1 == result_data.size
                                                                          's'
                                                                        end} detected</p>
+          #{operation_info}
         </div>
+        #{pattern_details}
         #{transformations_html}
       </div>
     HTML
@@ -401,7 +433,7 @@ module HorologiumAeternum
 
   # Command output containing HTML is properly escaped to prevent rendering issues
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
-    symbol = if exit_status.zero? then '✅ ⚡️' else '❌ ⚡️' end
+    symbol = if exit_status&.zero? then '✅ ⚡️' else '❌ ⚡️' end
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
 
     # Escape HTML in content to prevent UI corruption
@@ -662,7 +694,7 @@ module HorologiumAeternum
 
 
   def self.notes_recalled(query, limit, notes, uuid: nil)
-    query = "no query" if query.empty?
+    query = '(empty query)' if query.empty?
     send_status('notes_recalled', {
                   query:   query,
                   count:   notes.count,
@@ -739,7 +771,7 @@ module HorologiumAeternum
         links:   note[:links] || []
       }
     end
-    
+
     # Format the symbolic data properly for display
     symbolic_summary = if symbolic_data[:structural_summary]
                          "**Classes:** #{symbolic_data[:structural_summary][:classes]}, " \

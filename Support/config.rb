@@ -1,6 +1,7 @@
 require 'yaml'
 require 'pathname'
 require 'dotenv'
+require_relative 'instrumentarium/metaprogramming_utils'
 
 
 
@@ -79,7 +80,7 @@ class CONFIG
       return hash unless hash.is_a?(Hash)
       
       hash.each_with_object({}) do |(key, value), result|
-        symbolized_key = key.respond_to?(:to_sym) ? key.to_sym : key
+        symbolized_key = key.respond_to?(:to_hermetic_symbol) ? key.to_hermetic_symbol : key
         result[symbolized_key] = if value.is_a?(Hash)
                                   symbolize_keys(value)
                                 elsif value.is_a?(Array)
@@ -146,11 +147,11 @@ class CONFIG
   end
   
   def self.api_key
-    ENV['AETHER_API_KEY'] || CFG[:'api-key'] || CFG['api-key']
+    ENV['AETHER_API_KEY'] || CFG[:api_key] || CFG['api-key']
   end
   
   def self.api_url
-    ENV['AETHER_API_URL'] || CFG[:'api-url'] || CFG['api-url'] || DEFAULT_CONFIG[:'api-url']
+    ENV['AETHER_API_URL'] || CFG[:api_url] || CFG['api-url'] || DEFAULT_CONFIG[:api_url]
   end
   
   # Check if configuration is loaded from specific source
@@ -173,7 +174,7 @@ class CONFIG
       api_key: api_key ? "#{api_key[0..8]}..." : nil,
       api_url: api_url,
       model: self[:model],
-      reasoning_model: self[:'reasoning-model'],
+      reasoning_model: self[:reasoning-model],
       config_sources: CFG.select { |k, _| k.to_s.start_with?('__loaded_from') }
     }
   end
@@ -190,12 +191,12 @@ class CONFIG
   
   # Get the tm-ai directory path
   def self.tm_ai_dir
-    resolve_path(self[:'tm-ai'] || '.tm-ai/')
+    resolve_path(self[:tm_ai] || '.tm-ai/')
   end
   
   # Get the memory database path
   def self.memory_db_path
-    resolve_path(self[:'memory-db'] || '.tm-ai/memory.db')
+    resolve_path(self[:memory_db] || '.tm-ai/memory.db')
   end
   
   # Get the log file path
@@ -210,7 +211,7 @@ class CONFIG
   
   # Get custom allowed commands from configuration
   def self.allowed_commands
-    custom_commands = CFG[:'allowed-commands'] || CFG['allowed-commands'] || []
+    custom_commands = CFG[:allowed_commands] || CFG['allowed-commands'] || []
     
     # Handle wildcard - allow all commands
     return [//] if custom_commands == '*' || custom_commands == ['*']

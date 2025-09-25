@@ -46,7 +46,7 @@ class FakeAetherflux
              else
                params[:prompt]
              end
-    system_prompt = params[:system]
+    system_prompt = params[:system_prompt] || params[:system]
     
     # Capture conjuration parameters if in capture mode
     if @capture_mode
@@ -55,7 +55,8 @@ class FakeAetherflux
         system: system_prompt,
         tools: tools,
         context: context,
-        has_messages: params[:messages].present?
+        has_messages: params[:messages].present?,
+        original_params: params.dup
       }
     end
     

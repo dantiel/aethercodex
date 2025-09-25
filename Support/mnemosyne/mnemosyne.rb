@@ -9,11 +9,11 @@ require 'tiktoken_ruby'
 require 'timeout'
 require_relative '../config'
 require_relative '../argonaut/argonaut'
-
-# Alias for create_note for backward compatibility
-def self.remember(content:, links: nil, tags: nil)
-  create_note content: content, links: links, tags: tags
-end
+#
+# # Alias for create_note for backward compatibility
+# def self.remember(content:, links: nil, tags: nil)
+#   create_note content: content, links: links, tags: tags
+# end
 
 
 class Mnemosyne
@@ -154,7 +154,7 @@ class Mnemosyne
 
     def fetch_history(limit: 7, max_tokens: nil)
       entries = Mnemosyne.db.execute(
-        'SELECT prompt, answer, created_at FROM entries ORDER BY id DESC LIMIT ?', [limit]
+        'SELECT prompt, answer, tool_call_count, execution_time, timestamp, created_at FROM entries ORDER BY id DESC LIMIT ?', [limit]
       ).map { |entry| entry.transform_keys!(&:to_sym) }
       unless max_tokens.nil?
         tokens = 0
@@ -247,9 +247,15 @@ class Mnemosyne
 
 
     def migrate(db)
+      # Get current database version
+      db_version = db.execute("SELECT value FROM meta WHERE key = 'db_version'").first&.[]('value')&.to_i || 0
+      
+      # Create meta table if it doesn't exist
       db.execute <<~SQL
         CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
       SQL
+      
+      # Create entries table with latest schema
       db.execute <<~SQL
         CREATE TABLE IF NOT EXISTS entries (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -258,9 +264,33 @@ class Mnemosyne
           tags TEXT,
           file TEXT,
           selection TEXT,
+          execution_time REAL,
+          tool_call_count INTEGER,
+          timestamp TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       SQL
+      
+      # Migrate from older versions if needed
+      if db_version < 1
+        # Add new columns if they don't exist
+        existing_columns = db.execute("PRAGMA table_info(entries)").map { |col| col['name'] }
+        
+        unless existing_columns.include?('execution_time')
+          db.execute("ALTER TABLE entries ADD COLUMN execution_time REAL")
+        end
+        
+        unless existing_columns.include?('tool_call_count')
+          db.execute("ALTER TABLE entries ADD COLUMN tool_call_count INTEGER")
+        end
+        
+        unless existing_columns.include?('timestamp')
+          db.execute("ALTER TABLE entries ADD COLUMN timestamp TEXT")
+        end
+        
+        # Update to version 1
+        db.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('db_version', '1')")
+      end
       db.execute <<~SQL
         CREATE TABLE IF NOT EXISTS tasks (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -298,6 +328,7 @@ class Mnemosyne
       SQL
     end
 
+
     # Search notes with scoring based on content, tags, and links
     def recall_notes(query, limit: 5, max_content_length: nil)
       query_tokens = tokenize query
@@ -333,9 +364,9 @@ class Mnemosyne
         { **note, score: }
       end
       .select { |note| note[:score].positive? }
-      .sort_by { |note| -note[:score] }
-      .take(limit)
-      .map do |note|
+           .sort_by { |note| -note[:score] }
+           .take(limit)
+           .map do |note|
         # Apply content length limit if specified
         # puts "RECALL NOTES: #{note}"
         if max_content_length && note[:content] && note[:content].length > max_content_length
@@ -343,14 +374,16 @@ class Mnemosyne
             truncate_note_content(note[:content], max_length: max_content_length)
         end
         # puts "RECALL NOTES: #{note[:links]}"
-        note[:links] = note[:links].split(',').map do |link|
-          if Argonaut.file_exists? link
-            link
-          else
-            "~~#{link}~~ (path not found)"
-          end
-        end.join ',' if note[:links]
-        note  # Ensure we return the note hash, not the links string
+        if note[:links]
+          note[:links] = note[:links].split(',').map do |link|
+            if Argonaut.file_exists? link
+              link
+            else
+              "~~#{link}~~ (path not found)"
+            end
+          end.join ','
+        end
+        note # Ensure we return the note hash, not the links string
       end
     end
 
@@ -418,17 +451,24 @@ class Mnemosyne
     end
 
 
-    def record(params, answer)
-      puts "[MNEMOSYNE][RECORD]: recording #{tok_len (params.to_json.inspect || '') + (answer || '')}: #{answer}"
+    def record(prompt: '',
+               attachments: [],
+               tags: nil,
+               file: nil,
+               execution_time: 0,
+               tool_call_count: 0,
+               timestamp: nil,
+               answer: '')
+      puts "[MNEMOSYNE][RECORD]: recording #{tok_len (prompt.to_json.inspect || '') + (answer || '')}: #{answer}"
       db.execute \
-        'INSERT INTO entries (prompt, answer, tags, file, selection) VALUES (?,?,?,?,?)',
-        [params[:prompt], answer, Array(params[:tags]).join(','), params[:file],
-         params[:attachments].to_json]
+        'INSERT INTO entries (prompt, answer, tags, file, selection, execution_time, tool_call_count, created_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)',
+        [prompt, answer, Array(tags).join(','), file,
+         attachments.to_json, execution_time, tool_call_count]
     end
-   
+
 
     # Alias for create_note for backward compatibility
-    def self.remember(content:, links: nil, tags: nil)
+    def remember(content:, links: nil, tags: nil)
       create_note content: content, links: links, tags: tags
     end
 
@@ -555,9 +595,9 @@ class Mnemosyne
       else # list
         rows = db.execute 'SELECT * FROM tasks ORDER BY created_at DESC'
         rows.map { |r| r.transform_keys!(&:to_sym) }
-        
+
         if params[:parent_task_id]
-          rows = rows.filter{ |task| params[:parent_task_id] == task[:parent_task_id] }
+          rows = rows.filter { |task| params[:parent_task_id] == task[:parent_task_id] }
         end
 
         max_tokens = 1111

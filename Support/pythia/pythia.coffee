@@ -166,6 +166,7 @@ class Pythia
   # Status Display System
   showStatus: (type, data, uuid) =>
     timestamp = new Date(data.timestamp * 1000).toLocaleTimeString() if data.timestamp
+    timestamp_html = "<small>#{timestamp || ''}</small>"
     
     console.log "showStatus", timestamp, type, data
     
@@ -174,111 +175,111 @@ class Pythia
         if data.content
           @log 'system', uuid, """
             <details>
-              <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+              <summary>#{data.message} #{timestamp_html}</summary>
               #{data.content}
             </details>"""
         else
-          @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
+          @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} #{timestamp_html}"
       when 'file_reading'
-        @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
+        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"    
       when 'divination'
-        @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} #{timestamp_html}"
       when 'file_read_complete'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{data.content}
           </details>"""
       when 'file_read_fail'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{data.error}
           </details>"""
       when 'file_creating'
-        @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
       when 'file_created'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{data.content}
           </details>"""
       when 'temp_file_created'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{data.content}
           </details>"""
 
       when 'tool_starting'
-        @log 'status', uuid, "⚡️ Invoking <code>#{data.tool}</code>... <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "⚡️ Invoking <code>#{data.tool}</code>... #{timestamp_html}"
         if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
           @log 'status', uuid, "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
       when 'file_patching'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{data.diff}
           </details>"""
       when 'file_patched'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.diff}
           </details>"""
       when 'file_patched_fail'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{data.diff}
           </details>"""
       when 'symbolic_patch_start'
-        @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
       when 'symbolic_patch_complete'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.result_display}
           </details>"""
       when 'symbolic_patch_fail'
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{data.error}
           </details>"""
       when 'command_executing'
-        @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.message} #{timestamp_html}"
       when 'command_completed'
         @log 'status', uuid, """
           <details class="run_command">
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             <pre>#{data.content}</pre>
           </details>"""
       when 'file_renaming'
-        @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
       when 'file_renamed'
-        @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"      
+        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"      
       when 'memory_storing'
-        @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.message} #{timestamp_html}"
       when 'memory_stored'
-        @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.message} #{timestamp_html}"
       when 'memory_searching'
-        @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.message} #{timestamp_html}"
       when 'memory_found'
         @log 'status', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             <pre>#{data.content}</pre>
           </details>"""
       when 'info'
-        @log 'status', uuid, "#{@replaceFileTags data.message} <small>#{timestamp || ''}</small>"    
+        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"    
       when 'tool_completed'
         if data.result?.error
-          @log 'status', uuid, "❌ Tool <code>#{data.tool}</code> failed: #{data.result.error} <small>#{timestamp || ''}</small>"
+          @log 'status', uuid, "❌ Tool <code>#{data.tool}</code> failed: #{data.result.error} #{timestamp_html}"
           if data.result.error
             @log 'system', uuid, "<details><summary>❌ Error details</summary><pre>#{data.result.error}</pre></details>"
         else
-          @log 'status', uuid, "✅ Tool <code>#{data.tool}</code> completed <small>#{timestamp || ''}</small>"
+          @log 'status', uuid, "✅ Tool <code>#{data.tool}</code> completed #{timestamp_html}"
         if data.result and Object.keys(data.result).length > 0 and not data.result?.error
           resultJson = JSON.stringify data.result, null, 2
           if resultJson.length > 200
@@ -289,59 +290,59 @@ class Pythia
         if data.content
           @log 'ai', uuid, @replaceFileTags data.content
         else
-          @log 'status', uuid, "💭 AI responding... <small>#{timestamp || ''}</small>"
+          @log 'status', uuid, "💭 AI responding... #{timestamp_html}"
       when 'oracle_conjuration_revelation'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'oracle_conjuration'
         @log 'status', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'plan_announced'
-        @log 'status', uuid, "📋Plan: #{data.steps?.join ' → '} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "📋Plan: #{data.steps?.join ' → '} #{timestamp_html}"
       when 'processing'
-        @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.message} #{timestamp_html}"
       when 'completed'
-        @log 'status', uuid, "#{data.summary || 'Completed'} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.summary || 'Completed'} #{timestamp_html}"
       when 'server_error'
-        @log 'error', uuid, "#{data.error} <small>#{timestamp || ''}</small>"
+        @log 'error', uuid, "#{data.error} #{timestamp_html}"
       when 'system_error'
-        @log 'error', uuid, "#{data.error} <small>#{timestamp || ''}</small>"
+        @log 'error', uuid, "#{data.error} #{timestamp_html}"
       when 'system_message'
-        @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'system', uuid, "#{data.message} #{timestamp_html}"
       when 'note_added'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'note_removed'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'note_updated'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'notes_recalled'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.notes}
           </details>"""
       when 'aegis_unveiled'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'file_overview'
@@ -349,50 +350,50 @@ class Pythia
         overviewHtml = horologium.renderFileOverview data
         @log 'status', uuid, """
           <details>
-            <summary>#{@replaceFileTags data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
             #{overviewHtml}
           </details>"""
       when 'task_started'
         @isThinking = true
         do @updateSendButton
-        @log 'status', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'status', uuid, "#{data.message} #{timestamp_html}"
         @renderTaskProgress data
       when 'task_completed'
         @isThinking = false
         do @updateSendButton
-        @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'system', uuid, "#{data.message} #{timestamp_html}"
         @renderTaskProgress data
       when 'task_created'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             <div class=\"task-description\">#{data.plan}</div>
           </details>"""
         @renderTaskProgress data
       when 'task_updated'
         if data.show_progress
-          @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+          @log 'system', uuid, "#{data.message} #{timestamp_html}"
         @renderTaskProgress data
       when 'task_step_completed'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{data.result}
           </details>"""
       when 'task_step_rejected'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             #{data.reason}
           </details>"""
       when 'task_removed'
         @isThinking = false
         do @updateSendButton
-        @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
+        @log 'system', uuid, "#{data.message} #{timestamp_html}"
       when 'task_list'
         @log 'system', uuid, """
           <details>
-            <summary>#{data.message} <small>#{timestamp || ''}</small></summary>
+            <summary>#{data.message} #{timestamp_html}</summary>
             <div class="task-list">#{data.content}</div>
           </details>"""
       when 'task_log_added'
@@ -424,10 +425,12 @@ class Pythia
           # Also store the log in localStorage for persistence
           @storeTaskLog task_id, data.content, logTime
       when 'history'
-        @log 'system', uuid, "#{data.message} <small>#{timestamp || ''}</small>"
         data.content.forEach (entry) =>
-          @log 'user', null, "#{entry.prompt} <small>#{timestamp || ''}</small>"
-          @log 'ai', null, "#{entry.answer} <small>#{timestamp || ''}</small>"
+          @log 'user', null, "#{entry.prompt} #{timestamp_html}"
+          @log 'ai', null, "#{@replaceFileTags entry.answer} #{timestamp_html}"
+          @log 'status', null, "#{entry.completed} #{timestamp_html}"
+        @log 'system', uuid, "#{data.message} #{timestamp_html}"
+          
 
 
   # Task Management
@@ -731,8 +734,14 @@ class Pythia
 
   renderAttachmentPreview: (data, args = {}) =>
     { is_preview = true } = args
-    { line, column, selection_range, file_html, content, selection_html, 
-      lines, uuid: attachment_uuid } = data
+    attachment_uuid = data.uuid
+    line = data.line
+    column = data.column
+    selection_range = data.selection_range
+    file_html = data.file_html
+    content = data.content
+    selection_html = data.selection_html
+    lines = data.lines
 
     content ||= 'No content preview available.'
     
@@ -887,11 +896,82 @@ class Pythia
       href = "txmt://open/?url=file://#{@project_root}/#{encodeURIComponent(path)}"
       href += "\&line=#{line}" if line
       href += "\&column=#{column}" if column
-      "<a href=\"#{href}\" class=\"file-link\">#{displayName}</a>"
+      
+      # Add markdown preview icon for .md files
+      if path.toLowerCase().endsWith('.md')
+        preview_link = @createMarkdownPreviewLink(path, line, column)
+        "<a href=\"#{href}\" class=\"file-link\">#{displayName}</a>#{preview_link}"
+      else
+        "<a href=\"#{href}\" class=\"file-link\">#{displayName}</a>"
       
     content = content.replace match_file, replace_matches
     content.replace match_file_html, replace_matches
 
+
+  # Create markdown preview link with eye icon
+  createMarkdownPreviewLink: (filePath, line = null, column = null) =>
+    """
+    <span class="markdown-preview-container">
+      <a data-url="#{filePath}" class="markdown-preview-link"
+         title="Preview markdown" onclick="return window.pythia.openMarkdownPreview(event, '#{filePath}');">
+        👁️
+      </a>
+    </span>
+    """
+
+  # Open markdown preview in popup window
+  openMarkdownPreview: (event, fileUrl) =>
+    event.preventDefault()
+    
+    # Extract file path from URL
+    filePath = fileUrl.replace(/^file:\/\//, '')
+    
+    console.log filePath
+    # Create preview window
+    previewWindow = window.open('', 'markdown-preview',
+      'width=800,height=600,resizable=yes,scrollbars=yes,toolbar=no')
+    # setTimeout ->
+    previewWindow.resizeTo 800, 600
+    previewWindow.moveTo (screen.availWidth - 800) / 2, (screen.availHeight - 600) / 2
+    # , 200
+    console.log previewWindow
+    if previewWindow
+      # Load and render markdown content
+      @loadAndRenderMarkdown(previewWindow, filePath)
+    
+    return false
+
+
+  # Load and render markdown content via HTTP request
+  loadAndRenderMarkdown: (previewWindow, filePath) =>
+    # Make HTTP request to backend for markdown preview
+    fetch "http://127.0.0.1:#{@port}/api", 
+      method: 'POST',
+      headers: 
+        'Content-Type': 'application/json'
+      body: JSON.stringify
+        method: 'previewMarkdown',
+        params: 
+          file_path: filePath
+    .then (response) => do response.json
+    .then (data) =>
+      console.log data
+      if 'previewMarkdown' is data.method
+        # Render the markdown in the preview window
+        @renderMarkdownPreview previewWindow, data.result
+      else
+        console.error 'Preview request failed:', data
+        @renderMarkdownPreview previewWindow, 
+          error: 'Preview failed',
+          content: 'Failed to load markdown preview',
+          html: '<p>Failed to load markdown preview</p>'
+    .catch (error) =>
+      console.error 'Preview error:', error
+      @renderMarkdownPreview previewWindow, 
+        error: error.message,
+        content: 'Error loading markdown preview',
+        html: '<p>Error loading markdown preview</p>'
+        
 
   # TextMate link handler for hierarchical structure items
   createTextMateLink: (filePath, line = null, column = null) =>
@@ -900,6 +980,122 @@ class Pythia
     href += "\&line=#{line}" if line
     href += "\&column=#{column}" if column
     href
+
+
+  # Render markdown preview in popup window
+  renderMarkdownPreview: (previewWindow, markdownData) =>
+    # Handle error cases
+    if markdownData.error
+      { error, content, html } = markdownData
+      html ||= "<p style='color: red;'>Error: #{error}</p><pre>#{content || 'No content available'}</pre>"
+      title = 'Markdown Preview Error'
+    else
+      { content, html, title } = markdownData
+    
+    previewWindow.document.write html
+    # previewWindow.document.write """
+    #   <!DOCTYPE html>
+    #   <html>
+    #   <head>
+    #     <title>📄 #{title || 'Markdown Preview'}</title>
+    #     <meta charset="utf-8">
+    #     <style>
+    #       body {
+    #         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    #         margin: 20px;
+    #         line-height: 1.6;
+    #         background: #f8f9fa;
+    #         color: #333;
+    #       }
+    #       .markdown-container {
+    #         max-width: 800px;
+    #         margin: 0 auto;
+    #         background: white;
+    #         padding: 30px;
+    #         border-radius: 8px;
+    #         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    #       }
+    #       h1, h2, h3, h4, h5, h6 {
+    #         color: #2c3e50;
+    #         margin-top: 1.5em;
+    #         margin-bottom: 0.5em;
+    #       }
+    #       code {
+    #         background: #f1f3f4;
+    #         padding: 2px 6px;
+    #         border-radius: 3px;
+    #         font-family: 'Monaco', 'Menlo', monospace;
+    #         font-size: 0.9em;
+    #       }
+    #       pre {
+    #         background: #2d3748;
+    #         color: #e2e8f0;
+    #         padding: 15px;
+    #         border-radius: 5px;
+    #         overflow-x: auto;
+    #       }
+    #       pre code {
+    #         background: none;
+    #         padding: 0;
+    #       }
+    #       blockquote {
+    #         border-left: 4px solid #3498db;
+    #         margin: 20px 0;
+    #         padding-left: 20px;
+    #         color: #7f8c8d;
+    #         font-style: italic;
+    #       }
+    #       table {
+    #         border-collapse: collapse;
+    #         width: 100%;
+    #         margin: 20px 0;
+    #       }
+    #       th, td {
+    #         border: 1px solid #ddd;
+    #         padding: 8px 12px;
+    #         text-align: left;
+    #       }
+    #       th {
+    #         background: #f2f2f2;
+    #         font-weight: bold;
+    #       }
+    #       a {
+    #         color: #3498db;
+    #         text-decoration: none;
+    #       }
+    #       a:hover {
+    #         text-decoration: underline;
+    #       }
+    #       .header {
+    #         border-bottom: 2px solid #3498db;
+    #         padding-bottom: 10px;
+    #         margin-bottom: 20px;
+    #       }
+    #       .error {
+    #         color: #e74c3c;
+    #         background: #fdf2f2;
+    #         border: 1px solid #e74c3c;
+    #         padding: 15px;
+    #         border-radius: 5px;
+    #         margin-bottom: 20px;
+    #       }
+    #     </style>
+    #   </head>
+    #   <body>
+    #     <div class="markdown-container">
+    #       #{if markdownData.error then "<div class='error'><strong>Error:</strong> #{markdownData.error}</div>" else ""}
+    #       <div class="header">
+    #         <h1>📄 #{title || 'Markdown Preview'}</h1>
+    #       </div>
+    #       <div class="content">
+    #         #{html || content}
+    #       </div>
+    #     </div>
+    #   </body>
+    #   </html>
+    # """
+    
+    previewWindow.document.close()
 
 
   escapeHtml: (unsafe) =>

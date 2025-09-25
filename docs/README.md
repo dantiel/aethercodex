@@ -51,6 +51,9 @@ The sacred union of context and computation - intelligent token management orche
 ### 🌊 **Divine Interruption System**
 The sacred communication channel enabling tasks to signal completion through hermetic interruption patterns, allowing seamless integration between task execution and oracle communication.
 
+### 📄 **Markdown Preview System**
+Beautiful, hermetic-styled previews of markdown documentation with cosmic mystic styling. Converts markdown to HTML with AetherCodex's signature color scheme and opens in macOS Preview for professional documentation viewing.
+
 ## Divine Interruption System
 
 The Divine Interruption System enables seamless communication between task execution and the oracle through sacred interruption patterns:

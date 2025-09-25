@@ -240,6 +240,7 @@ end
 ### Common Issues and Solutions
 
 **1. AST-GREP not found:**
+
 ```bash
 # Install AST-GREP
 brew install ast-grep  # macOS

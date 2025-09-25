@@ -34,6 +34,8 @@
   --hermetic: "Fraunces Soft","Syne",serif;
   --sigil:"Fraunces Soft","Syne",serif;
 }
+
+
 /*
 .syne {
   font-family: "Syne", sans-serif;
@@ -41,6 +43,14 @@
   font-weight: <weight>;
   font-style: normal;
 }*/
+
+a {
+  color: var(--argonaut-cosmic);
+}
+
+a:hover {
+  color: var(--argonaut-ethereal);
+}
 
 h1,h2,.sigil{ 
   font-family:var(--sigil);
@@ -84,6 +94,8 @@ body {
   border-radius: 0.8rem 0.8rem 0 0;
   margin: 0.5rem 0.5rem 0 0.5rem;
   /*box-shadow: inset 0 0.1rem 0.3rem rgba(0, 166, 255, 0.1);*/
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Enhanced Input Bar */

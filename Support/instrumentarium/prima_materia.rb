@@ -451,7 +451,9 @@ class PrimaMateria
     args = symbolize(args || {})
 
     # Use tool-specific timeout if defined, otherwise fall back to provided timeout or default
-    tool_timeout = if @tools.key?(tool.to_sym) && @tools[tool.to_sym].timeout
+    tool_timeout = if args[:timeout]
+                     args[:timeout]
+                   elsif @tools.key?(tool.to_sym) && @tools[tool.to_sym].timeout
                      @tools[tool.to_sym].timeout
                    else
                      timeout
@@ -508,12 +510,11 @@ class PrimaMateria
   end
 
 
-
   # Get merged allowed commands (default + custom)
   def self.allowed_commands
     default_commands = ALLOW_CMDS
     custom_commands = CONFIG::allowed_commands
-    
+    puts "[PRIMA_MATERIA][ALLOWED_COMMANDS]: #{custom_commands.inspect}"
     # If custom commands include wildcard, allow everything
     return [//] if custom_commands.any? { |re| re == // }
     

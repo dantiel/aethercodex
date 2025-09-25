@@ -27,6 +27,7 @@ require_relative 'argonaut/argonaut'
 require_relative 'oracle/coniunctio'
 require_relative 'oracle/oracle'
 require_relative 'oracle/aetherflux'
+require_relative 'markdown_preview'
 require_relative 'config'
 
 
@@ -108,13 +109,16 @@ get '/ws' do
         # warn '[LIMEN][WS]: ping received'
         last_pong = Time.now
       else
-        req = JSON.parse event.data
-        case req['method']
-        when 'history'
+        req = (JSON.parse event.data).deep_symbolize_keys
+        
+        case req[:method].to_sym
+        when :history
           HorologiumAeternum.history Mnemosyne.fetch_history(limit: 20)
-        when 'askAI'
+        when :previewMarkdown
+          do_preview_markdown req[:params]
+        when :askAI
           startThinkingThread ws, req
-        when 'stopThinking'
+        when :stopThinking
           stopThinkingThread true
         end
       end
@@ -142,7 +146,7 @@ def startThinkingThread(ws, req)
   stopThinkingThread if @ask_thread
 
   @ask_thread = Thread.new do
-    params = req['params'].transform_keys(&:to_sym)
+    params = req[:params]
     warn "[LIMEN][WS]: message: #{params.inspect}"
     
     res = Aetherflux.channel_oracle_divination(params, tools: Instrumenta)
@@ -172,16 +176,17 @@ def handle_request(req)
   req = req.deep_symbolize_keys
   puts "[LIMEN][HANDLE_REQUEST]: #{req.inspect}"
   case req[:method].to_sym
-  when :askAI      then do_ask req[:params]
-  when :attach     then do_attach req[:params]
-  when :tool       then do_tool req[:params]
-  when :complete   then do_complete req[:params]
-  when :manageTask then do_tasks req[:params]
-  when :readFile   then do_read req[:params]
-  when :patchFile  then do_patch req[:params]
-  when :runCommand then do_run req[:params]
-  when :error      then { method: 'error', result: { error: 'Internal server error' } }
-  else 
+  when :askAI           then do_ask req[:params]
+  when :attach          then do_attach req[:params]
+  when :tool            then do_tool req[:params]
+  when :complete        then do_complete req[:params]
+  when :manageTask      then do_tasks req[:params]
+  when :readFile        then do_read req[:params]
+  when :patchFile       then do_patch req[:params]
+  when :runCommand      then do_run req[:params]
+  when :previewMarkdown then do_preview_markdown req[:params]
+  when :error           then { method: 'error', result: { error: 'Internal server error' } }
+  else
     error = "Unknown method: #{req[:method]}"
     puts "[LIMEN][HANDLE_REQUEST][ERROR]: #{error}. #{req.inspect}"
     { method: 'error', result: { error: } }
@@ -315,6 +320,46 @@ end
 def do_patch(p)
   result = Argonaut.apply_patch p['path'], p['diff']
   { method: 'patchResult', result: result }
+end
+
+
+def do_preview_markdown(p)
+  file_path = p[:file_path]
+  
+  full_path = File.join Argonaut.project_root, file_path
+  
+  unless File.exist? full_path
+    return {
+      method: 'previewMarkdown',
+      result: {
+        error: "File not found: #{full_path}",
+        content: "File not found: #{full_path}",
+        html: "<p>File not found: #{full_path}</p>"
+      }
+    }
+  end
+  
+  # Read the markdown file
+  content = File.read full_path
+  
+  # Render markdown to HTML using scriptorium basic renderer (unescaped HTML)
+  html = AetherCodexMarkdownPreview.convert_to_html content
+  
+  # Extract title from first heading or use filename
+  title = File.basename full_path, '.md'
+  if content.match /^#+\s+(.+)$/
+    title = $1.strip
+  end
+  
+  {
+    method: 'previewMarkdown',
+    result: {
+      content: content,
+      html: html,
+      title: title,
+      file_path: full_path
+    }
+  }
 end
 
 

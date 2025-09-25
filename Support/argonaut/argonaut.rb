@@ -124,7 +124,7 @@ class Argonaut
 
 
   def self.project_root
-    if true or ENV['TM_DEBUG_PATHS']
+    if ENV['TM_DEBUG_PATHS']
       puts '🔮 Dimensional Diagnostics:'
       puts "TM_PROJECT_DIRECTORY: #{ENV['TM_PROJECT_DIRECTORY'].inspect}"
       puts "TM_DIRECTORY: #{ENV['TM_DIRECTORY'].inspect}"

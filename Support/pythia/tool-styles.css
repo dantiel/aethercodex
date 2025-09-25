@@ -200,14 +200,13 @@ details[open] summary {
 .message-attachments {
     display: flex;
     flex-direction: column;
-    margin: 1em 0;
+    margin: 1em 0 0;
     background: rgba(129, 93, 179, 0.08);
     border: 0.1rem solid rgba(129, 93, 179, 0.25);
     border-radius: 0.6rem;
     overflow: hidden;
     /* transition: all 0.3s ease; */
     white-space: normal;
-
 }
 
 .attachment-header {

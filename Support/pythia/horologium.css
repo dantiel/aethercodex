@@ -270,6 +270,33 @@
     margin-left: 0.2em
 }
 
+/* Markdown preview styles */
+.markdown-preview-container {
+    display: inline-block;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.markdown-preview-link {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+    border-radius: 4px;
+    color: #3498db;
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 1;
+    transition: all 0.2s ease;
+}
+
+.markdown-preview-link:hover {
+    background: rgba(52, 152, 219, 0.2);
+    border-color: rgba(52, 152, 219, 0.5);
+    color: #2980b9;
+    text-decoration: none;
+}
+
 
 .hermetic-overview-preview summary {
     cursor: pointer;

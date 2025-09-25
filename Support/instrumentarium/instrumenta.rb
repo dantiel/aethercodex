@@ -168,15 +168,16 @@ instrument :run_command,
            description: <<~DESC,
              Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`,
              `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`,
-             `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`, `ast-grep`. Please suggest to add more
-             cmds to this list if you like.
+             `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`, `ast-grep`. Please suggest to 
+             add more cmds to this list if you like. To have more execution time u
            DESC
-           params: { cmd: { type: String, required: true } },
-           timeout: 30,
+           params: { cmd:     { type: String, required: true }, 
+                     timeout: { type: Integer, default: 30 } },
+           timeout: 30000,
            returns: { ok:          Boolean,
                       exit_status: Integer,
                       result:      String,
-                      error:       String } do |cmd:|
+                      error:       String } do |cmd:, timeout:|
   # TODO: instead of blocked command, make a button to accept or decline execution...
   # Get merged allowed commands (default + custom from .aethercodex)
   allowed_commands = PrimaMateria.allowed_commands
@@ -196,8 +197,9 @@ instrument :run_command,
 
     stdout, stderr, status = Verbum.run_command_in_real_time env_vars, cmd, chdir: project_root
     # Open3.capture3 env_vars, cmd, chdir: project_root
-    out = (stdout + stderr + "\n(exit #{status.exitstatus})").strip
-    HorologiumAeternum.command_completed(cmd, out.length, out, status.exitstatus, uuid:)
+    exitstatus = if status.respond_to?(:exitstatus) then status.exitstatus else "undefined" end
+    out = (stdout + stderr + "\n(exit #{exitstatus})").strip
+    HorologiumAeternum.command_completed(cmd, out.length, out, exitstatus, uuid:)
 
     # Use Scriptorium HTML utils for proper escaping
     escaped_out = Scriptorium.escape_html out
@@ -331,13 +333,13 @@ rescue StandardError => e
 end
 
 
-# TODO: reduce output... at the moment the overview output is much larger than original
 instrument :file_overview,
          description: <<~DESC,
            Fetch file information with symbolic parsing. Returns lightweight metadata:
-           note count, tags, 50-char excerpt. Enhanced symbolic analysis shows
+           note count, and note relations of tags to files. Enhanced symbolic analysis shows
            structural view with classes, methods, constants, and navigation hints. Use this in
-           combination with read_file range to fetch minimal parts of a file.
+           combination with read_file range to fetch minimal parts of a file and have an overview
+           about its relations.
          DESC
          params: { path: { type: String, required: true } },
          returns: { metadata: Hash, error: String } do |path:|
@@ -377,8 +379,8 @@ instrument :remember,
            DESC
            params: { id:      { type: Integer, required: false },
                      content: { type: String, required: true },
-                     links:   { type: Array, required: false },
-                     tags:    { type: Array, required: false } },
+                     links:   { type: Array, items: { type: :string }, required: false },
+                     tags:    { type: Array, items: { type: :string }, required: false } },
            returns: { ok:    Boolean,
                       error: String } do |content:, id: nil, links: nil, tags: nil|
   # links = if links.is_a? String
@@ -405,7 +407,7 @@ instrument :remove_note,
            returns: { ok: Boolean, error: String } do |id:|
   note = Mnemosyne.get_note id
   Mnemosyne.remove_note id
-  HorologiumAeternum.note_removed note
+  HorologiumAeternum.note_removed note unless note.nil?
   { ok: true }
 end
 
@@ -774,7 +776,23 @@ instrument :symbolic_patch_file,
       raise "Unknown operation: #{operation}"
     end
 
-    HorologiumAeternum.symbolic_patch_complete(path, operation, result, uuid:)
+    # Enrich result with pattern information for better display
+    enriched_result = if result.is_a?(Hash) && result[:success]
+                        result.merge(
+                          patterns: {
+                            operation: operation,
+                            search_pattern: search_pattern,
+                            replace_pattern: replace_pattern,
+                            method_name: method_name,
+                            class_name: class_name,
+                            documentation: documentation
+                          }
+                        )
+                      else
+                        result
+                      end
+
+    HorologiumAeternum.symbolic_patch_complete(path, operation, enriched_result, uuid:)
     result
   rescue StandardError => e
     HorologiumAeternum.symbolic_patch_fail(path, operation, e.message, uuid:)

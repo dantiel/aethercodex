@@ -976,7 +976,11 @@ class MagnumOpusEngine
                 end
 
     # Comprehensive system prompt with task context
-    system_prompt = format TASK_SYSTEM_PROMPT, step_guidance: step_guidance
+    debug "TASK_SYSTEM_PROMPT template: #{TASK_SYSTEM_PROMPT}"
+    debug "step_guidance to format: #{step_guidance}"
+    # Use string interpolation
+    system_prompt = TASK_SYSTEM_PROMPT.gsub('%<step_guidance>', step_guidance)
+    debug "Formatted system_prompt: #{system_prompt}"
 
     # Enhanced prompt with complete task context including previous results
     # ADDED EXPLICIT STEP COUNT CLARIFICATION to prevent AI hallucinations about completion
@@ -988,128 +992,124 @@ class MagnumOpusEngine
                          end
 
     # Build the 4-message structure for enhanced context separation
+    system_messages = [
+      # CURRENT STEP GUIDANCE (System message)
+      <<~STEP_GUIDANCE,
+        # CURRENT STEP GUIDANCE
+        #{step_guidance}
+        
+        # STEP TEMPERATURE SETTING
+        Current temperature: #{STEP_TEMPERATURES[step_index] || 1.0} (#{4 >= step_index ? 'Exploration - Higher creativity' : 'Implementation - Precise execution'})
+        
+        # WORKFLOW CONTEXT
+        Workflow Type: #{workflow_type.upcase}
+        Current Step: #{step_index}/#{max_steps} (#{remaining_steps} steps #{remaining_steps.positive? ? 'remaining' : 'completed'})
+        Phase: #{4 >= step_index ? 'EXPLORATION (Reasoning Only)' : 'IMPLEMENTATION (Full Tool Access)'}
+      STEP_GUIDANCE
+      
+      # EXECUTION INSTRUCTIONS (System message)
+      <<~EXECUTION_INSTRUCTIONS,
+        # EXECUTION INSTRUCTIONS
+        #{step_clarification}
+        
+        #{case workflow_type
+          when 'simple'
+            if 1 >= step_index
+              <<~SIMPLE_ANALYZE
+                # SIMPLE WORKFLOW - ANALYSIS PHASE
+                - You are in analysis mode for simple task execution
+                - LIMITED TOOL ACCESS: Basic reading and analysis tools only
+                - Focus on understanding requirements and planning the implementation
+                - Provide clear reasoning and implementation plan
+                - Use task_complete_step when ready to advance to implementation
+              SIMPLE_ANALYZE
+            else
+              <<~SIMPLE_IMPLEMENT
+                # SIMPLE WORKFLOW - IMPLEMENTATION PHASE
+                - You are in implementation mode for simple task execution
+                - FULL TOOL ACCESS: Use task-specific tools for execution
+                - Execute the planned solution efficiently
+                - After completing actions, call task_complete_step to advance
+                - All task tools automatically include the task_id context
+              SIMPLE_IMPLEMENT
+            end
+          when 'analysis'
+            if 3 >= step_index
+              <<~ANALYSIS_RESEARCH
+                # ANALYSIS WORKFLOW - RESEARCH PHASE
+                - You are in research mode for analysis tasks
+                - LIMITED TOOL ACCESS: Reading, querying, and analysis tools only
+                - Focus on gathering information and developing analysis approach
+                - Provide comprehensive research findings and methodology
+                - Use task_complete_step when ready to advance to synthesis
+              ANALYSIS_RESEARCH
+            else
+              <<~ANALYSIS_SYNTHESIS
+                # ANALYSIS WORKFLOW - SYNTHESIS PHASE
+                - You are in synthesis mode for analysis tasks
+                - FULL TOOL ACCESS: Use tools to organize and present findings
+                - Integrate research findings into coherent conclusions
+                - Create comprehensive reports and recommendations
+                - After completing analysis, call task_complete_step to finalize
+              ANALYSIS_SYNTHESIS
+            end
+          else
+            if 4 >= step_index
+              <<~EXPLORATION
+                # FULL WORKFLOW - EXPLORATION PHASE (Steps 1-4)
+                - You are in exploration mode: Nigredo (1), Albedo (2), Citrinitas (3), or Rubedo (4)
+                - READONLY TOOL ACCESS: You cannot use any writing tools during exploration phases
+                - Focus on analysis, planning, and strategic thinking only
+                - Provide comprehensive reasoning and recommendations
+                - Use task_complete_step when ready to advance to implementation
+                - Use task_reject_step if you need to refine your analysis starting from a previous step
+              EXPLORATION
+            else
+              <<~IMPLEMENTATION
+                # FULL WORKFLOW - IMPLEMENTATION PHASE (Steps 5-10)
+                - You are in implementation mode: Solve (5), Coagula (6), Test (7-8), Validate (9), or Document (10)
+                - FULL TOOL ACCESS: Use task-specific tools for all operations
+                - Execute the planned transformations with surgical precision
+                - After completing step actions, call task_complete_step to advance
+                - If you need to backtrack, use task_reject_step with optional restart_from_step
+                - All task tools automatically include the task_id context
+                - Use task_get_previous_results to access historical step outcomes for context continuity
+
+                # STEP PROGRESSION CLARIFICATION:
+                - This is step #{step_index} of #{max_steps} total steps
+                - There are #{max_steps - step_index} more steps remaining after this one
+                - #{step_index == max_steps ? 'FINAL STEP: Complete all remaining work and finalize the transformation' : 'Do NOT indicate task completion unless you are on the final step'}
+                - Continue executing the current step's specific purpose
+
+                # DIVINE INTERRUPTION CLARIFICATION:
+                - When using task_complete_step or task_reject_step, execution terminates immediately
+                - These calls return divine interruption signals that stop the current reasoning
+                - The engine handles progression automatically based on these signals
+                - Do NOT continue reasoning after calling these functions
+              IMPLEMENTATION
+            end
+          end}
+      EXECUTION_INSTRUCTIONS
+    ].join "\n\n=======\n\n"
+    
+
     messages = [
       # PREVIOUS STEP RESULTS (Assistant message)
       {
         role: 'assistant',
         content: previous_step_context.empty? ? 'No previous step results available.' : previous_step_context
       },
-      
-      # CURRENT STEP GUIDANCE (System message)
-      {
-        role: 'system',
-        content: <<~STEP_GUIDANCE
-          # CURRENT STEP GUIDANCE
-          #{step_guidance}
-          
-          # STEP TEMPERATURE SETTING
-          Current temperature: #{STEP_TEMPERATURES[step_index] || 1.0} (#{4 >= step_index ? 'Exploration - Higher creativity' : 'Implementation - Precise execution'})
-          
-          # WORKFLOW CONTEXT
-          Workflow Type: #{workflow_type.upcase}
-          Current Step: #{step_index}/#{max_steps} (#{remaining_steps} steps #{remaining_steps.positive? ? 'remaining' : 'completed'})
-          Phase: #{4 >= step_index ? 'EXPLORATION (Reasoning Only)' : 'IMPLEMENTATION (Full Tool Access)'}
-        STEP_GUIDANCE
-      },
-      
-      # EXECUTION INSTRUCTIONS (System message)
-      {
-        role: 'system',
-        content: <<~EXECUTION_INSTRUCTIONS
-          # EXECUTION INSTRUCTIONS
-          #{step_clarification}
-          
-          #{case workflow_type
-            when 'simple'
-              if 1 >= step_index
-                <<~SIMPLE_ANALYZE
-                  # SIMPLE WORKFLOW - ANALYSIS PHASE
-                  - You are in analysis mode for simple task execution
-                  - LIMITED TOOL ACCESS: Basic reading and analysis tools only
-                  - Focus on understanding requirements and planning the implementation
-                  - Provide clear reasoning and implementation plan
-                  - Use task_complete_step when ready to advance to implementation
-                SIMPLE_ANALYZE
-              else
-                <<~SIMPLE_IMPLEMENT
-                  # SIMPLE WORKFLOW - IMPLEMENTATION PHASE
-                  - You are in implementation mode for simple task execution
-                  - FULL TOOL ACCESS: Use task-specific tools for execution
-                  - Execute the planned solution efficiently
-                  - After completing actions, call task_complete_step to advance
-                  - All task tools automatically include the task_id context
-                SIMPLE_IMPLEMENT
-              end
-            when 'analysis'
-              if 3 >= step_index
-                <<~ANALYSIS_RESEARCH
-                  # ANALYSIS WORKFLOW - RESEARCH PHASE
-                  - You are in research mode for analysis tasks
-                  - LIMITED TOOL ACCESS: Reading, querying, and analysis tools only
-                  - Focus on gathering information and developing analysis approach
-                  - Provide comprehensive research findings and methodology
-                  - Use task_complete_step when ready to advance to synthesis
-                ANALYSIS_RESEARCH
-              else
-                <<~ANALYSIS_SYNTHESIS
-                  # ANALYSIS WORKFLOW - SYNTHESIS PHASE
-                  - You are in synthesis mode for analysis tasks
-                  - FULL TOOL ACCESS: Use tools to organize and present findings
-                  - Integrate research findings into coherent conclusions
-                  - Create comprehensive reports and recommendations
-                  - After completing analysis, call task_complete_step to finalize
-                ANALYSIS_SYNTHESIS
-              end
-            else
-              if 4 >= step_index
-                <<~EXPLORATION
-                  # FULL WORKFLOW - EXPLORATION PHASE (Steps 1-4)
-                  - You are in exploration mode: Nigredo (1), Albedo (2), Citrinitas (3), or Rubedo (4)
-                  - READONLY TOOL ACCESS: You cannot use any writing tools during exploration phases
-                  - Focus on analysis, planning, and strategic thinking only
-                  - Provide comprehensive reasoning and recommendations
-                  - Use task_complete_step when ready to advance to implementation
-                  - Use task_reject_step if you need to refine your analysis starting from a previous step
-                EXPLORATION
-              else
-                <<~IMPLEMENTATION
-                  # FULL WORKFLOW - IMPLEMENTATION PHASE (Steps 5-10)
-                  - You are in implementation mode: Solve (5), Coagula (6), Test (7-8), Validate (9), or Document (10)
-                  - FULL TOOL ACCESS: Use task-specific tools for all operations
-                  - Execute the planned transformations with surgical precision
-                  - After completing step actions, call task_complete_step to advance
-                  - If you need to backtrack, use task_reject_step with optional restart_from_step
-                  - All task tools automatically include the task_id context
-                  - Use task_get_previous_results to access historical step outcomes for context continuity
-
-                  # STEP PROGRESSION CLARIFICATION:
-                  - This is step #{step_index} of #{max_steps} total steps
-                  - There are #{max_steps - step_index} more steps remaining after this one
-                  - #{step_index == max_steps ? 'FINAL STEP: Complete all remaining work and finalize the transformation' : 'Do NOT indicate task completion unless you are on the final step'}
-                  - Continue executing the current step's specific purpose
-
-                  # DIVINE INTERRUPTION CLARIFICATION:
-                  - When using task_complete_step or task_reject_step, execution terminates immediately
-                  - These calls return divine interruption signals that stop the current reasoning
-                  - The engine handles progression automatically based on these signals
-                  - Do NOT continue reasoning after calling these functions
-                IMPLEMENTATION
-              end
-            end}
-        EXECUTION_INSTRUCTIONS
-      },
-      
-      # TASK EXECUTION CONTEXT (User message)
-      {
-        role: 'user',
-        content: <<~EXECUTION_CONTEXT
+      { role: 'user',
+        content:
+        # TASK EXECUTION CONTEXT (User message)
+        <<~EXECUTION_CONTEXT,
           # TASK EXECUTION CONTEXT
           TASK TITLE: #{task[:title] || '--'}
           TASK DESCRIPTION: #{task[:description] || '--'}
           TASK PLAN: #{task[:plan] || '--'}
-          
+        
           Execute Step #{step_index}: #{STEP_PURPOSES[step_index - 1]}
-          
+        
           # STEP COMPLETION TOOLS:
           - Call task_complete_step(result) when finished with this step
           - If you need to restart or refine, call task_reject_step(reason, restart_from_step)
@@ -1119,30 +1119,8 @@ class MagnumOpusEngine
           - They are the only way to progress through the workflow
         EXECUTION_CONTEXT
       }
-      #,
-      
-      # # STEP COMPLETION GUIDANCE (System message - initial instruction only, not automatic reminder)
-      # {
-      #   role: 'system',
-      #   content: <<~GUIDANCE
-      #     # STEP COMPLETION REQUIREMENT
-      #
-      #     **IMPORTANT**: You must use step completion tools to progress the workflow.
-      #
-      #     ## STEP MANAGEMENT TOOLS:
-      #     - **task_complete_step(result)** - Complete current step (provide result if available)
-      #     - **task_reject_step(reason, restart_from_step)** - Reject current step and restart
-      #
-      #     ## KEY BEHAVIOR:
-      #     1. These tools return divine interruption signals that terminate current reasoning
-      #     2. Do NOT continue reasoning after calling these functions
-      #     3. Do NOT call any other tools after step completion
-      #     4. Use these tools ONLY when the current step is complete
-      #
-      #     **Call the appropriate step completion tool when this step is finished.**
-      #   GUIDANCE
-      # }
     ]
+    
 
     begin
       # Set temperature based on step phase
@@ -1211,8 +1189,9 @@ class MagnumOpusEngine
         end
         
         response = @aetherflux.channel_oracle_divination(
-            { messages: messages },
+            { system_prompt:, messages: },
             tools:,
+            context: context,
             timeout: 1111 # Extended timeout for implementation phases
           )
       rescue StandardError => e

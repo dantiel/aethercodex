@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>beforeRunningCommand</key><string>nop</string>
+  <key>command</key>
+  <string><![CDATA[#!/usr/bin/env bash
+set -e
+BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
+#echo "blah"
+#echo $BUNDLE_SUPPORT
+#echo "blah"
+#
+PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
+
+# optional RVM
+#if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
+#  source "$HOME/.rvm/scripts/rvm"
+#  rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
+#fi
+#
+#
+export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
+#source "$PROJECT_ROOT/.env.run_command"
+export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
+export GEM_PATH="$GEM_HOME"
+
+
+JSON=$(bundle exec ruby "$BUNDLE_SUPPORT/boot.rb")
+#cd "$BUNDLE_SUPPORT"
+
+# Create temporary file for markdown content
+TMP_MD=$(mktemp $TMPDIR/aethercodex_markdown_$(uuidgen).md)
+TMP_HTML=$(mktemp $TMPDIR/aethercodex_markdown_$(uuidgen).html)
+
+# Get current selection or entire document
+if [[ -n "$TM_SELECTED_TEXT" ]]; then
+    echo "$TM_SELECTED_TEXT" > "$TMP_MD"
+else
+    cat > "$TMP_MD"
+fi
+
+
+# Convert markdown to HTML with AetherCodex styling using the dedicated script
+# The script outputs HTML to stdout which TextMate displays
+cat "$TMP_MD" | bundle exec ruby -r "$BUNDLE_SUPPORT/markdown_preview.rb" -e "AetherCodexMarkdownPreview.textmate_preview"
+# Clean up the temporary markdown file
+rm "$TMP_MD"
+]]></string>
+  <key>input</key><string>document</string>
+  <key>inputFormat</key><string>text</string>
+  <key>keyEquivalent</key><string>^~@p</string>
+  <key>name</key><string>AetherCodex: Markdown Preview</string>
+  <key>outputCaret</key><string>afterOutput</string>
+  <key>outputFormat</key><string>html</string>
+  <key>outputLocation</key><string>dispose</string>
+  <key>uuid</key><string>12345678-ABCD-1234-EFAB-1234567890CD</string>
+  <key>version</key><integer>3</integer>
+</dict>
+</plist>

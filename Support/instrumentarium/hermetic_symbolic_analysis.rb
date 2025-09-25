@@ -35,6 +35,9 @@ module HermeticSymbolicAnalysis
   # Execute AST-GREP command with hermetic execution domain
   def ast_grep_execute(command_args, pattern: nil, rewrite: nil, lang: nil)
     HermeticExecutionDomain.execute do
+      # Determine if pattern is simple text or AST pattern
+      is_simple_text = pattern && !pattern.match?(/\$[A-Z_]+/)
+      
       args = ['ast-grep', 'run']
       
       if pattern
@@ -51,7 +54,10 @@ module HermeticSymbolicAnalysis
       
       # Resolve file paths relative to project root like other tools
       resolved_args = command_args.map do |arg|
-        if arg.end_with?('.rb') || arg.end_with?('.js') || arg.end_with?('.py') ||
+        # Skip if path is already absolute
+        if File.absolute_path(arg) == arg
+          arg
+        elsif arg.end_with?('.rb') || arg.end_with?('.js') || arg.end_with?('.py') ||
            arg.end_with?('.java') || arg.end_with?('.go') || arg.end_with?('.rs') ||
            arg.end_with?('.php') || arg.end_with?('.html') || arg.end_with?('.css') ||
            arg.end_with?('.xml') || arg.end_with?('.json') || arg.end_with?('.yml') ||
@@ -62,32 +68,52 @@ module HermeticSymbolicAnalysis
         end
       end
       
-      # First get the transformation data with --json
-      json_args = args.dup
-      json_args << '--json'
-      json_args += resolved_args
-      
-      stdout, stderr, status = Open3.capture3(*json_args)
-      
-      if status.success?
-        transformation_data = parse_ast_grep_output(stdout)
+      # For simple text patterns, skip JSON check and apply directly
+      if is_simple_text && rewrite
+        apply_args = args.dup
+        apply_args += ['--update-all']
+        apply_args += resolved_args
         
-        # If we have a rewrite operation, actually apply the changes
-        if rewrite && !transformation_data.empty?
-          apply_args = args.dup
-          apply_args += ['--update-all']
-          apply_args += resolved_args
-          
-          apply_stdout, apply_stderr, apply_status = Open3.capture3(*apply_args)
-          
-          unless apply_status.success?
-            return { error: apply_stderr, status: apply_status.exitstatus }
-          end
+        apply_stdout, apply_stderr, apply_status = Open3.capture3(*apply_args)
+        
+        if apply_status.success?
+          # For simple text patterns, return success with applied changes info
+          { 
+            success: true, 
+            result: [{ applied: true, pattern_type: :simple_text }],
+            pattern_type: :simple_text
+          }
+        else
+          { error: apply_stderr, status: apply_status.exitstatus, pattern_type: :simple_text }
         end
-        
-        { success: true, result: transformation_data }
       else
-        { error: stderr, status: status.exitstatus }
+        # For AST patterns, use the original JSON-based approach
+        json_args = args.dup
+        json_args << '--json'
+        json_args += resolved_args
+        
+        stdout, stderr, status = Open3.capture3(*json_args)
+        
+        if status.success?
+          transformation_data = parse_ast_grep_output(stdout)
+          
+          # If we have a rewrite operation, actually apply the changes
+          if rewrite && !transformation_data.empty?
+            apply_args = args.dup
+            apply_args += ['--update-all']
+            apply_args += resolved_args
+            
+            apply_stdout, apply_stderr, apply_status = Open3.capture3(*apply_args)
+            
+            unless apply_status.success?
+              return { error: apply_stderr, status: apply_status.exitstatus }
+            end
+          end
+          
+          { success: true, result: transformation_data, pattern_type: :ast }
+        else
+          { error: stderr, status: status.exitstatus, pattern_type: :ast }
+        end
       end
     end
   end

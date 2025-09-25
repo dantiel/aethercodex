@@ -110,6 +110,7 @@ class Oracle
     def divination(prompt_or_messages,
                    context,
                    tools: nil,
+                   system_prompt: nil,
                    max_depth: 180,
                    reasoning: false,
                    msg_uuid: nil,
@@ -117,9 +118,9 @@ class Oracle
       # Create and enter temp file context for this oracle execution
       temp_context_id = Argonaut::TempFileManager.create_context
       Argonaut::TempFileManager.enter_context temp_context_id
-      
+
       set_temperature = set_temperature_from_context context
-      messages = base_messages prompt_or_messages, context, reasoning
+      messages = base_messages prompt_or_messages, context, reasoning, system_prompt
       tool_results = []
       arts = { prelude: [] }
 
@@ -136,7 +137,7 @@ class Oracle
 
       [result || '<<empty>>', arts, tool_results]
     rescue Oracle::RestartException => e
-      raise Oracle::RestartException.new (ErrorHandler.handle_restart_exception e)
+      raise Oracle::RestartException, (ErrorHandler.handle_restart_exception e)
     rescue StandardError => e
       ErrorHandler.handle_divination_error e, tool_results
     ensure
@@ -156,6 +157,7 @@ class Oracle
                                 set_temperature,
                                 prevent_termination_reminder,
                                 max_depth,
+                                attachments: nil,
                                 &exec)
       answer = nil
       reminder = nil
@@ -164,7 +166,8 @@ class Oracle
       puts "[ORACLE][DIVINATION_LOOP]: Tools: #{tools.inspect}"
 
       (1..max_depth).each do |_depth|
-        json = Conduit.generate_ai_response [*messages, reminder].compact, tools, reasoning, set_temperature
+        json = Conduit.generate_ai_response [*messages, reminder].compact, tools, reasoning,
+                                            set_temperature
         content, tcalls, arts = Conduit.extract_response_data json, arts
 
         puts "[ORACLE][DIVINATION_LOOP]: Full Response content: #{content}"
@@ -213,7 +216,7 @@ class Oracle
     def process_tool_calls(tcalls, messages, tool_results, content, exec, arts)
       if tcalls.any?
         new_messages, new_tool_results, divine_interrupt = handle_standard_tool_calls tcalls, messages, tool_results,
-                                                                                  content, exec
+                                                                                      content, exec
         if divine_interrupt
           # Return divine interruption signal to terminate current oracle call
           return divine_interrupt
@@ -229,7 +232,7 @@ class Oracle
       if tools_from_content.any?
         puts "[ORACLE][DEBUG]: Found #{tools_from_content.size} tools in content (fallback mode)"
         new_messages, new_tool_results, divine_interrupt = handle_fallback_tool_calls tools_from_content, messages,
-                                                                                  tool_results, content, exec, arts
+                                                                                      tool_results, content, exec, arts
         if divine_interrupt
           # Return divine interruption signal to terminate current oracle call
           return divine_interrupt
@@ -264,42 +267,50 @@ class Oracle
 
 
     # Message Construction
-    def base_messages(prompt_or_messages, context, reasoning)
+    def base_messages(prompt_or_messages, context, reasoning, system_prompt)
       prompt, custom_messages = if prompt_or_messages.is_a? String
                                   [prompt_or_messages, nil]
                                 else
                                   [nil, prompt_or_messages]
                                 end
-
       hermetic_manifest = context.dig :extra_context, :hermetic_manifest
       attachments = context.dig :extra_context, :attachments
 
-      system_prompt = reasoning ? REASONING_PROMPT : SYSTEM_PROMPT
+      system_prompt = [
+        (reasoning ? REASONING_PROMPT : SYSTEM_PROMPT),
+        system_prompt,
+        hermetic_manifest
+      ].compact.join "\n\n=======\n\n"
 
       puts "[ORACLE][DEBUG]: Reasoning mode: #{reasoning}"
       # puts "[ORACLE][DEBUG]: System prompt length: #{system_prompt.length}"
       # puts "[ORACLE][DEBUG]: System prompt preview: #{system_prompt[0..200]}..."
+      include_briefing = reasoning && :deepseek == CONFIG::CFG[:api_type]
 
       messages = if custom_messages
                    # For task execution with complete message structure - use it directly
                    puts '[ORACLE][DEBUG]: Using custom message structure for task execution'
                    [
                      { role: 'system', content: system_prompt },
-                     hermetic_manifest,
                      *custom_messages
                    ]
                  else
                    # Normal chat: include history and briefing
                    [
                      { role: 'system', content: system_prompt },
-                     hermetic_manifest,
                      *context[:history],
-                     ({ role: 'system', content: SYSTEM_PROMPT_BRIEFING } unless reasoning),
-                     { role: 'user', content: prompt },
-                     ({ role: 'user', content: render_attachments(attachments) } if attachments)
+                     ({ role: 'system', content: SYSTEM_PROMPT_BRIEFING } if include_briefing),
+                     { role: 'user', content: if attachments && attachments.count
+                                                [
+                                                  { type: :text, text: prompt },
+                                                  { type: :text,
+                                                    text: render_attachments(attachments) }
+                                                ]
+                                              else
+                                                prompt
+                                              end }
                    ]
                  end.compact
-
 
       puts '[ORACLE][DEBUG]: Messages being sent:'
       messages.each_with_index do |msg, i|
@@ -310,16 +321,77 @@ class Oracle
 
       messages
     end
-    
-    
-    def render_attachments attachments
+
+    # Format messages specifically for Gemini API
+    # Gemini requires different structure for attachments and system messages
+    def format_messages_for_gemini(messages, attachments = nil)
+      gemini_messages = []
+
+      messages.each do |message|
+        case message[:role]
+        when 'system'
+          # Gemini doesn't have system role, convert to user with instruction prefix
+          gemini_messages << {
+            role: 'user',
+            parts: [{
+              text: "[SYSTEM INSTRUCTION] #{message[:content]}"
+            }]
+          }
+        when 'user'
+          if message[:content].is_a?(Array) && attachments
+            # Handle attachments - Gemini uses parts array with text and file data
+            parts = message[:content].map do |content|
+              if content[:type] == :text
+                { text: content[:text] }
+              else
+                # Handle file attachments (future implementation)
+                { text: "[ATTACHMENT: #{content[:text]}]" }
+              end
+            end
+            gemini_messages << { role: 'user', parts: parts }
+          else
+            # Regular text message
+            gemini_messages << {
+              role: 'user',
+              parts: [{ text: message[:content].to_s }]
+            }
+          end
+        when 'assistant'
+          gemini_messages << {
+            role: 'model',
+            parts: [{ text: message[:content].to_s }]
+          }
+        end
+      end
+
+      # Add attachments as separate parts if provided
+      if attachments && !attachments.empty?
+        # Find the last user message to append attachments
+        last_user_msg = gemini_messages.reverse.find { |msg| msg[:role] == 'user' }
+        if last_user_msg
+          attachment_text = render_attachments(attachments)
+          last_user_msg[:parts] << { text: attachment_text }
+        else
+          # No user message found, create new one for attachments
+          gemini_messages << {
+            role: 'user',
+            parts: [{ text: render_attachments(attachments) }]
+          }
+        end
+      end
+
+      gemini_messages
+    end
+
+
+    def render_attachments(attachments)
       x = <<~ATTACHMENT_PROMPT
         # ATTACHMENTS
         #{attachments.inspect}
       ATTACHMENT_PROMPT
-      
+
       puts "[ORACLE][RENDER_ATTACHMENTS]: #{x}"
-      x 
+      x
     end
 
 
@@ -371,7 +443,7 @@ class Oracle
     def set_temperature_from_context(context = nil)
       # Use temperature from context if provided, otherwise use Aegis temperature
       context_temperature = context&.dig :extra_context, :temperature
-      context_temperature.to_f if context_temperature
+      context_temperature&.to_f
       # context_temperature || (Mnemosyne.aegis[:temperature] || 1.0).to_f
     end
 
@@ -427,7 +499,7 @@ class Oracle
 
       # Check for divine interruption in results - return signal directly
       divine_interrupt = divine_interruption_signal_from_tool_result results
-      
+
       # puts "DIVINE_INTERRUPTION_SIGNAL_FROM_TOOL_RESULT=#{divine_interrupt.inspect}"
       return [new_messages, new_tool_results, divine_interrupt] if divine_interrupt
 
