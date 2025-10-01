@@ -98,8 +98,9 @@ class Aetherflux
       error_message = e.message.to_s
       # Mnemosyne.record params, "Error: #{error_message}" if params[:record]
       if params[:record]
-        Mnemosyne.record(prompt: params[:prompt], answer: "Error: #{error_message}", 
-                         execution_time:, tool_call_count:, answer:)
+        Mnemosyne.record(prompt: params[:prompt], 
+                         answer: "Error: #{error_message}, Answer: #{answer}", 
+                         execution_time:, tool_call_count:)
       end
 
       status = classify_error error_message, e

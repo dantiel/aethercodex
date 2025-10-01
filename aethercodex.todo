@@ -34,18 +34,19 @@
 ## 🎯 ACTIVE DEVELOPMENT FOCUS
 
 ### 🔧 CORE INFRASTRUCTURE
-◯ Task Engine & Automation'
+◯ Task Engine & Automation
     ✔︎ Task UI polishing @done(17-09-2025 00:45)
         ✔︎ when task UI is minimized show a compact version that displays only phase, progressbar and title @done(17-09-2025 00:45)
     ◯ Create/edit tasks from user prompts
         ✔︎ Create Task Works @done(07-09-2025 16:03)
         ◯ Update Tasks
-    ◯ when task step is rejected, use reasoning to estimate why it failed
+    ◯ when task step is rejected, use reasoning to estimate why it failed (maybe not necessary automatically, this may be hinted by additional prompt for the model to execute when it thinks its needed)
         ◯ use the reasoning output to create notes of rejected steps like "lessons learned"
     ◯ Generate detailed execution plans
-    ◯ Instead of Loop execution, the tasks should use the tool reject and finalize a task step
+    ✔︎ Instead of Loop execution, the tasks should use the tool reject and finalize a task step @done(30-09-2025 01:31)
     ◯ Pause and add remarks during execution
     ◯ improve inner task communication: more internal context. use description field. update inner todo list etc.
+    ◯ when conjuration reasoning was called it should be part of the step complete or reject message... in general more context is needed, there is too much context loss between phases, how to avoid context bloat? like notes --- lazy context loading with truncated excerpts. store history, commands and reasoning outputs inbetween but load them across steps only on demand... when there were too many toolcalls maybe forget some of them?
 
 ◯ Error Handling & Rollback
     ◯ Syntax validation for created/patched files
@@ -78,14 +79,14 @@
     ◯ Bookmark integration for persistence
 
 ◯ Configuration Options
-    ◯ System prompt customization via .aethercodex/.tm-properties
+    ✔︎ System prompt customization via .aethercodex/.tm-properties @done(30-09-2025 01:29)
     ◯ Task system step configuration
-    ◯ Allowed commands configuration
+    ✔︎ Allowed commands configuration @done(30-09-2025 01:29)
 
 ### 🔮 HERMETIC ENHANCEMENTS
 ◯ Symbolic Code Analysis
-    ◯ Language-agnostic pattern recognition
-    ◯ Hermetic symbol extraction (elemental, planetary, alchemical)
+    ✔︎ Language-agnostic pattern recognition @done(30-09-2025 01:29)
+    ✔︎ Hermetic symbol extraction (elemental, planetary, alchemical) @done(30-09-2025 01:29)
     ◯ Symbolic operations and mystical pattern forecasting
 
 ◯ Astral Projection (Multi-File Context)

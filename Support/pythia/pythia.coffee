@@ -146,7 +146,7 @@ class Pythia
         existing.className = cls
         existing.innerHTML = html
         if is_near_bottom
-          m.scrollTop = existing.offsetTop - m.offsetHeight + existing.offsetHeight
+          m.scrollTop = 100 + existing.offsetTop - m.offsetHeight + existing.offsetHeight
       else
         is_near_bottom = (m.scrollHeight - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
         el = document.createElement 'div'
@@ -154,7 +154,7 @@ class Pythia
         el.innerHTML = html
         el.id = uuid
         m.appendChild el
-        m.scrollTop = m.scrollHeight if is_near_bottom
+        m.scrollTop = 100 + m.scrollHeight if is_near_bottom
         
       do @saveMessages
       
@@ -820,8 +820,8 @@ class Pythia
     if @isThinking
       do @stopThinking
     else
-      do @adjustHeight
       do @askAI
+      do @adjustInputHeight
 
 
   askAI: =>
@@ -1198,9 +1198,9 @@ class Pythia
       if e.key == 'Enter' and not e.shiftKey
         do e.preventDefault
         do @askAI
-        do @adjustHeight
+        do @adjustInputHeight
 
-  adjustHeight: => 
+  adjustInputHeight: => 
     textarea = document.getElementById 'chat-input'
     textarea.style.height = 'auto'
     textarea.style.height = "#{textarea.scrollHeight}px"
@@ -1296,8 +1296,8 @@ class Pythia
 
   setupEventListeners: =>
     textarea = document.getElementById 'chat-input'
-    textarea.addEventListener 'input', @adjustHeight
-    do @adjustHeight
+    textarea.addEventListener 'input', @adjustInputHeight
+    setTimeout @adjustInputHeight, 100
 
 
   # Main Initialization

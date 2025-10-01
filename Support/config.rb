@@ -64,6 +64,7 @@ class CONFIG
       merged_config
     end
     
+    
     def load_config_file(path)
       return {} unless File.exist?(path)
       
@@ -75,6 +76,7 @@ class CONFIG
         {}
       end
     end
+    
     
     def symbolize_keys(hash)
       return hash unless hash.is_a?(Hash)
@@ -91,6 +93,7 @@ class CONFIG
       end
     end
     
+    
     def deep_merge(first, second)
       merger = proc do |key, v1, v2|
         if Hash === v1 && Hash === v2
@@ -106,8 +109,10 @@ class CONFIG
     
   end
   
+  
   # Load configuration hierarchically (initial load)
   CFG = load_hierarchical_config
+  
   
   # Default values
   DEFAULT_CONFIG = {
@@ -118,6 +123,7 @@ class CONFIG
     'tm-ai': '.tm-ai/',
     'memory-db': '.tm-ai/memory.db'
   }
+  
   
   # Get configuration value with ENV override and default fallback
   def self.[](key)
@@ -136,6 +142,7 @@ class CONFIG
     DEFAULT_CONFIG[key]
   end
   
+  
   def self.port
     env_port = ENV['AETHER_PORT']
     return env_port.to_i if env_port
@@ -146,26 +153,32 @@ class CONFIG
     DEFAULT_CONFIG[:port]
   end
   
+  
   def self.api_key
     ENV['AETHER_API_KEY'] || CFG[:api_key] || CFG['api-key']
   end
   
+  
   def self.api_url
     ENV['AETHER_API_URL'] || CFG[:api_url] || CFG['api-url'] || DEFAULT_CONFIG[:api_url]
   end
+  
   
   # Check if configuration is loaded from specific source
   def self.loaded_from_project?
     CFG[:__loaded_from] == :project
   end
   
+  
   def self.loaded_from_home?
     CFG[:__loaded_from] == :home
   end
   
+  
   def self.loaded_from_bundle?
     CFG[:__loaded_from] == :bundle
   end
+  
   
   # Debug method to show loaded configuration sources
   def self.debug_info
@@ -179,6 +192,7 @@ class CONFIG
     }
   end
   
+  
   # Resolve a path relative to project root, handling absolute paths
   def self.resolve_path(relative_path)
     # Handle absolute paths (starting with "/")
@@ -189,25 +203,30 @@ class CONFIG
     File.join(project_root, relative_path)
   end
   
+  
   # Get the tm-ai directory path
   def self.tm_ai_dir
     resolve_path(self[:tm_ai] || '.tm-ai/')
   end
+  
   
   # Get the memory database path
   def self.memory_db_path
     resolve_path(self[:memory_db] || '.tm-ai/memory.db')
   end
   
+  
   # Get the log file path
   def self.log_file_path
     resolve_path('.tm-ai/limen.log')
   end
   
+  
   # Get the PID file path
   def self.pid_file_path
     resolve_path('.tm-ai/limen.pid')
   end
+  
   
   # Get custom allowed commands from configuration
   def self.allowed_commands

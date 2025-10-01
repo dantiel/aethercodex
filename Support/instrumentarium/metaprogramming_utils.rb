@@ -262,13 +262,6 @@ class String
   def hermetic?
     match?(/^[a-zA-Z0-9_]+$/)
   end
-
-
-  # Convert snake_case to CamelCase
-  # @return [String] CamelCase version of the string
-  def camelize
-    split('_').map(&:capitalize).join
-  end
 end
 
 

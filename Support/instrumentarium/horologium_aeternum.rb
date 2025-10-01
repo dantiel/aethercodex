@@ -314,6 +314,12 @@ module HorologiumAeternum
 
 
   def self.symbolic_patch_complete(path, operation, result, uuid: nil)
+    # Add debugging output
+    puts "[DEBUG] symbolic_patch_complete called with:"
+    puts "  path: #{path}"
+    puts "  operation: #{operation}"
+    puts "  result: #{result.inspect.truncate(500)}"
+    
     # Format the result for better display - show actual changes made with proper syntax highlighting
     result_display = if result.is_a?(Hash) && result[:success]
                        if result[:result] && !result[:result].empty?
@@ -325,7 +331,13 @@ module HorologiumAeternum
                      else
                        Scriptorium.html "\n\n**Result:** #{result.inspect}"
                      end
-    count = result[:result]&.count || ''
+    
+    # Get count for display - handle both Array and other types
+    count = if result.is_a?(Hash) && result[:result].is_a?(Array)
+              result[:result].count
+            else
+              ''
+            end
 
     send_status('symbolic_patch_complete', {
                   message:        Scriptorium.html("✅ 🔮 #{count} Symbolic **#{operation.hermetic_humanize}** completed on #{create_file_link path}"),
@@ -335,7 +347,27 @@ module HorologiumAeternum
                   result_display:
                 }, uuid:)
   end
+  
+  
+  def self.symbolic_patch_failed(path, operation, result, uuid: nil)
+  "Search pattern cannot be empty"
 
+
+    # Get count for display - handle both Array and other types
+    count = if result.is_a?(Hash) && result[:result].is_a?(Array)
+              result[:result].count
+            else
+              ''
+            end
+
+    send_status('symbolic_patch_complete', {
+                  message:        Scriptorium.html("✅ 🔮 #{count} Symbolic **#{operation.hermetic_humanize}** completed on #{create_file_link path}"),
+                  path:,
+                  operation:,
+                  result:,
+                  result_display:
+                }, uuid:)
+  end
 
   def self.formatSymbolicPatchResult(result_data, file_path, operation = nil, patterns = nil)
     return Scriptorium.html "\n\n**No transformations found**" if result_data.empty?
@@ -433,7 +465,7 @@ module HorologiumAeternum
 
   # Command output containing HTML is properly escaped to prevent rendering issues
   def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
-    symbol = if exit_status&.zero? then '✅ ⚡️' else '❌ ⚡️' end
+    symbol = if exit_status.respond_to?(:zero?) && exit_status.zero? then '✅ ⚡️' else '❌ ⚡️' end
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
 
     # Escape HTML in content to prevent UI corruption

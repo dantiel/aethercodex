@@ -1,5 +1,11 @@
-cd Support
-tail -n 500 -f ../.tm-ai/limen.log | awk '
+FILE="$1"
+
+if [[ -z "$FILE" ]]; then
+  cd Support
+  FILE="../.tm-ai/limen.log"
+fi
+
+tail -n 500 -f $FILE | awk '
 BEGIN {
     # ANSI reset
     reset = "\033[0m"

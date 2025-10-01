@@ -328,6 +328,10 @@ tt, code, kbd, samp,pre {
   background: linear-gradient(135deg, var(--argonaut-azure), var(--argonaut-nexus));
 }
 
+::-webkit-scrollbar-corner {
+  background: color-mix(in srgb, var(--argonaut-deep) 30%, transparent);
+}
+
 /* Typography Refinements */
 h1, h2, h3, h4, h5, h6 {
   color: var(--argonaut-azure);
@@ -440,6 +444,7 @@ pre > code {
 /*  margin: 0.5em 0;*/
   color: var(--argonaut-shadow);
   text-align: center;
+  justify-content: center;
 }
 
 .system details {
@@ -448,6 +453,7 @@ pre > code {
 
 strong {
     color: var(--argonaut-aurora);
+    font-weight: 700;
 }
 
 code {
@@ -474,12 +480,22 @@ ul, ol {
 }
 
 a.file-link {
-  transition: all 0.2s ease;
-  background: color-mix(in srgb, var(--argonaut-azure) 20%, transparent);
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: var(--ethereal-white);
-  text-decoration: none
+    transition: all 0.2s ease;
+    background: color-mix(in srgb, var(--argonaut-azure) 20%, transparent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--ethereal-white);
+    text-decoration: none;
+    text-overflow: ellipsis;
+    display: inline-block;
+    direction: rtl;
+    white-space: nowrap;
+    max-inline-size: 100%;
+    writing-mode: horizontal-tb;
+    line-height: 1.2em;
+    vertical-align: baseline;
+    margin: 0 0 -0.4em;
+    overflow: hidden;
 }
 
 a.file-link:hover {
@@ -505,6 +521,11 @@ span.info a.file-link:hover, div.info a.file-link:hover {
 .system li:has(.file-link:only-child):before {
     content:'📄';
     margin: 0em 0.5em 0em -1em;
+}
+
+table {
+  overflow: auto;
+  display: block;
 }
 
 pre.diff > code,
@@ -588,5 +609,35 @@ div.diff div.del  {
     color: color-mix(in srgb, var(--argonaut-crimson) 50%, var(--ethereal-white));
     display: block;
     text-decoration: line-through;
+}
+
+
+
+summary {
+    margin: 0 auto;
+    display: block;
+    align-items: center;
+    align-content: space-around;
+}
+
+details summary {
+    flex-direction: row;
+    display: flex;
+    align-items: baseline;
+}
+
+
+details summary > * {
+}
+
+details summary::before {
+    content: "▸" !important;
+    font-style: normal;
+    font-size: 1.2em;
+    line-height: 1.4em;
+}
+
+details[open] summary::before {
+    content:"▾" !important; /*►▶︎▼*/
 }
 

@@ -402,7 +402,6 @@ class Conduit
     
     def execute_api_request(connection, endpoint, api_key, body, timeout)
       puts "BLA #{CONFIG::CFG.inspect}"
-      puts "BLA #{api_key}"
       response = connection.post endpoint do |request|
         if :gemini == CONFIG::CFG[:api_type].to_sym
           request.headers['X-goog-api-key'] = "#{api_key}"

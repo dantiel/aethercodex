@@ -20,6 +20,8 @@ class Argonaut
 
 
   def self.relative_path(path)
+    return path if path.nil? || path.empty?
+    
     path = if path.start_with? '/'
              absolute_path = Pathname.new path
              relative_path = absolute_path.relative_path_from project_root

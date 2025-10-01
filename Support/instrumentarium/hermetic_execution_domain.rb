@@ -2,6 +2,7 @@
 
 require 'net/protocol'
 require 'faraday'
+require_relative 'metaprogramming_utils'
 # Don't require Oracle to avoid circular dependency - use string constant instead
 
 # HermeticExecutionDomain provides isolated execution context for tool operations
@@ -49,11 +50,17 @@ class HermeticExecutionDomain
         retries = handle_retry :network, e, retries, max_retries
         retry
       rescue JSON::ParserError, ArgumentError => e
-        raise ToolExecutionError, "Invalid response format: #{e.message.truncate 300}"
-      rescue Oracle::StepTerminationException => e
-        puts "[HERMETIC_EXECUTION_DOMAIN][ORACLE::STEP_TERMINATION_ERROR]: #{e.inspect}"
-        # Step termination is expected - re-raise to allow proper handling at Oracle level
-        raise e
+        retries = handle_retry :parse_error, e, retries, max_retries
+        retry
+      rescue => e
+        # Handle Oracle::StepTerminationException if defined, otherwise handle as generic error
+        if e.class.name == 'Oracle::StepTerminationException'
+          # Step termination is expected - re-raise to allow proper handling at Oracle level
+          raise e
+        else
+          retries = handle_retry :tool_execution, e, retries, max_retries
+          retry
+        end
       rescue StandardError => e
         classified_error = classify_error e
         raise classified_error, "Tool execution failed: #{e.message.truncate 300}"
@@ -74,7 +81,7 @@ class HermeticExecutionDomain
         log_retry_attempt error_type, retries, max_retries
         retries
       else
-        raise const_get("#{error_type.to_s.camelize}Error"),
+        raise HermeticExecutionDomain.const_get("#{error_type.to_s.camelize}Error"),
               "#{error_type.to_s.humanize}: #{error.message.truncate 300}"
       end
     end
@@ -107,4 +114,3 @@ class HermeticExecutionDomain
     end
   end
 end
-

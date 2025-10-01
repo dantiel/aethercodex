@@ -14,11 +14,7 @@ module AetherCodexMarkdownPreview
   AETHERCODEX_CSS = <<~CSS
     /* AetherCodex - Cosmic Mystic Styling */
     @import url('https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne+Tactile&family=Syne:wght@400..800&display=swap');
-/*    @import url('https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Syne+Mono&family=Syne+Tactile&family=Syne:wght@400..800&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond');
-*/    @import url('https://iosevka-webfonts.github.io/iosevka-curly/iosevka-curly.css');
-/*    @import url('https://iosevka-webfonts.github.io/iosevka-etoile/iosevka-etoile.css');
-*/
+    @import url('https://iosevka-webfonts.github.io/iosevka-curly/iosevka-curly.css');
     :root {
         --mono: "Syne Mono","Iosevka Curly", "Fira Code", monospace;
         --sans: "Syne","General Sans","Plus Jakarta Sans","Inter",sans-serif;
@@ -205,6 +201,10 @@ module AetherCodexMarkdownPreview
       background: linear-gradient(135deg, var(--argonaut-azure), var(--argonaut-nexus));
     }
 
+    ::-webkit-scrollbar-corner {
+      background: color-mix(in srgb, var(--argonaut-deep) 30%, transparent);
+    }
+    
     .aethercodex-header {
         text-align: center;
         padding: 2rem;

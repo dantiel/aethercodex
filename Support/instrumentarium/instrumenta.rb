@@ -168,12 +168,12 @@ instrument :run_command,
            description: <<~DESC,
              Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`,
              `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`,
-             `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`, `ast-grep`. Please suggest to 
+             `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`, `ast-grep`. Please suggest to#{' '}
              add more cmds to this list if you like. To have more execution time u
            DESC
-           params: { cmd:     { type: String, required: true }, 
+           params: { cmd:     { type: String, required: true },
                      timeout: { type: Integer, default: 30 } },
-           timeout: 30000,
+           timeout: 30_000,
            returns: { ok:          Boolean,
                       exit_status: Integer,
                       result:      String,
@@ -181,9 +181,9 @@ instrument :run_command,
   # TODO: instead of blocked command, make a button to accept or decline execution...
   # Get merged allowed commands (default + custom from .aethercodex)
   allowed_commands = PrimaMateria.allowed_commands
-  
+
   # Allow all commands if wildcard is present
-  unless allowed_commands.any? { |re| re == // } || allowed_commands.any? { |re| cmd =~ re }
+  unless allowed_commands.any? { |re| // == re } || allowed_commands.any? { |re| cmd =~ re }
     raise "🚫 Blocked command: `#{cmd}`"
   end
 
@@ -195,9 +195,10 @@ instrument :run_command,
 
     env_vars = run_command_env.merge({ 'BUNDLE_GEMFILE' => '' })
 
-    stdout, stderr, status = Verbum.run_command_in_real_time env_vars, cmd, chdir: project_root
+    stdout, stderr, status = Verbum.run_command_in_real_time env_vars, cmd,
+                                                             chdir: project_root, timeout_seconds: timeout
     # Open3.capture3 env_vars, cmd, chdir: project_root
-    exitstatus = if status.respond_to?(:exitstatus) then status.exitstatus else "undefined" end
+    exitstatus = if status.respond_to? :exitstatus then status.exitstatus else 'undefined' end
     out = (stdout + stderr + "\n(exit #{exitstatus})").strip
     HorologiumAeternum.command_completed(cmd, out.length, out, exitstatus, uuid:)
 
@@ -258,7 +259,8 @@ instrument :temp_create_file,
            description: <<~DESC,
              Create a temporary file with automatic context-based cleanup. The file will be
              automatically removed when the oracle context terminates. Supports both system
-             temp files and project-relative paths with nested context management.
+             temp files and project-relative paths with nested context management. Use this for#{' '}
+             local script, and test files for example.
            DESC
            params: { content: { type:        String,
                                 required:    true,
@@ -334,40 +336,41 @@ end
 
 
 instrument :file_overview,
-         description: <<~DESC,
-           Fetch file information with symbolic parsing. Returns lightweight metadata:
-           note count, and note relations of tags to files. Enhanced symbolic analysis shows
-           structural view with classes, methods, constants, and navigation hints. Use this in
-           combination with read_file range to fetch minimal parts of a file and have an overview
-           about its relations.
-         DESC
-         params: { path: { type: String, required: true } },
-         returns: { metadata: Hash, error: String } do |path:|
-path = Argonaut.relative_path path
+           description: <<~DESC,
+             Fetch file information with symbolic parsing. Returns lightweight metadata:
+             note count, and note relations of tags to files. Enhanced symbolic analysis shows
+             structural view with classes, methods, constants, and navigation hints. Use this in
+             combination with read_file range to fetch minimal parts of a file and have an overview
+             about its relations. The hermetic overview shows the number of notes per associated file,
+             use `recall_notes` to see note content.
+           DESC
+           params: { path: { type: String, required: true } },
+           returns: { metadata: Hash, error: String } do |path:|
+  path = Argonaut.relative_path path
 
-# Use optimized parameters to prevent context bloat
-results = Argonaut.file_overview path: path, max_notes: 3, max_content_length: 333
-raise results[:error] unless results[:error].nil?
+  # Use optimized parameters to prevent context bloat
+  results = Argonaut.file_overview path: path, max_notes: 3, max_content_length: 333
+  raise results[:error] unless results[:error].nil?
 
-HorologiumAeternum.file_overview path, results
+  HorologiumAeternum.file_overview path, results
 
-result = {
-  notes_count:        results[:notes_count],
-  notes_preview:      results[:notes_preview],
-  file_info:          results[:file_info],
-  structural_summary: results[:symbolic_overview][:structural_summary],
-  symbolic_overview:  results[:symbolic_overview][:symbolic_overview_text],
-  tag_cloud:          results[:symbolic_overview][:tag_cloud_text],
-  file_cloud:         results[:symbolic_overview][:file_cloud_text],
-  hermetic_overview:  results[:hermetic_overview]
-}
-# puts results.inspect
-# puts '==================================================='
-puts result.inspect
-result
+  result = {
+    notes_count:        results[:notes_count],
+    notes_preview:      results[:notes_preview],
+    file_info:          results[:file_info],
+    structural_summary: results[:symbolic_overview][:structural_summary],
+    symbolic_overview:  results[:symbolic_overview][:symbolic_overview_text],
+    tag_cloud:          results[:symbolic_overview][:tag_cloud_text],
+    file_cloud:         results[:symbolic_overview][:file_cloud_text],
+    hermetic_overview:  results[:hermetic_overview]
+  }
+  # puts results.inspect
+  # puts '==================================================='
+  puts result.inspect
+  result
 rescue StandardError => e
-puts "[PRIMA MATERIA][ERROR]: #{e.inspect}"
-{ error: "File overview for #{path} failed: #{e.message || e.error}" }
+  puts "[PRIMA MATERIA][ERROR]: #{e.inspect}"
+  { error: "File overview for #{path} failed: #{e.message || e.error}" }
 end
 
 
@@ -743,57 +746,60 @@ instrument :symbolic_patch_file,
            returns: { success: Boolean,
                       result:  Hash,
                       error:   String } do |path:, operation:, search_pattern: nil, replace_pattern: nil,
-                                                 method_name: nil, class_name: nil, new_method_name: nil,
-                                                 new_class_name: nil, documentation: nil, lang: nil|
-
+                                               method_name: nil, class_name: nil, new_method_name: nil,
+                                               new_class_name: nil, documentation: nil, lang: nil|
   uuid = HorologiumAeternum.symbolic_patch_start path, operation
 
   begin
-    case operation
-    when 'transform_method'
-      result = SymbolicPatchFile.transform_method(
-        path, method_name,
-        new_method_name: new_method_name
-      )
-    when 'transform_class'
-      result = SymbolicPatchFile.transform_class(
-        path, class_name,
-        new_class_name: new_class_name
-      )
-    when 'document_method'
-      result = SymbolicPatchFile.document_method(
-        path, method_name, documentation
-      )
-    when 'find_and_replace'
-      result = SymbolicPatchFile.find_and_replace(
-        path, search_pattern, replace_pattern
-      )
-    when 'apply'
-      result = SymbolicPatchFile.apply(
-        path, search_pattern, replace_pattern, lang: lang
-      )
-    else
-      raise "Unknown operation: #{operation}"
-    end
+    result = case operation
+             when 'transform_method'
+               SymbolicPatchFile.transform_method path, method_name,
+                                                  new_method_name: new_method_name
+             when 'transform_class'
+               SymbolicPatchFile.transform_class path, class_name, new_class_name: new_class_name
+             when 'document_method'
+               SymbolicPatchFile.document_method path, method_name, documentation
+             when 'find_and_replace'
+               SymbolicPatchFile.find_and_replace path, search_pattern, replace_pattern
+             when 'apply'
+               SymbolicPatchFile.apply path, search_pattern, replace_pattern, lang: lang
+             else
+               raise "Unknown operation: #{operation}"
+             end
+
+    # Add debugging output to see what result contains
+    puts "[DEBUG] symbolic_patch_file result: #{result.inspect.truncate 500}"
 
     # Enrich result with pattern information for better display
     enriched_result = if result.is_a?(Hash) && result[:success]
-                        result.merge(
+                        # Ensure result[:result] is properly formatted for display
+                        formatted_result = if result[:result].is_a? Array
+                                             result[:result]
+                                           else
+                                             # Convert to array for consistent display
+                                             result[:result] ? [result[:result]] : []
+                                           end
+
+                        result.merge \
+                          result: formatted_result,
                           patterns: {
-                            operation: operation,
-                            search_pattern: search_pattern,
+                            operation:       operation,
+                            search_pattern:  search_pattern,
                             replace_pattern: replace_pattern,
-                            method_name: method_name,
-                            class_name: class_name,
-                            documentation: documentation
+                            method_name:     method_name,
+                            class_name:      class_name,
+                            documentation:   documentation
                           }
-                        )
+
                       else
                         result
                       end
 
+    puts "[DEBUG] enriched_result: #{enriched_result.inspect.truncate 500}"
+    raise result[:error] unless true == result[:success]
+
     HorologiumAeternum.symbolic_patch_complete(path, operation, enriched_result, uuid:)
-    result
+    enriched_result
   rescue StandardError => e
     HorologiumAeternum.symbolic_patch_fail(path, operation, e.message, uuid:)
     { error: "Symbolic patch failed: #{e.message}" }

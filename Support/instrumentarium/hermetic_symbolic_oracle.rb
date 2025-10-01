@@ -270,7 +270,7 @@ module HermeticSymbolicOracle
       lang = HermeticSymbolicAnalysis.detect_language(file_path)
       
       # Find resonant pattern for the transformation
-      pattern_info = find_resonant_pattern(transformation_type, target, resonance_principle)
+      pattern_info = find_resonant_pattern(transformation_type, target, new_value, resonance_principle)
       
       # Apply the transformation with vibrational awareness
       result = apply_resonant_transformation(
@@ -308,7 +308,7 @@ module HermeticSymbolicOracle
 
     private
 
-    def find_resonant_pattern(transformation_type, target, resonance_principle)
+    def find_resonant_pattern(transformation_type, target, new_value, resonance_principle)
       case transformation_type
       when :method_rename
         {

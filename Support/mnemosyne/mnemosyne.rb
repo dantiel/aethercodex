@@ -247,13 +247,13 @@ class Mnemosyne
 
 
     def migrate(db)
-      # Get current database version
-      db_version = db.execute("SELECT value FROM meta WHERE key = 'db_version'").first&.[]('value')&.to_i || 0
-      
       # Create meta table if it doesn't exist
       db.execute <<~SQL
         CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
       SQL
+
+      # Get current database version
+      db_version = db.execute("SELECT value FROM meta WHERE key = 'db_version'").first&.[]('value')&.to_i || 0      
       
       # Create entries table with latest schema
       db.execute <<~SQL
