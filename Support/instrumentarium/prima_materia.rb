@@ -10,7 +10,7 @@ Number = Numeric
 # Hermetic tool execution system with selective debug logging and argument truncation
 class PrimaMateria
   # Tool definition structure
-  Tool = Struct.new :name, :description, :params, :returns, :timeout, :implementation
+  Tool = Struct.new *%i{name description params returns timeout history_priority implementation}
 
   def initialize
     @tools = {}
@@ -171,6 +171,7 @@ class PrimaMateria
                      params: {},
                      returns: {},
                      timeout: nil,
+                     history_priority: 1,
                      &implementation)
     # Use desc parameter if provided, otherwise fall back to description
     tool_description = desc.empty? ? description : desc
@@ -181,6 +182,7 @@ class PrimaMateria
       params,
       returns,
       timeout,
+      history_priority,
       implementation
     )
     # Define the method dynamically with comprehensive validation

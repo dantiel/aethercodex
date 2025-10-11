@@ -1125,6 +1125,7 @@ class MagnumOpusEngine
     begin
       # Set temperature based on step phase
       step_temperature = STEP_TEMPERATURES[step_index] || 1.0
+      # TODO we need an aegis context per task, to not interfere with global context
       @mnemosyne.set_aegis_temperature(step_temperature)
       
       # Comprehensive context for hermetic execution
@@ -1196,7 +1197,7 @@ class MagnumOpusEngine
           )
       rescue StandardError => e
         puts "DEBUG: Error calling Aetherflux.channel_oracle_divination: #{e.message}"
-        puts "DEBUG: Backtrace: #{e.backtrace.first(5).join '\n'}"
+        puts "DEBUG: Backtrace: #{e.backtrace.first(5).join "\n"}"
         raise e
       end
 
@@ -1353,7 +1354,7 @@ class MagnumOpusEngine
       log_message task_id, "Step #{step_index} timed out: #{e.message}"
       # Enhanced timeout logging for debugging
       debug "Timeout error details: #{e.class.name} - #{e.message}"
-      debug "Timeout backtrace: #{e.backtrace.first(3).join '\n'}"
+      debug 'Timeout backtrace: #{e.backtrace.first(3).join "\n"}'
       # Don't fail entire task - allow step rejection/retry
       store_step_result task_id, step_index, "TIMEOUT: #{e.message}"
       raise TaskStateError, "Step #{step_index} timed out: #{e.message}"
@@ -1361,7 +1362,7 @@ class MagnumOpusEngine
       log_message task_id, "Step #{step_index} failed: #{e.message}"
       # Enhanced memory error logging for debugging
       debug "Memory error details: #{e.class.name} - #{e.message}"
-      debug "Error backtrace: #{e.backtrace.first(3).join '\n'}"
+      debug "Error backtrace: #{e.backtrace.first(3).join "\n"}"
       # Memory errors should fail the task
       update_state task_id, :failed
       store_step_result task_id, step_index, "MEMORY_ERROR: #{e.message}"
@@ -1383,7 +1384,7 @@ class MagnumOpusEngine
       log_message task_id, "Step #{step_index} failed: #{e.message}"
       # Enhanced error logging for debugging
       debug 'Standard error details: ${e.class.name} - ${e.message}'
-      debug "Error backtrace: ${e.backtrace.first(3).join '\n'}"
+      debug "Error backtrace: #{e.backtrace.first(3).join "\n"}"
       # Don't fail entire task - allow step rejection/retry
       store_step_result task_id, step_index, 'ERROR: ${e.message}'
       raise

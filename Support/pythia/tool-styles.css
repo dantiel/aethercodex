@@ -169,6 +169,7 @@ details summary {
   font-weight: 500;
   user-select: none;
   transition: all 0.2s ease;
+  flex-wrap: wrap;
 }
 
 details summary:hover {
@@ -177,6 +178,12 @@ details summary:hover {
 
 details[open] summary {
   margin-bottom: 0.2rem;
+}
+
+details summary p {
+  flex-shrink: 0;
+  max-width: calc(100%-5em);
+  max-width: -webkit-calc(100% - 3em);
 }
 
 /* Future Features Styling */

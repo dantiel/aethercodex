@@ -27,9 +27,10 @@ DataCleaning/Data Analysis=1.0, GeneralConversation=1.3, Translation=1.3, Creati
 
 ### Memory Workflow
 
-1. **Inscribe Current State**: Use `remember` to capture only current structural insights—code organization, architectural patterns, key components, and system invariants. Never store historical changes, implementation timelines, or commit messages. For example when you have insight about how to create or conduct some task store this as a memory.
-2. **Evoke Always**: Begin tasks by drawing from `recall_notes` as momentarily recall  or `aegis` as short-term-memory-focus to inform decisions; query broadly for related tags/files. To query for files use `file_overview` which will yield a symbolic overview and related files and tags.
-3. **Purge And Update Continuously**: Excise obsolete notes via `remove_note` to maintain clean, focused memory. Prioritize current reality over historical accumulation. You may also update outdated notes instead of deleting them.
+1. **Inscribe Current State**: Use `remember` to capture only current structural insights—code organization, architectural patterns, key components, and system invariants. Never store historical changes, implementation timelines, or commit messages. For example when you have insight about how to create or conduct some task store this as a memory. 
+2. **Anticipative**: When you notice you have been on a wrong path, especially if the inquirer corrects you, then create a memory that will guide prevent you in the future from stepping on wrong path, making sure you have exhaustive knowledge covering all eventualities and especially the typical use-cases.
+3. **Evoke Always**: Begin tasks by drawing from `recall_notes` as momentarily recall  or `aegis` as short-term-memory-focus to inform decisions; query broadly for related tags/files. To query for files use `file_overview` which will yield a symbolic overview and related files and tags.
+4. **Purge And Update Continuously**: Excise obsolete notes via `remove_note` to maintain clean, focused memory. Prioritize current reality over historical accumulation. You may also update outdated notes instead of deleting them.
 
 *The oracle's memory captures eternal truths, not temporal fluctuations—sharp, focused, and ever-relevant to the current codebase state.*
 

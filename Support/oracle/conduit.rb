@@ -1,18 +1,22 @@
 # frozen_string_literal: true
+
 require 'faraday'
 require 'json'
+require 'tiktoken_ruby'
 require 'yaml'
-require_relative '../mnemosyne/mnemosyne'
 require_relative '../instrumentarium/horologium_aeternum'
-require_relative 'error_handler'
 require_relative '../instrumentarium/metaprogramming_utils'
 require_relative '../instrumentarium/scriptorium'
-
+require_relative '../mnemosyne/mnemosyne'
+require_relative 'error_handler'
+using TokenExtensions
 
 
 # Conduit - Hermetic conduit for DeepSeek API communication
 # Channels cosmic energies through the digital aether for oracle divination
 class Conduit
+  @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
+  
   class << self
     def select_model(config, reasoning)
       if reasoning
@@ -137,21 +141,20 @@ class Conduit
                     gemini_format = rewrite_to_gemini_format messages
                     # Gemini uses different structure with system_instruction and contents
                     gemini_format.merge({
-                      generationConfig: { temperature:, maxOutputTokens: max_tokens }
-                    })
+                                          generationConfig: { temperature:,
+                                                              maxOutputTokens: max_tokens }
+                                        })
                   else
                     { model:, max_tokens:, temperature:, messages: messages }
                   end
 
-      if reasoning || is_deepseek_reasoning_model?(model)
-        base_body.merge tools: nil
-      else
-        base_body.merge (if :gemini == CONFIG::CFG[:api_type]&.to_sym
-          rewrite_tools_to_gemini_format tools
-        else
-          { tools: tools }
-        end)
-      end
+      base_body.merge(if reasoning || is_deepseek_reasoning_model?(model)
+                        { tools: nil }
+                      elsif :gemini == CONFIG::CFG[:api_type]&.to_sym
+                        rewrite_tools_to_gemini_format tools
+                      else
+                        { tools: tools }
+                      end)
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to build execution body: #{e.message.truncate 100}"
       raise
@@ -198,7 +201,7 @@ class Conduit
       end
 
       parts = candidate.dig('content', 'parts') || []
-  
+
       full_text_content = ''
       reasoning_content = ''
       tool_calls = []
@@ -208,25 +211,25 @@ class Conduit
         if (text = part['text'])
           # Check for and extract the reasoning block, which is a convention used by this adapter.
           if text.include?('<reasoning>') && text.include?('</reasoning>')
-            reasoning_content = text.match(/<reasoning>(.*?)<\/reasoning>/m)&.captures&.first&.strip
+            reasoning_content = text.match(%r{<reasoning>(.*?)</reasoning>}m)&.captures&.first&.strip
             # Add the text outside the reasoning block to the main content.
-            full_text_content += text.gsub(/<reasoning>.*?<\/reasoning>/m, '').strip
+            full_text_content += text.gsub(%r{<reasoning>.*?</reasoning>}m, '').strip
           else
             full_text_content += text
           end
         end
 
         # If the part contains a function call, translate it back to OpenAI's `tool_calls` format.
-        if (function_call = part['functionCall'])
-          tool_calls << {
-            'id' => "call_#{SecureRandom.hex(8)}", # OpenAI format requires an ID, so we generate one.
-            'type' => 'function',
-            'function' => {
-              'name' => function_call['name'],
-              'arguments' => function_call['args'].to_json # Convert args object back to a JSON string.
-            }
+        next unless (function_call = part['functionCall'])
+
+        tool_calls << {
+          'id'       => "call_#{SecureRandom.hex 8}", # OpenAI format requires an ID, so we generate one.
+          'type'     => 'function',
+          'function' => {
+            'name'      => function_call['name'],
+            'arguments' => function_call['args'].to_json # Convert args object back to a JSON string.
           }
-        end
+        }
       end
 
       # Build the final OpenAI-like structure that `extract_response_data` can parse.
@@ -234,8 +237,8 @@ class Conduit
         'choices' => [
           {
             'message' => {
-              'content' => full_text_content.strip,
-              'tool_calls' => tool_calls,
+              'content'           => full_text_content.strip,
+              'tool_calls'        => tool_calls,
               'reasoning_content' => reasoning_content # Add the extracted reasoning.
             }
           }
@@ -253,7 +256,7 @@ class Conduit
       return nil if tools.nil? || tools.empty?
 
       declarations = tools.map do |tool|
-        next unless tool[:type].to_s == 'function' && tool[:function]
+        next unless 'function' == tool[:type].to_s && tool[:function]
 
         function_data = tool[:function]
         parameters = function_data[:parameters]
@@ -262,15 +265,15 @@ class Conduit
         # upcase_schema_types(parameters)
 
         {
-          name: function_data[:name],
+          name:        function_data[:name],
           description: function_data[:description],
-          parameters: parameters
+          parameters:  parameters
         }
       end.compact
 
       { tools: [{ functionDeclarations: declarations }] }
     end
-    
+
 
     # A recursive helper method to traverse a JSON schema hash and convert all
     # values for the `type` key to uppercase. It also handles nullable types.
@@ -278,31 +281,29 @@ class Conduit
     # @param schema [Hash, Object] The schema or sub-schema to transform.
     # @return [void] This method modifies the hash in place.
     def upcase_schema_types(schema)
-      return unless schema.is_a?(Hash)
+      return unless schema.is_a? Hash
 
       # Handle nullable types (e.g., type: ['string', 'null']) which is a
       # common pattern in OpenAI schemas but not valid in Gemini's.
-      if schema[:type].is_a?(Array)
+      if schema[:type].is_a? Array
         # Find and remove 'null' to handle nullability
-        if schema[:type].delete('null')
-          schema[:nullable] = true
-        end
+        schema[:nullable] = true if schema[:type].delete 'null'
         # The primary type is whatever is left in the array (should be one item).
         schema[:type] = schema[:type].first
       end
 
       # Convert the type of the current object to uppercase.
-      schema[:type] = schema[:type].to_s.upcase if schema.key?(:type)
+      schema[:type] = schema[:type].to_s.upcase if schema.key? :type
 
       # If the object has properties, recurse into each property.
-      if schema[:properties].is_a?(Hash)
-        schema[:properties].each_value { |prop_schema| upcase_schema_types(prop_schema) }
+      if schema[:properties].is_a? Hash
+        schema[:properties].each_value { |prop_schema| upcase_schema_types prop_schema }
       end
 
       # If the object is an array, recurse into its `items` definition.
-      upcase_schema_types(schema[:items]) if schema.key?(:items)
+      upcase_schema_types schema[:items] if schema.key? :items
     end
-    
+
 
     # This is the new, dedicated rewrite function. It takes a simple array of
     # message hashes and transforms it into the structured Gemini format.
@@ -317,7 +318,7 @@ class Conduit
         role_str = msg[:role].to_s
 
         # Any message with a 'system' role contributes to the system instructions.
-        if role_str == 'system'
+        if 'system' == role_str
           system_instruction_parts << msg[:content]
           next
         end
@@ -325,16 +326,16 @@ class Conduit
         # --- Tool & Function Call Conversion ---
 
         # 1. Convert an OpenAI-style assistant message with `tool_calls`
-        if role_str == 'assistant' && msg[:tool_calls]
+        if 'assistant' == role_str && msg[:tool_calls]
           msg[:tool_calls].each do |tool_call|
-            function_name = tool_call.dig(:function, :name)
+            function_name = tool_call.dig :function, :name
             # Add a check to ensure the function name is not empty.
             next if function_name.nil? || function_name.empty?
 
             # OpenAI arguments are a JSON string; Gemini's are a parsed object.
             args = JSON.parse(tool_call.dig(:function, :arguments) || '{}')
             gemini_contents << {
-              role: 'model',
+              role:  'model',
               parts: [{
                 functionCall: {
                   name: function_name,
@@ -347,7 +348,7 @@ class Conduit
         end
 
         # 2. Convert an OpenAI-style `tool` response message
-        if role_str == 'tool'
+        if 'tool' == role_str
           function_name = msg[:name] || msg[:tool_call_id]
           # Add a check to ensure the function name (from name or tool_call_id) is not empty.
           next if function_name.nil? || function_name.empty?
@@ -355,10 +356,10 @@ class Conduit
           # OpenAI content is a JSON string; Gemini's `response.content` is a parsed object.
           response_content = JSON.parse(msg[:content].to_s || '{}')
           gemini_contents << {
-            role: 'function',
+            role:  'function',
             parts: [{
               functionResponse: {
-                name: function_name,
+                name:     function_name,
                 response: {
                   content: response_content
                 }
@@ -371,7 +372,7 @@ class Conduit
         # --- Regular Message Handling ---
         next unless msg[:content] # Skip assistant messages that only contained tool_calls
 
-        current_role = (role_str == 'assistant') ? 'model' : 'user'
+        current_role = 'assistant' == role_str ? 'model' : 'user'
         current_content = msg[:content].to_s # Ensure content is a string
 
         last_message = gemini_contents.last
@@ -382,7 +383,7 @@ class Conduit
         else
           # Otherwise, add a new message to the contents array.
           gemini_contents << {
-            role: current_role,
+            role:  current_role,
             parts: [{ text: current_content }]
           }
         end
@@ -395,16 +396,16 @@ class Conduit
 
       {
         system_instruction: final_system_instruction,
-        contents: gemini_contents
+        contents:           gemini_contents
       }
     end
-    
-    
+
+
     def execute_api_request(connection, endpoint, api_key, body, timeout)
-      puts "BLA #{CONFIG::CFG.inspect}"
+      # puts "BLA #{CONFIG::CFG.inspect}"
       response = connection.post endpoint do |request|
         if :gemini == CONFIG::CFG[:api_type].to_sym
-          request.headers['X-goog-api-key'] = "#{api_key}"
+          request.headers['X-goog-api-key'] = api_key.to_s
         else
           request.headers['Authorization'] = "Bearer #{api_key}"
         end
@@ -467,13 +468,23 @@ class Conduit
       # puts "[ORACLE][CONDUIT][BODY_MESSAGES_LAST]: #{body[:messages].last.transform_values do |v|
       #   v.to_s.truncate(100)
       # end.inspect}"
+
+      start_time = Time.now
+      max_tokens = select_max_tokens reasoning
+      puts '[CONDUIT][GENERATE_AI_RESPONSE]: ' \
+           "sending... token usage #{body.to_s.tok_len}/128000 " \
+           "(#{((body.to_s.tok_len.to_f/128000)*100).round}%)"
+
       post(body, reasoning ? 600 : 300)
         .then { |raw| ensure_json raw }
         .tap do |json|
-        log_json(json: json.transform_values do |v|
-          v.to_s.truncate(200)
-        end)
-      end
+          execution_time = Time.now - start_time
+          puts "[CONDUIT][GENERATE_AI_RESPONSE]: response after #{execution_time.round 2}s"
+
+          log_json(json: json.transform_values do |v|
+            v.to_s.truncate 200
+          end)
+        end
     rescue StandardError => e
       handle_api_error e
     end
@@ -481,7 +492,7 @@ class Conduit
 
     def extract_response_data(json, arts)
       json = parse_gemini_response_to_openai_format json if :gemini == CONFIG::CFG[:api_type].to_sym
-      
+
       choice = (json['choices'] || []).first || {}
       msg = choice['message'] || {}
       content = msg['content'].to_s

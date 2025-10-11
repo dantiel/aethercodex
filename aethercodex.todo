@@ -12,8 +12,14 @@
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
 ✔︎ Mnemosyne Memory System @done(12-08-2025 20:52)
 ✔︎ File Overview & Symbolic Analysis @done(09-08-2025 13:51)
+✔︎ Tool Call Recording Integration @done(07-10-2025 18:30)
 ◯ improve symbolic analysis
 ◯ mnemosyne memory truncation should be longer, it has to be possible to retrieve complete memories, otherwise when creating memories that are too long there should be an error message
+◯ Operational Mode Support (set_operational_mode method)
+◯ Priority-Based Truncation (apply logic in fetch_history)
+◯ Active Memory Window (step-based memory management)
+◯ Enhanced Context Generation (mode-aware context building)
+◯ Magnum Opus Integration (step isolation features)
   
 ### 🛠️ TOOLING & COMMANDS
 ✔︎ Allow Safe Commands @done(27-07-2025 19:12)

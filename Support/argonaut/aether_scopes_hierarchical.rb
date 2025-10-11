@@ -520,8 +520,8 @@ module AetherScopesHierarchical
       significant_lines:      (overview[:line_hints] || {}).keys.map(&:to_i).sort,
       tag_cloud:,
       file_cloud:,
-      tag_cloud_text:         tag_cloud.map { |tag| "#{tag[0]}: #{tag[1]}" }.join('\n'),
-      file_cloud_text:        file_cloud.map { |tag| "#{tag[0]}: #{tag[1]}" }.join('\n'),
+      tag_cloud_text:         tag_cloud.map { |tag| "#{tag[0]}: #{tag[1]}" }.join("\n"),
+      file_cloud_text:        file_cloud.map { |tag| "#{tag[0]}: #{tag[1]}" }.join("\n"),
       symbolic_overview_text: generate_symbolic_overview_text(overview),
       hermetic_overview:      symbolic_overview.join("\n")
     }

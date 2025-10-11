@@ -3,7 +3,10 @@
 require 'tiktoken_ruby'
 require_relative '../mnemosyne/mnemosyne'
 require_relative '../instrumentarium/metaprogramming_utils'
+require_relative '../instrumentarium/prima_materia'
 require_relative '../argonaut/argonaut'
+using TokenExtensions
+
 # TM_TAB_SIZE
 # TM_SOFT_TABS
 # TM_DISPLAYNAME
@@ -39,18 +42,18 @@ module Coniunctio
 
       # Handle both single file/selection and multiple attachments
       attachments = params[:attachments] || []
-      
+
       # For backward compatibility, support old single file/selection format
       if attachments.empty? && (params[:file] || params[:selection])
         attachments = [{
-          file: params[:file],
-          selection: params[:selection],
-          line: params[:line],
-          column: params[:column],
+          file:            params[:file],
+          selection:       params[:selection],
+          line:            params[:line],
+          column:          params[:column],
           selection_range: params[:selection_range]
         }]
       end
-      
+
       puts "[CONIUNCTIO] ATTACHMENTS=#{attachments}"
 
       project_files = Argonaut.list_project_files
@@ -66,7 +69,8 @@ module Coniunctio
                   []
                 else
                   # Use provided history array
-                  params[:history].flat_map(&method(:format_history_entry))
+                  params[:history].reverse
+                  .flat_map.with_index(&method(:format_history_entry)).reverse
                 end
 
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
@@ -91,16 +95,26 @@ module Coniunctio
 
 
     def fetch_and_format_history
-      # Fetch general chat history
-      Mnemosyne.fetch_history(limit: 7, max_tokens: 2200).flat_map(&method(:format_history_entry))
+      # Fetch general chat history with tool calls included
+      Mnemosyne.fetch_history(limit: 7, max_tokens: 2200,
+                              include_tool_calls: true)
+                              .reverse.flat_map.with_index(&method(:format_history_entry)).reverse
     end
 
 
-    def format_history_entry(entry)
-      [
-        { role: 'user', content: entry[:prompt], ts: entry[:created_at] },
-        { role: 'assistant', content: entry[:answer], ts: entry[:created_at] }
-      ]
+    def format_history_entry(entry, index)
+      puts "format_history_entry index=#{index}; entry=#{entry.to_s.truncate 50}"
+      user_message = { role: 'user', content: entry[:prompt], ts: entry[:created_at] }
+      assistant_message = { role: 'assistant', content: entry[:answer], ts: entry[:created_at] }
+
+      # Include tool calls if present with content field integration
+      if entry[:tool_calls]&.present?
+        tool_calls = Mnemosyne.format_history_tool_calls entry[:tool_calls], index
+
+        assistant_message[:content] = [tool_calls, assistant_message[:content]].join "\n\n"
+      end
+
+      [user_message, assistant_message]
     end
 
 
@@ -177,14 +191,11 @@ module Coniunctio
       message = hermetic_manifest[:content] || 'Hermetic manifest file not found'
 
       puts "[ORACLE][CONIUNCTIO]: #{'NO ' unless hermetic_manifest} Manifest file found."
-           
+
       { role: :system, content: hermetic_manifest_message(message) }
     rescue StandardError => e
       { role:    :system,
         content: hermetic_manifest_message("Error reading hermetic manifest: #{e.message}") }
     end
-
-
-    def tok_len(str) = @tokenizer.encode(str.to_s).length
   end
 end

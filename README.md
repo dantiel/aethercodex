@@ -9,7 +9,6 @@ AetherCodex transforms TextMate into a living interface with hermetic AI reasoni
 ---
 
 ## ✨ 11 Hermetic Manifestations
-
 ### 🔮 **Ethereal Code Divination**
 Peer through dimensional veils to understand code structure and intent with hermetic clarity. Each symbol reveals its deeper meaning through astral analysis.
 

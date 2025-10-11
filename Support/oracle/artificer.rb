@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'error_handler'
+require_relative '../instrumentarium/hermetic_execution_domain'
 
 # Instrumentator provides hermetic, side-effect-free execution of instrumenta
 # with proper message handling and error management. Designed for reuse across the system.
@@ -26,30 +27,25 @@ class Artificer
     # Execute a standard instrumenta call with hermetic principles
     # Returns [result, updated_messages, updated_tool_results]
     def execute_standard(instrumenta_call, messages, instrumenta_results, &execution_block)
+      id = instrumenta_call['id']
       name = extract_instrumenta_name instrumenta_call
       args = extract_instrumenta_arguments instrumenta_call
 
       log_instrumenta_call 'INSTRUMENTA_CALL', name, args
       safe_context = create_safe_context instrumenta_results
 
-      HermeticExecutionDomain.execute max_retries: 2, timeout: 86400 do
+      HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
         result = execution_block.call name, args, safe_context
-        
-        # puts "execute_standard #{result.inspect}"
-        
+
         # Check for divine interruption signal - terminate current oracle call if detected
         if result.is_a?(Hash) && result.key?(:__divine_interrupt)
-          # puts "FOUND"
           # Return the divine interruption signal directly without adding to messages
           return [result, messages, instrumenta_results]
         end
-        # puts "blah"
-        
-        updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call['id'],
-                                                               name:   name,
-                                                               result: result }]
+
+        updated_instrumenta_results = instrumenta_results + [{ id:, name:, result:, args: }]
         updated_messages = messages + [{ role:         'tool',
-                                         tool_call_id: instrumenta_call['id'],
+                                         tool_call_id: id,
                                          content:      result.to_json }]
         [result, updated_messages, updated_instrumenta_results]
       rescue HermeticExecutionDomain::Error => e
@@ -65,20 +61,20 @@ class Artificer
                            instrumenta_call[:args]
       safe_context = create_safe_context instrumenta_results
 
-      HermeticExecutionDomain.execute max_retries: 2, timeout: 86400 do
-        result = execution_block.call instrumenta_call[:name], instrumenta_call[:args],
-                                      safe_context
-        
+      HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
+        result = execution_block.call instrumenta_call[:name], instrumenta_call[:args], safe_context
+
         # Check for divine interruption signal - terminate current oracle call if detected
         if result.is_a?(Hash) && result.key?(:__divine_interrupt)
           # Return the divine interruption signal directly without adding to messages
           return [result, messages, instrumenta_results]
         end
-        
+
         instrumenta_call_id = instrumenta_call[:id] || SecureRandom.uuid
         updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call_id,
                                                                name:   instrumenta_call[:name],
-                                                               result: result }]
+                                                               result: result,
+                                                               args:   instrumenta_call[:args] }]
         updated_messages = messages + [{ role:         'tool',
                                          tool_call_id: instrumenta_call_id,
                                          content:      result.to_json }]
@@ -94,11 +90,13 @@ class Artificer
     def execute_instrumenta_calls(instrumenta_calls,
                                   messages,
                                   instrumenta_results,
-                                  &execution_block)
-      instrumenta_calls.reduce [[], messages,
-                                instrumenta_results] do |(results, current_messages, current_instrumenta_results), instrumenta_call|
-        result, new_messages, new_instrumenta_results = execute_standard(instrumenta_call,
-                                                                         current_messages, current_instrumenta_results, &execution_block)
+                                  content,
+                                  &exec_call)
+      instrumenta_results << { content: }
+      instrumenta_calls.reduce [[], messages, instrumenta_results] do
+      |(results, current_messages, prev_instrumenta_results), instrumenta_call|
+        result, new_messages, new_instrumenta_results =
+          execute_standard(instrumenta_call, current_messages, prev_instrumenta_results, &exec_call)
         [results + [result], new_messages, new_instrumenta_results]
       end
     end
@@ -111,12 +109,13 @@ class Artificer
                                            instrumenta_results,
                                            &execution_block)
       instrumenta_calls.reduce [[], messages,
-                                instrumenta_results] do |(results, current_messages, current_instrumenta_results), instrumenta_call|
+                                instrumenta_results] do |(results, current_messages, prev_instrumenta_results), instrumenta_call|
         result, new_messages, new_instrumenta_results = execute_fallback(instrumenta_call,
-                                                                         current_messages, current_instrumenta_results, &execution_block)
+                                                                         current_messages, prev_instrumenta_results, &execution_block)
         [results + [result], new_messages, new_instrumenta_results]
       end
     end
+
 
     def extract_instrumenta_name(instrumenta_call)
       instrumenta_call['name'] || instrumenta_call[:name] ||
@@ -147,10 +146,10 @@ class Artificer
         extract_instrumenta_from_parsed_object obj
       end.flatten.compact
     end
-    
+
 
     private
-    
+
 
     def log_tool_call(type, name, args)
       puts "[ORACLE][#{type}]: #{name} with args: #{args.to_s.truncate 100}"
@@ -177,7 +176,7 @@ class Artificer
       {}
     end
 
-     
+
     def ensure_json(raw)
       return raw if raw.is_a? Hash
 
@@ -197,11 +196,9 @@ class Artificer
     end
 
 
-    def handle_hermetic_execution_error(error, message)
+    def handle_hermetic_execution_error(error, _message)
       # Don't log here - the error will be caught and handled by the calling context
       raise error
     end
-
-
   end
 end

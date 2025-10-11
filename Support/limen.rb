@@ -240,7 +240,18 @@ def do_ask(p)
   end
 
   html = Scriptorium.html_with_syntax_highlight answer.to_s
-  Mnemosyne.record p, answer if p['record']
+  
+  # Record the entry with tool calls if recording is enabled
+  if p['record']
+    Mnemosyne.record(
+      prompt: p['prompt'],
+      answer: answer,
+      tags: p['tags'],
+      file: p['file'],
+      attachments: attachments,
+      tool_calls: ToolCallRecorder.get_current_entry_tool_calls
+    )
+  end
 
   tool_count = tool_results.length
   HorologiumAeternum.completed "Response ready with #{tool_count} tools executed"
@@ -281,7 +292,7 @@ def do_attach(attachment_data)
   # selection = "\"#{selection.gsub("\"","\\\"").gsub("\\\'","\'")}\"".undump
 
   attachment_data.merge! content: file_content,
-                         lines: ((file_content || selection).count '\n'),
+                         lines: ((file_content || selection).count "\n"),
                          file: file,
                          selection: selection
 

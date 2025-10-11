@@ -187,17 +187,26 @@ end
 
 # String extensions
 class String
-  # Truncate string to specified length with optional omission
+  # Truncate string to specified length with optional omission and position
   # @param max_length [Integer] Maximum length of truncated string
   # @param omission [String] String to append when truncated (default: '...')
+  # @param position [Symbol] Where to place omission: :end, :begin, or :center (default: :end)
   # @return [String] Truncated string or original if within limit
-  def truncate(max_length, omission = '...')
+  def truncate(max_length, position = :end, omission: '...')
     return self if length <= max_length
 
     effective_max = max_length - omission.length
     effective_max = 0 if effective_max.negative?
 
-    self[0...effective_max] + omission
+    case position
+    when :begin
+      omission + self[-effective_max..-1]
+    when :center, :middle
+      half = effective_max / 2
+      self[0...half] + omission + self[-(effective_max - half)..-1]
+    else # :end
+      self[0...effective_max] + omission
+    end
   end
 
 
@@ -406,6 +415,21 @@ class Object
       send(method_name, *args)
     rescue StandardError
       nil
+    end
+  end
+
+
+  # Safely parse JSON with error handling and default value
+  # @param json_string [String] JSON string to parse
+  # @param default [Object] Default value to return on parse error
+  # @return [Object] Parsed JSON object or default value
+  def safe_parse_json(json_string, default = nil)
+    return default unless json_string.is_a?(String) && json_string.present?
+
+    begin
+      JSON.parse(json_string)
+    rescue JSON::ParserError, StandardError
+      default
     end
   end
 
@@ -718,6 +742,31 @@ module ObjectExtensions
         nil
       end
     end
+
+
+    # Token length calculation helper
+    # @param s [String] String to calculate token length for
+  end
+end
+
+
+module TokenExtensions
+  refine String do
+    # Token length calculation helper
+    # @return [Integer] Number of tokens in the string
+    def tok_len
+      # Uses available tokenizer if present, falls back to estimation
+      if respond_to?(:tokenizer) && tokenizer.respond_to?(:encode)
+        # Use available tokenizer for accurate count
+        tokenizer.encode(self).length
+      else
+        # Simple token estimation - approximates token count
+        split(/\s+/).size
+      end
+    rescue StandardError
+      # Fallback approximation based on character count
+      length / 4
+    end
   end
 end
 
@@ -976,6 +1025,39 @@ module PatternRecognitionContext
       end
 
       $VERBOSE = original_verbose
+    end
+  end
+end
+
+
+
+# Hash extensions - add hash rendering method
+class Hash
+  # Render hash to string without quotes, keeping braces
+  # @return [String] Hash rendered as string without quotes
+  def to_s_no_quotes(style = :param)
+    divider = if :param == style then '=' else ': ' end
+    content = map { |k, v| "#{k}#{divider}#{format_value(v, style)}" }.join(", ")
+    
+    if :param == style
+      "(#{content})"
+    else # :json
+      "{#{content}}"
+    end
+  end
+
+  private
+
+  def format_value(value, style = :param)
+    case value
+    when Hash
+      value.to_s_no_quotes
+    when Array
+      "[" + value.map { |v| format_value(v) }.join(", ") + "]"
+    when String
+      value
+    else
+      value.to_s
     end
   end
 end

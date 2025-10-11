@@ -51,7 +51,8 @@ class Pythia
       uuid = do crypto.randomUUID
       @reconnectAttempts = 0  # Reset on successful connection
       
-      if @stored?.length < 3
+      console.log "setupWebSocketHandlers", @stored
+      if not @stored or @stored?.length < 3
         @ws.send JSON.stringify({ method: 'history', params: { limit: 7 }})
     
     @ws.onerror = (e) =>
@@ -96,10 +97,11 @@ class Pythia
 
   # Message Persistence
   saveMessages: =>
-    messages = Array.from(document.querySelectorAll('#messages > div:not(.error)')).map (el) ->
+    messages = @stored = Array.from(document.querySelectorAll('#messages > div:not(.error)')).map (el) ->
       className: el.className
       innerHTML: el.innerHTML
-    localStorage.setItem @STORAGE_KEY, JSON.stringify(messages.slice(-@MAX_MESSAGES))
+    localStorage.setItem @STORAGE_KEY, 
+      JSON.stringify(messages.slice -@MAX_MESSAGES)
 
 
   loadMessages: =>

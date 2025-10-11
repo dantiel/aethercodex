@@ -15,7 +15,7 @@ require_relative 'artificer'
 require_relative 'conduit'
 require_relative 'coniunctio'
 require_relative 'error_handler'
-
+using TokenExtensions
 
 
 def log_json(**kwargs)
@@ -258,6 +258,7 @@ class Oracle
       { error: "Conjuration failed: #{error_message}", details: error_details }
     end
 
+
     public :conjuration
 
 
@@ -300,7 +301,7 @@ class Oracle
                      { role: 'system', content: system_prompt },
                      *context[:history],
                      ({ role: 'system', content: SYSTEM_PROMPT_BRIEFING } if include_briefing),
-                     { role: 'user', content: if attachments && attachments.count
+                     { role: 'user', content: if attachments && attachments.any?
                                                 [
                                                   { type: :text, text: prompt },
                                                   { type: :text,
@@ -315,12 +316,14 @@ class Oracle
       puts '[ORACLE][DEBUG]: Messages being sent:'
       messages.each_with_index do |msg, i|
         puts "[ORACLE][DEBUG]: Message #{i}: role=#{msg[:role]}, " \
-             "content_length=#{msg[:content].to_s.length}, " \
-             "content=#{msg[:content].to_s.truncate 50}"
+             "byte_length=#{msg[:content].to_s.size}, " \
+             "token_length=#{msg[:content].to_s.tok_len}, " \
+             "message=#{msg.inspect.truncate 15000}"
       end
 
       messages
     end
+
 
     # Format messages specifically for Gemini API
     # Gemini requires different structure for attachments and system messages
@@ -455,7 +458,7 @@ class Oracle
       end
 
       results, new_messages, new_tool_results = Artificer.execute_instrumenta_calls(
-        tools_from_content, messages, tool_results, &exec
+        tools_from_content, messages, tool_results, content, &exec
       )
 
       # Check for divine interruption in results - return signal directly
@@ -465,7 +468,9 @@ class Oracle
       [new_messages, new_tool_results, nil]
     end
 
+
     private
+    
 
     # Generate a unique session ID based on context
     def generate_session_id(context)
@@ -528,9 +533,8 @@ class Oracle
       end
     end
 
+
     public :divine_interruption_signal_from_tool_result
-
-
 
 
     def handle_divination_error(exception, tool_results = [])

@@ -24,8 +24,8 @@ class Aetherflux
         # The system prompt will be handled by Oracle.base_messages for proper message construction
         # For task execution, pass empty prompt since messages contain the complete structure
         divination_prompt = params[:messages] || params[:prompt]
-        result = Oracle.divination divination_prompt, ctx, tools:,
-                                   msg_uuid:, system_prompt: params[:system_prompt] do |name, args, tool_ctx|
+        result = Oracle.divination divination_prompt, ctx, tools:, msg_uuid:, 
+                                   system_prompt: params[:system_prompt] do |name, args, tool_ctx|
           tools.handle tool: name, args:, context: tool_ctx, timeout: timeout
         end
 
@@ -46,7 +46,6 @@ class Aetherflux
         retry
       end
 
-
       puts 'CHECK FOR STANDARD ERROR'
       raise StandardError, answer unless answer.is_a? String
 
@@ -55,14 +54,22 @@ class Aetherflux
 
       # Calculate execution time and tool call metrics
       execution_time = Time.now - start_time
-      tool_call_count = tool_results.length
+      tool_call_count = tool_results&.length || 0
 
       HorologiumAeternum.completed Scriptorium.html("🎯 Response ready with **#{tool_call_count}** tools executed in #{execution_time.round 2}s")
 
       # Record with execution metrics if requested
       if params[:record]
-        Mnemosyne.record(prompt: params[:prompt], execution_time:, 
-                         tool_call_count:, answer:)
+        # Convert tool_results to embedded tool_calls format
+        embedded_tool_calls = tool_results.map do |tool_result|
+          {
+            request: { tool: tool_result[:name], args: tool_result[:args] },
+            result: tool_result[:result]
+          }
+        end
+        
+        Mnemosyne.record(prompt: params[:prompt], execution_time:,
+                         tool_call_count:, answer:, tool_calls: embedded_tool_calls)
       end
 
       {
@@ -132,7 +139,7 @@ class Aetherflux
 
         # Calculate execution time and tool call metrics
         execution_time = Time.now - start_time
-        tool_call_count = tool_results.length
+        tool_call_count = tool_results&.length || 0
       rescue Oracle::RestartException
         HorologiumAeternum.thinking 'Restarting oracle process due to temperature change...'
         retry
