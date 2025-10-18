@@ -114,6 +114,7 @@ body.fancy-animations .status::before {
 
 .status .run_command summary pre {
   max-height: 4em;
+  width: 100%;
 }
 
 /* Tool arguments display */

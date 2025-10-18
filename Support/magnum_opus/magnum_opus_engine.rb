@@ -16,24 +16,24 @@ require_relative 'opus_instrumenta'
 # Task System Prompt for comprehensive context in oracle conjuration
 TASK_SYSTEM_PROMPT = <<~PROMPT
   # MAGNUM OPUS ENGINE - TASK EXECUTION SYSTEM
-  
+
   You are executing a task step in the AetherCodex Magnum Opus Engine with structured message context.
-  
+
   # MESSAGE STRUCTURE:
   - PREVIOUS STEP RESULTS: Assistant message with historical context
   - CURRENT STEP GUIDANCE: System message with step-specific instructions
   - EXECUTION INSTRUCTIONS: System message with phase-specific tool access and procedures
   - TASK EXECUTION CONTEXT: User message focusing on the current task
-  
+
   # CORE PRINCIPLES:
   - Use task-specific tools (task_*) that automatically include task_id context
   - Control step progression: task_complete_step(result) or task_reject_step(reason, restart_from_step)
   - Access historical context: task_get_previous_results() for continuity
-  
+
   # PHASED EXECUTION:
   - Exploration (Steps 1-4): Read-only analysis tools only
   - Implementation (Steps 5-10): Full tool access including modifications
-  
+
   # STEP GUIDANCE:
   %<step_guidance>
 PROMPT
@@ -564,16 +564,16 @@ EXTENDED_STEP_GUIDANCE = {
 # Exploration phases (1-4): Higher temperature for creative planning and analysis
 # Implementation phases (5-10): Lower temperature for precise, deterministic execution
 STEP_TEMPERATURES = {
-  1 => 1.5,  # Nigredo: High creativity for initial analysis
-  2 => 1.4,  # Albedo: Creative solution design
-  3 => 1.3,  # Citrinitas: Creative exploration of implementation paths
-  4 => 1.2,  # Rubedo: Creative technical specification
-  5 => 1.0,  # Solve: Balanced for analysis and planning
-  6 => 0.8,  # Coagula: Precise implementation
-  7 => 0.7,  # Test: Deterministic testing
-  8 => 0.7,  # Test: Deterministic edge case testing
-  9 => 0.8,  # Validate: Balanced validation
-  10 => 1.0  # Document: Balanced documentation
+  1  => 1.5,  # Nigredo: High creativity for initial analysis
+  2  => 1.4,  # Albedo: Creative solution design
+  3  => 1.3,  # Citrinitas: Creative exploration of implementation paths
+  4  => 1.2,  # Rubedo: Creative technical specification
+  5  => 1.0,  # Solve: Balanced for analysis and planning
+  6  => 0.8,  # Coagula: Precise implementation
+  7  => 0.7,  # Test: Deterministic testing
+  8  => 0.7,  # Test: Deterministic edge case testing
+  9  => 0.8,  # Validate: Balanced validation
+  10 => 1.0 # Document: Balanced documentation
 }.freeze
 
 DEBUG = true
@@ -636,7 +636,7 @@ class MagnumOpusEngine
 
   # Create dynamic task tools for a specific task
   def create_task_tools(task_id)
-    @task_tools_registry[task_id] ||= 
+    @task_tools_registry[task_id] ||=
       OpusInstrumenta.build_task_tools Instrumenta::PRIMA_MATERIA, task_id, self
   end
 
@@ -691,7 +691,7 @@ class MagnumOpusEngine
     total_steps = WORKFLOW_STEPS
     stage_name = STATES[current_step] || 'Unknown'
 
-    # Load step results and format them
+    # Load step results - return both raw and formatted versions
     step_results = load_step_results task_id
     formatted_results = format_previous_results step_results, current_step
 
@@ -712,7 +712,8 @@ class MagnumOpusEngine
         created_at:          task[:created_at],
         updated_at:          task[:updated_at]
       },
-      step_results:           formatted_results,
+      step_results:           step_results,        # Return raw step results for navigation
+      formatted_step_results: formatted_results,   # Return formatted version for display
       execution_logs:         task_logs,
       alchemical_progression: STATES.map.with_index do |stage, idx|
         {
@@ -747,8 +748,8 @@ class MagnumOpusEngine
     end
   end
 
-  
-  # TODO this needs to display a special message when a step was rejected...
+
+  # TODO: this needs to display a special message when a step was rejected...
   # Format previous step results for context inclusion with aggressive truncation
   def format_previous_results(results, current_step)
     return 'No previous step results available.' if results.empty? || 1 == current_step
@@ -757,29 +758,93 @@ class MagnumOpusEngine
     results.each do |step_num, result|
       next if step_num.to_i >= current_step
 
-      # AGGRESSIVE TRUNCATION to prevent context length overflow
-      # Current step gets more context, previous steps get minimal context
+      # BALANCED TRUNCATION for better context preservation
+      # Current step gets more context, previous steps get reasonable context
       formatted << if current_step - 1 == step_num
-                     "Step #{step_num}: #{result.to_s.truncate 300}" # More context for immediate previous
+                     "Step #{step_num}: #{result.to_s.truncate 500}" # More context for immediate previous
+                   elsif current_step - 2 == step_num
+                     "Step #{step_num}: #{result.to_s.truncate 200}" # Good context for recent step
                    else
-                     "Step #{step_num}: #{result.to_s.truncate 50}" # Minimal context for older steps
+                     "Step #{step_num}: #{result.to_s.truncate 100}" # Reasonable context for older steps
                    end
     end
 
     # Further truncate the entire result if it's still too long
     final_result = formatted.empty? ? 'No previous step results available.' : formatted.join("\n")
-    final_result.truncate 1000 # Absolute maximum to prevent context overflow
+    final_result.truncate 1500 # Increased maximum for better context
+  end
+
+
+  # Format tool calls from previous step for context inclusion
+  def format_tool_calls_context(tool_calls)
+    return 'No previous step tool calls available.' if tool_calls.nil? || tool_calls.empty?
+
+    # Use Mnemosyne's format_history_tool_calls for consistent formatting
+    # This ensures tool calls are formatted with proper truncation and priority handling
+    formatted = @mnemosyne.format_history_tool_calls tool_calls, 0
+
+    # Log context formatting for verification
+    debug "Formatted #{tool_calls.size} tool calls for context inclusion"
+    formatted
   end
 
 
   # Store step result for future context
   def store_step_result(task_id, step_index, result)
     current_results = load_step_results task_id
-    current_results[step_index.to_s] = result
+
+    # Normalize result type for consistent storage and display
+    normalized_result = if result.is_a? String
+                          result
+                        elsif result.respond_to? :to_s
+                          result.to_s
+                        else
+                          result.inspect
+                        end
+
+    # Convert markdown to HTML for frontend display using Scriptorium
+    html_result = if normalized_result.is_a? String
+                    Scriptorium.html_with_syntax_highlight normalized_result
+                  else
+                    normalized_result
+                  end
+
+    current_results[step_index.to_s] = html_result
 
     @mnemosyne.manage_tasks action:       :update,
                             id:           task_id,
                             step_results: current_results.to_json
+
+    # Send step result to frontend for real-time display
+    HorologiumAeternum.send('step_result', 'step', {
+                              task_id: task_id,
+                              step:    step_index,
+                              result:  html_result,
+                              ok:      true
+                            })
+  end
+
+
+  # Get individual step result for a task
+  def get_step_result(task_id, step_index)
+    step_results = load_step_results task_id
+    result = step_results[step_index.to_s]
+
+    if result
+      {
+        ok:      true,
+        step:    step_index,
+        result:  result,
+        task_id: task_id
+      }
+    else
+      {
+        ok:      false,
+        error:   "Step #{step_index} not found for task #{task_id}",
+        step:    step_index,
+        task_id: task_id
+      }
+    end
   end
 
 
@@ -937,6 +1002,10 @@ class MagnumOpusEngine
     previous_results = load_step_results task_id
     previous_step_context = format_previous_results previous_results, step_index
 
+    # Load previous step tool calls for enhanced context
+    previous_step_tool_calls = load_previous_step_tool_calls task_id, step_index
+    previous_tool_calls_context = format_tool_calls_context previous_step_tool_calls
+
     # Enhanced context with comprehensive task information
     step_guidance = if task[:steps] && task[:steps][step_index - 1]
                       step_data = task[:steps][step_index - 1]
@@ -979,7 +1048,7 @@ class MagnumOpusEngine
     debug "TASK_SYSTEM_PROMPT template: #{TASK_SYSTEM_PROMPT}"
     debug "step_guidance to format: #{step_guidance}"
     # Use string interpolation
-    system_prompt = TASK_SYSTEM_PROMPT.gsub('%<step_guidance>', step_guidance)
+    system_prompt = TASK_SYSTEM_PROMPT.gsub '%<step_guidance>', step_guidance
     debug "Formatted system_prompt: #{system_prompt}"
 
     # Enhanced prompt with complete task context including previous results
@@ -997,21 +1066,21 @@ class MagnumOpusEngine
       <<~STEP_GUIDANCE,
         # CURRENT STEP GUIDANCE
         #{step_guidance}
-        
+
         # STEP TEMPERATURE SETTING
         Current temperature: #{STEP_TEMPERATURES[step_index] || 1.0} (#{4 >= step_index ? 'Exploration - Higher creativity' : 'Implementation - Precise execution'})
-        
+
         # WORKFLOW CONTEXT
         Workflow Type: #{workflow_type.upcase}
         Current Step: #{step_index}/#{max_steps} (#{remaining_steps} steps #{remaining_steps.positive? ? 'remaining' : 'completed'})
         Phase: #{4 >= step_index ? 'EXPLORATION (Reasoning Only)' : 'IMPLEMENTATION (Full Tool Access)'}
       STEP_GUIDANCE
-      
+
       # EXECUTION INSTRUCTIONS (System message)
-      <<~EXECUTION_INSTRUCTIONS,
+      <<~EXECUTION_INSTRUCTIONS
         # EXECUTION INSTRUCTIONS
         #{step_clarification}
-        
+
         #{case workflow_type
           when 'simple'
             if 1 >= step_index
@@ -1091,59 +1160,64 @@ class MagnumOpusEngine
           end}
       EXECUTION_INSTRUCTIONS
     ].join "\n\n=======\n\n"
-    
+
 
     messages = [
       # PREVIOUS STEP RESULTS (Assistant message)
       {
-        role: 'assistant',
+        role:    'assistant',
         content: previous_step_context.empty? ? 'No previous step results available.' : previous_step_context
       },
-      { role: 'user',
+      # PREVIOUS STEP TOOL CALLS (Assistant message)
+      {
+        role:    'assistant',
+        content: previous_tool_calls_context
+      },
+      { role:    'user',
         content:
-        # TASK EXECUTION CONTEXT (User message)
-        <<~EXECUTION_CONTEXT,
-          # TASK EXECUTION CONTEXT
-          TASK TITLE: #{task[:title] || '--'}
-          TASK DESCRIPTION: #{task[:description] || '--'}
-          TASK PLAN: #{task[:plan] || '--'}
-        
-          Execute Step #{step_index}: #{STEP_PURPOSES[step_index - 1]}
-        
-          # STEP COMPLETION TOOLS:
-          - Call task_complete_step(result) when finished with this step
-          - If you need to restart or refine, call task_reject_step(reason, restart_from_step)
-          - These tools terminate reasoning and reasoning will proceed with the given result/reason 
-            from the next step, therefore it is crucial to put all gathered, necessary and relevant
-            information in the result/reason.
-          - They are the only way to progress through the workflow
-        EXECUTION_CONTEXT
+                 # TASK EXECUTION CONTEXT (User message)
+                 <<~EXECUTION_CONTEXT
+                   # TASK EXECUTION CONTEXT
+                   TASK TITLE: #{task[:title] || '--'}
+                   TASK DESCRIPTION: #{task[:description] || '--'}
+                   TASK PLAN: #{task[:plan] || '--'}
+
+                   Execute Step #{step_index}: #{STEP_PURPOSES[step_index - 1]}
+
+                   # STEP COMPLETION TOOLS:
+                   - Call task_complete_step(result) when finished with this step
+                   - If you need to restart or refine, call task_reject_step(reason, restart_from_step)
+                   - These tools terminate reasoning and reasoning will proceed with the given result/reason
+                     from the next step, therefore it is crucial to put all gathered, necessary and relevant
+                     information in the result/reason.
+                   - They are the only way to progress through the workflow
+                 EXECUTION_CONTEXT
       }
     ]
-    
+
 
     begin
       # Set temperature based on step phase
       step_temperature = STEP_TEMPERATURES[step_index] || 1.0
-      # TODO we need an aegis context per task, to not interfere with global context
-      @mnemosyne.set_aegis_temperature(step_temperature)
-      
+      # TODO: we need an aegis context per task, to not interfere with global context
+      @mnemosyne.set_aegis_temperature step_temperature
+
       # Comprehensive context for hermetic execution
       context = {
-        task_id:          task_id,
-        task_title:       task[:title],
-        task_description: task[:description],
-        task_plan:        task[:plan],
-        step_index:       step_index,
-        total_steps:      WORKFLOW_STEPS,
-        step_purpose:     STEP_PURPOSES[step_index - 1],
-        extended_purpose: step_guidance,
-        progress:         "#{step_index}/#{WORKFLOW_STEPS}",
-        temperature:      step_temperature,
+        task_id:                      task_id,
+        task_title:                   task[:title],
+        task_description:             task[:description],
+        task_plan:                    task[:plan],
+        step_index:                   step_index,
+        total_steps:                  WORKFLOW_STEPS,
+        step_purpose:                 STEP_PURPOSES[step_index - 1],
+        extended_purpose:             step_guidance,
+        progress:                     "#{step_index}/#{WORKFLOW_STEPS}",
+        temperature:                  step_temperature,
         prevent_termination_reminder: [
-          "Remember to use task_complete_step() or task_reject_step() when you finish a step to properly terminate the divination.",
-          "IMPORTANT: You must call task_complete_step() or task_reject_step() to complete this step and proceed to the next phase.",
-          "URGENT: Step completion required! Use task_complete_step() for success or task_reject_step() for failure to move forward."
+          'Remember to use task_complete_step() or task_reject_step() when you finish a step to properly terminate the divination.',
+          'IMPORTANT: You must call task_complete_step() or task_reject_step() to complete this step and proceed to the next phase.',
+          'URGENT: Step completion required! Use task_complete_step() for success or task_reject_step() for failure to move forward.'
         ]
       }
       # base tools for this task
@@ -1188,23 +1262,31 @@ class MagnumOpusEngine
         messages.each_with_index do |msg, i|
           debug "Message #{i} (#{msg[:role]}): #{msg[:content].to_s.length} characters"
         end
-        
-        response = @aetherflux.channel_oracle_divination(
+
+        # Call oracle divination and capture the full response including tool calls
+        response, arts, tool_results = HermeticExecutionDomain.execute timeout: 1111 do
+          @aetherflux.channel_oracle_divination(
             { system_prompt:, messages: },
             tools:,
             context: context,
             timeout: 1111 # Extended timeout for implementation phases
           )
+        end
       rescue StandardError => e
         puts "DEBUG: Error calling Aetherflux.channel_oracle_divination: #{e.message}"
         puts "DEBUG: Backtrace: #{e.backtrace.first(5).join "\n"}"
         raise e
       end
 
+      # Extract response and tool calls from oracle response
+      # The oracle returns [result, arts, tool_results]
+
+
       # Debug log to see actual response format
-      debug "TASK CONJURATION RESPONSE: #{response.inspect.truncate 200}"
+      debug "TASK CONJURATION RESPONSE: #{response.inspect.truncate 2000}"
       debug "Response class: #{response.class}"
       debug "Response keys: #{response.keys if response.respond_to? :keys}"
+      debug "Tool results: #{tool_results.inspect.truncate 200}"
 
       # Enhanced error detection for better debugging
       if response.respond_to?(:[]) && :network_error == response[:status]
@@ -1214,6 +1296,9 @@ class MagnumOpusEngine
         debug 'CONTEXT_LENGTH_ERROR detected - need to reduce context size'
         debug "Response message: #{response[:response]}"
       end
+
+      # Store tool calls for this step if available
+      store_step_tool_calls(task_id, step_index, tool_results || [])
 
       # Handle different response formats with better error handling
       status = if response.respond_to?(:[]) && response.key?(:__divine_interrupt)
@@ -1254,7 +1339,8 @@ class MagnumOpusEngine
         # store_step_result task_id, step_index, "REJECTED: #{reason}"
         # Return clean divine interruption signal - engine handles progression
         return { __divine_interrupt: :step_rejected,
-                 restart_from_step:  restart_step, reason: }
+                 restart_from_step:  restart_step,
+                 reason: }
 
       when :success, 'success', :step_completed, 'step_completed'
         # Extract reasoning safely with fallbacks - handle both symbol and string keys
@@ -1289,7 +1375,7 @@ class MagnumOpusEngine
         debug "Oracle response answer: #{answer.inspect}"
         # log_message task_id, "Step #{step_index} completed: #{reasoning}#{answer}"
 
-        # TODO add a counter for max retries if a step is not succeeding. send each a time a different message to the ai.
+        # TODO: add a counter for max retries if a step is not succeeding. send each a time a different message to the ai.
         # Store step result for future context
         # store_step_result task_id, step_index, answer
 
@@ -1354,7 +1440,7 @@ class MagnumOpusEngine
       log_message task_id, "Step #{step_index} timed out: #{e.message}"
       # Enhanced timeout logging for debugging
       debug "Timeout error details: #{e.class.name} - #{e.message}"
-      debug 'Timeout backtrace: #{e.backtrace.first(3).join "\n"}'
+      debug %(Timeout backtrace: #{e.backtrace.first(3).join "\n"})
       # Don't fail entire task - allow step rejection/retry
       store_step_result task_id, step_index, "TIMEOUT: #{e.message}"
       raise TaskStateError, "Step #{step_index} timed out: #{e.message}"
@@ -1397,6 +1483,157 @@ class MagnumOpusEngine
   end
 
 
+  # Store tool calls for a specific step in the task's tool_calls_json field
+  def store_step_tool_calls(task_id, step_index, tool_calls)
+    return if tool_calls.nil? || tool_calls.empty?
+
+    # Get current task to access existing tool_calls_json
+    task = @mnemosyne.get_task task_id
+    return unless task
+
+    # Parse existing tool_calls_json or initialize empty hash
+    # Note: tool_calls_json defaults to '[]' but we want to store as hash
+    current_tool_calls = if task[:tool_calls_json] && !task[:tool_calls_json].empty?
+                           parsed = @mnemosyne.safe_parse_json(task[:tool_calls_json], {})
+                           # Handle both array (legacy) and hash (new) formats
+                           parsed = parsed.is_a?(Hash) ? parsed.deep_symbolize_keys : {}
+                         else
+                           {}
+                         end
+
+    # Convert step index to alchemical phase name
+    step_name = case step_index
+                when 1 then 'nigredo'
+                when 2 then 'albedo'
+                when 3 then 'citrinitas'
+                when 4 then 'rubedo'
+                when 5 then 'solve'
+                when 6 then 'coagula'
+                when 7 then 'test'
+                when 8 then 'purificatio'
+                when 9 then 'validatio'
+                when 10 then 'documentatio'
+                else "step_#{step_index}"
+                end
+
+    # Apply priority-based truncation to tool calls before storage using Mnemosyne helper
+    truncated_tool_calls = @mnemosyne.truncate_tool_calls_by_priority tool_calls
+
+    # Store tool calls for this step (replace existing if step is reiterated)
+    current_tool_calls[step_name.to_sym] = truncated_tool_calls
+
+    # Update task with new tool_calls_json
+    @mnemosyne.manage_tasks \
+      action: :update,
+      id: task_id,
+      tool_calls_json: current_tool_calls.to_json
+
+    # Log successful storage for verification
+    log_message task_id,
+                "Stored #{truncated_tool_calls.size} tool calls for step #{step_index} (#{step_name})"
+    debug "Stored #{truncated_tool_calls.size} tool calls for step #{step_index} (#{step_name})"
+  end
+
+
+  # Load tool calls for a specific step
+  def load_step_tool_calls(task_id, step_index)
+    task = @mnemosyne.get_task task_id
+    return [] unless task && task[:tool_calls_json]
+
+    parsed = @mnemosyne.safe_parse_json(task[:tool_calls_json], {})
+    tool_calls_hash = parsed.is_a?(Hash) ? parsed.deep_symbolize_keys : {}
+
+    # Convert step index to alchemical phase name
+    step_name = case step_index
+                when 1 then 'nigredo'
+                when 2 then 'albedo'
+                when 3 then 'citrinitas'
+                when 4 then 'rubedo'
+                when 5 then 'solve'
+                when 6 then 'coagula'
+                when 7 then 'test'
+                when 8 then 'purificatio'
+                when 9 then 'validatio'
+                when 10 then 'documentatio'
+                else "step_#{step_index}"
+                end
+
+    tool_calls = tool_calls_hash[step_name.to_sym] || []
+
+    # Log retrieval for verification
+    debug "Loaded #{tool_calls.size} tool calls for step #{step_index} (#{step_name})"
+    tool_calls
+  end
+
+
+  # Load tool calls from previous step for context building
+  def load_previous_step_tool_calls(task_id, current_step_index)
+    return [] if 1 >= current_step_index
+
+    previous_step_index = current_step_index - 1
+    tool_calls = load_step_tool_calls task_id, previous_step_index
+
+    # Log context building for verification
+    debug "Loaded #{tool_calls.size} tool calls from previous step #{previous_step_index} for context"
+    tool_calls
+  end
+
+
+  # Helper method for safe JSON parsing
+  def safe_parse_json(json_string, default = {})
+    return default if json_string.nil? || json_string.empty?
+
+    begin
+      JSON.parse json_string
+    rescue JSON::ParserError
+      default
+    end
+  end
+
+
+  # Verify tool call storage system functionality
+  def verify_tool_call_storage(task_id)
+    task = @mnemosyne.get_task task_id
+    return { ok: false, error: "Task not found: #{task_id}" } unless task
+
+    tool_calls_json = task[:tool_calls_json]
+    unless tool_calls_json && !tool_calls_json.empty?
+      return { ok:    false,
+               error: "No tool_calls_json found for task: #{task_id}" }
+    end
+
+    begin
+      parsed = JSON.parse tool_calls_json
+
+      # Verify it's a hash with alchemical phase keys
+      unless parsed.is_a? Hash
+        return { ok: false, error: "tool_calls_json is not a hash: #{parsed.class}" }
+      end
+
+      # Verify expected alchemical phase keys
+      alchemical_phases = %w[nigredo albedo citrinitas rubedo solve coagula test purificatio
+                             validatio documentatio]
+      found_phases = parsed.keys.map(&:to_s)
+      valid_phases = found_phases & alchemical_phases
+
+      # Count total tool calls across all phases
+      total_tool_calls = parsed.values.flatten.size
+
+      {
+        ok:                  true,
+        task_id:             task_id,
+        storage_format:      'hash',
+        phases_found:        found_phases,
+        valid_phases:        valid_phases,
+        total_tool_calls:    total_tool_calls,
+        tool_calls_by_phase: parsed.transform_values { |v| v.is_a?(Array) ? v.size : 0 }
+      }
+    rescue JSON::ParserError => e
+      { ok: false, error: "JSON parsing error: #{e.message}" }
+    end
+  end
+
+
   def update_state(task_id, state)
     raise ArgumentError, "Invalid task state: #{state}" unless STATES.include? state
 
@@ -1408,8 +1645,11 @@ class MagnumOpusEngine
   def broadcast_update(task_id, show_progress: false)
     task = @mnemosyne.get_task task_id
     return unless task
-    
-    HorologiumAeternum.task_updated(**task, show_progress:)
+
+    # Load step results for the task
+    step_results = load_step_results task_id
+
+    HorologiumAeternum.task_updated(**task, step_results: step_results, show_progress:)
   end
 
 
@@ -1462,7 +1702,7 @@ class MagnumOpusEngine
     next_step = [current_step + 1, WORKFLOW_STEPS].min
     update_progress task_id, next_step
 
-    { ok: true, task_id:, completed_step: current_step, result:  }
+    { ok: true, task_id:, completed_step: current_step, result: }
   end
 
 
@@ -1493,13 +1733,13 @@ class MagnumOpusEngine
           # Progress to next step (engine handles boundary checking)
           next_step = [current_step + 2, max_steps + 1].min # current_step is 0-indexed, so +2 for next step
           update_progress task_id, next_step - 1 # Convert to 0-indexed for internal tracking
-          
+
           # Send special status message for step completion
-          task = @mnemosyne.get_task(task_id)
+          task = @mnemosyne.get_task task_id
           HorologiumAeternum.task_step_completed(**task, result: step_result[:result]) if task
 
           # Terminate execution cleanly - divine interruptions should not recurse
-          debug "Step completed via divine interruption" #", terminating execution for task #{task_id}"
+          debug 'Step completed via divine interruption' # ", terminating execution for task #{task_id}"
           # return
         when :step_rejected
           log_message task_id,
@@ -1512,20 +1752,20 @@ class MagnumOpusEngine
           # Boundary check: ensure restart step is within valid range
           restart_step = [[restart_step, 1].max, max_steps].min
           update_progress task_id, restart_step - 1 # Convert to 0-indexed for internal tracking
-          
+
           # Send special status message for step rejection
-          task = @mnemosyne.get_task(task_id)
-          
+          task = @mnemosyne.get_task task_id
+
           # Terminate execution cleanly - divine interruptions should not recurse
-          debug "Step rejected via divine interruption" #", terminating execution for task #{task_id}"
+          debug 'Step rejected via divine interruption' # ", terminating execution for task #{task_id}"
           # return
         end
 
         # proceed execution
         next_step = current_step task_id
-        execute_task_internal(task_id, next_step, workflow_type, max_steps)
-        
-      elsif step_result.is_a?(Hash) && :step_completed == step_result[:status] 
+        execute_task_internal task_id, next_step, workflow_type, max_steps
+
+      elsif step_result.is_a?(Hash) && :step_completed == step_result[:status]
         # Step completed successfully without explicit divine interruption
         # TODO this shouldnt be possible!!!
         log_message task_id, "Step #{current_step + 1} completed successfully"
@@ -1535,23 +1775,23 @@ class MagnumOpusEngine
         # Progress to next step (engine handles boundary checking)
         next_step = [current_step + 2, max_steps].min # current_step is 0-indexed, so +2 for next step
         update_progress task_id, next_step - 1 # Convert to 0-indexed for internal tracking
-        
+
         # Send special status message for step completion
-        task = @mnemosyne.get_task(task_id)
-        HorologiumAeternum.task_step_completed(**task) if task 
-        
+        task = @mnemosyne.get_task task_id
+        HorologiumAeternum.task_step_completed(**task) if task
+
         # Step completed successfully - continue to next step with recursion
         debug "Step completed successfully, continuing to next step for task #{task_id}"
-        
+
         # Recursively execute next step with proper error handling
         begin
-          execute_task_internal(task_id, next_step, workflow_type, max_steps)
+          execute_task_internal task_id, next_step, workflow_type, max_steps
         rescue StandardError => e
           log_message task_id, "Recursive step execution error: #{e.message}"
           store_step_result task_id, next_step + 1, "RECURSION_ERROR: #{e.message}"
           # Don't re-raise - let the current step completion stand
         end
-        return
+        nil
       else
         # If we reach here, the step executed but didn't signal completion/rejection
         # This means NO task_complete_step was called - STOP EXECUTION
@@ -1559,26 +1799,26 @@ class MagnumOpusEngine
                     "Step #{current_step + 1} executed but no completion signal received - stopping execution"
         store_step_result task_id, current_step + 1,
                           'NO_COMPLETION_SIGNAL: Step executed but no task_complete_step called'
-        return # STOP EXECUTION - NO COMPLETION SIGNAL
+        nil # STOP EXECUTION - NO COMPLETION SIGNAL
       end
     rescue MagnumOpusEngine::TaskStateError => e
       # Task state errors indicate step rejection/retry needed
       log_message task_id, "Step #{current_step + 1} state error: #{e.message}"
       store_step_result task_id, current_step + 1, "STATE_ERROR: #{e.message}"
       # Don't progress - allow step rejection/retry via event-driven flow
-      return # STOP EXECUTION ON ERROR
+      nil # STOP EXECUTION ON ERROR
     rescue StandardError => e
       # All other errors indicate step rejection/retry needed
       log_message task_id, "Step #{current_step + 1} error: #{e.message}"
       store_step_result task_id, current_step + 1, "ERROR: #{e.message}"
       # Don't progress - allow step rejection/retry via event-driven flow
-      return # STOP EXECUTION ON ERROR
+      nil # STOP EXECUTION ON ERROR
     rescue Timeout::Error => e
       # Timeout errors indicate step rejection/retry needed
       log_message task_id, "Step #{current_step + 1} timeout: #{e.message}"
       store_step_result task_id, current_step + 1, "TIMEOUT: #{e.message}"
       # Don't progress - allow step rejection/retry via event-driven flow
-      return # STOP EXECUTION ON ERROR
+      nil # STOP EXECUTION ON ERROR
     end
 
     # CRITICAL: This point should NEVER be reached
@@ -1611,5 +1851,4 @@ class MagnumOpusEngine
                               'current_step' => step })
     broadcast_update task_id, show_progress: true
   end
-
 end

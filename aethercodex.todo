@@ -19,7 +19,9 @@
 ◯ Priority-Based Truncation (apply logic in fetch_history)
 ◯ Active Memory Window (step-based memory management)
 ◯ Enhanced Context Generation (mode-aware context building)
-◯ Magnum Opus Integration (step isolation features)
+◯ Magnum Opus Integration 
+    ◯ step isolation features)
+    ◯ improve note handling in task context and what happens with notes after task execution... 
   
 ### 🛠️ TOOLING & COMMANDS
 ✔︎ Allow Safe Commands @done(27-07-2025 19:12)

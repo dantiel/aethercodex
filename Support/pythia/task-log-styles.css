@@ -5,8 +5,130 @@
     background: color-mix(in srgb, var(--argonaut-deep) 90%, transparent);
     -webkit-backdrop-filter: blur(12px);
     box-shadow: rgba(0, 0, 0, 0.3) 0px 8px 32px;
-    overflow: auto;
 }
+
+.task-progress .content {
+  overflow: auto;
+  max-height: 66vh;
+}
+
+/*
+.step-results-panel {
+    border-top: 2px solid var(--argonaut-hermetic);
+    background: color-mix(in srgb, var(--argonaut-shadow) 10%, transparent);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.step-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    background: color-mix(in srgb, var(--argonaut-shadow) 20%, transparent);
+    border-bottom: 1px solid var(--argonaut-mystic);
+    cursor: pointer;
+}
+
+.step-results-header h4 {
+    margin: 0px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--argonaut-emerald);
+    text-shadow: rgba(0, 0, 0, 0.3) 0px 1px 2px;
+}
+
+.step-results-header button {
+    background: color-mix(in srgb, var(--argonaut-emerald) 30%, transparent);
+    border: 1px solid var(--argonaut-emerald);
+    border-radius: 5px;
+    padding: 0.3rem 0.6rem;
+    color: var(--ethereal-white);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: 0.2s;
+    box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 6px;
+}
+
+.step-results-header button:hover {
+    background: color-mix(in srgb, var(--argonaut-emerald) 50%, transparent);
+    transform: scale(1.1);
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 4px 10px;
+}
+
+.step-results-container {
+    padding: 0.5rem;
+}
+
+.step-results-container.collapsed {
+    display: none;
+}
+
+.step-result-item {
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--argonaut-mystic);
+    border-radius: 6px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--argonaut-deep) 80%, transparent);
+}
+
+.step-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: color-mix(in srgb, var(--argonaut-shadow) 30%, transparent);
+    border-bottom: 1px solid var(--argonaut-mystic);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.step-result-header:hover {
+    background: color-mix(in srgb, var(--argonaut-shadow) 50%, transparent);
+}
+
+.step-result-title {
+    font-weight: 600;
+    color: var(--argonaut-azure);
+    font-size: 0.9rem;
+}
+
+.step-result-indicator {
+    color: var(--argonaut-mystic);
+    font-size: 0.8rem;
+}
+
+.step-result-content {
+    padding: 0.75rem;
+    background: color-mix(in srgb, var(--argonaut-void) 90%, transparent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+    border-left: 3px solid var(--argonaut-azure);
+}
+
+.step-result-content.collapsed {
+    display: none;
+}
+
+.step-result-preview {
+    margin: 0.5rem 1rem;
+    padding: 0.5rem;
+    background: color-mix(in srgb, var(--argonaut-shadow) 20%, transparent);
+    border-radius: 4px;
+    border-left: 3px solid var(--argonaut-emerald);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.step-result-preview:hover {
+    background: color-mix(in srgb, var(--argonaut-shadow) 40%, transparent);
+}
+*/
+
 
 @keyframes highlight {
     0% {
@@ -23,7 +145,7 @@
 }
 
 .task-progress.collapsed {
-    max-height: 40px;
+    max-height: 5em;
     overflow: hidden;
 }
 
@@ -96,6 +218,8 @@
     white-space: nowrap ;
     text-overflow: ellipsis ;
     overflow: hidden ;
+    
+    box-shadow: 0 1em 2.5em 0em color-mix(in srgb, var(--argonaut-sage) 40%, transparent);
 }
 
 .task-header strong {
@@ -371,4 +495,283 @@
 
 .step-result-preview {
     margin: 0.5rem 1rem;
+}
+
+/* Enhanced step results styles for clickable elements */
+.step-result-preview {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: color-mix(in srgb, var(--argonaut-shadow) 20%, transparent);
+    border-radius: 6px;
+    border-left: 3px solid var(--argonaut-emerald);
+    margin: 0.5rem 1rem;
+    gap: 0.75rem;
+}
+
+.step-result-preview strong {
+    color: var(--argonaut-emerald);
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.step-result-preview .result-summary {
+    flex: 1;
+    color: var(--ethereal-white);
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.step-results-toggle {
+    background: color-mix(in srgb, var(--argonaut-emerald) 30%, transparent);
+    border: 1px solid var(--argonaut-emerald);
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    color: var(--ethereal-white);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: 0.2s;
+    min-width: 24px;
+    text-align: center;
+}
+
+.step-results-toggle:hover {
+    background: color-mix(in srgb, var(--argonaut-emerald) 50%, transparent);
+    transform: scale(1.1);
+}
+
+.step-results-details {
+    background: color-mix(in srgb, var(--argonaut-shadow) 15%, transparent);
+    border-top: 1px solid var(--argonaut-mystic);
+    padding: 1rem;
+}
+
+.step-results-details h5 {
+    margin: 0 0 0.75rem 0;
+    color: var(--argonaut-emerald);
+    font-size: 1rem;
+}
+
+.step-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.step-result-item {
+    background: color-mix(in srgb, var(--argonaut-deep) 80%, transparent);
+    border: 1px solid var(--argonaut-mystic);
+    border-radius: 6px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.step-result-item:hover {
+    background: color-mix(in srgb, var(--argonaut-deep) 90%, transparent);
+    border-color: var(--argonaut-emerald);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.step-result-item.current-step {
+    border-color: var(--argonaut-emerald);
+    background: color-mix(in srgb, var(--argonaut-emerald) 15%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--argonaut-emerald) 30%, transparent);
+}
+
+.step-result-item .step-number {
+    background: color-mix(in srgb, var(--argonaut-azure) 30%, transparent);
+    color: var(--ethereal-white);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.step-result-item.current-step .step-number {
+    background: color-mix(in srgb, var(--argonaut-emerald) 60%, transparent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--argonaut-emerald) 50%, transparent);
+}
+
+.step-result-item .step-content {
+    flex: 1;
+}
+
+.step-result-item strong {
+    color: var(--argonaut-emerald);
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.step-result-item .step-summary {
+    color: var(--ethereal-white);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    opacity: 0.9;
+}
+
+.step-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.step-number {
+    color: var(--argonaut-azure);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.step-name {
+    color: var(--argonaut-emerald);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.step-result-preview {
+    color: var(--ethereal-white);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    opacity: 0.9;
+}
+
+/* Step results grid for evaluation view */
+.step-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.step-result-card {
+    background: color-mix(in srgb, var(--argonaut-deep) 80%, transparent);
+    border: 1px solid var(--argonaut-mystic);
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.step-result-card:hover {
+    background: color-mix(in srgb, var(--argonaut-deep) 90%, transparent);
+    border-color: var(--argonaut-emerald);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.step-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--argonaut-mystic);
+}
+
+.step-result-preview {
+    color: var(--ethereal-white);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.no-results {
+    text-align: center;
+    color: var(--argonaut-mystic);
+    font-style: italic;
+    padding: 1rem;
+}
+
+.no-step-results {
+    color: var(--argonaut-mystic);
+    font-style: italic;
+}
+
+/* Step Result Modal Styles */
+.step-result-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.step-result-modal .modal-content {
+    background: color-mix(in srgb, var(--argonaut-deep) 95%, transparent);
+    border: 2px solid var(--argonaut-emerald);
+    border-radius: 12px;
+    width: 80%;
+    max-width: 800px;
+    max-height: 80%;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.step-result-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--argonaut-void) 0%, var(--argonaut-shadow) 100%);
+    border-bottom: 2px solid var(--argonaut-mystic);
+}
+
+.step-result-modal .modal-header h3 {
+    margin: 0;
+    color: var(--argonaut-emerald);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.step-result-modal .close-btn {
+    background: color-mix(in srgb, var(--argonaut-crimson) 30%, transparent);
+    border: 1px solid var(--argonaut-crimson);
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    color: var(--ethereal-white);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: 0.2s;
+}
+
+.step-result-modal .close-btn:hover {
+    background: color-mix(in srgb, var(--argonaut-crimson) 50%, transparent);
+    transform: scale(1.1);
+}
+
+.step-result-modal .modal-body {
+    padding: 1.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.step-result-modal .modal-body pre {
+    margin: 0;
+    color: var(--ethereal-white);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    background: color-mix(in srgb, var(--argonaut-shadow) 30%, transparent);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 3px solid var(--argonaut-azure);
 }

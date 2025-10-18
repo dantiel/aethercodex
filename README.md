@@ -259,6 +259,11 @@ Extract hermetic symbols and forecast transformations
 
 ## 📚 Documentation
 
+### **Magnum Opus Engine**
+- [Comprehensive Guide](./docs/magnum_opus_engine.md) - Complete alchemical task orchestration system
+- [API Reference](./docs/magnum_opus_api_reference.md) - Detailed technical documentation
+- [Practical Guide](./docs/magnum_opus_practical_guide.md) - Step-by-step examples and patterns
+
 ### **Hermetic Symbolic Analysis Engine**
 - [Comprehensive Guide](./docs/hermetic_symbolic_analysis.md) - Overview and architecture
 - [API Reference](./docs/hermetic_symbolic_analysis_api.md) - Detailed method documentation

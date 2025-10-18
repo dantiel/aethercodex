@@ -14,8 +14,8 @@ class OpusInstrumenta
   # Build a PrimaMateria instance with task-specific tools
   def self.build_task_tools(base_prima, task_id, task_engine)
     # Create a fresh instance with base tools
-    task_prima = base_prima.clone_tools.reject %i[aegis oracle_conjuration patch_file read_file
-                                                  create_task]
+    task_prima = base_prima.clone_tools.reject(*%i[aegis oracle_conjuration patch_file read_file
+                                                   create_task])
     # Merge in task-specific tools
     task_prima.merge_tools! build_task_prima(task_id, task_engine)
     task_prima
@@ -25,7 +25,9 @@ class OpusInstrumenta
   # Build a PrimaMateria with just the task-specific tools
   def self.build_task_prima(task_id, task_engine)
     task_prima = PrimaMateria.new
-
+    # end
+    #
+    # def self.none
     # Task creation within task context
     # task_prima.add_instrument :create_sub_task,
     #                           description: 'Create a sub-task with parent task context for complex workflows.',
@@ -78,13 +80,14 @@ class OpusInstrumenta
                               } do |path:, diff:|
       # Track file modifications in task context
       result = Instrumenta::PRIMA_MATERIA.patch_file path: path, diff: diff
-      
+
       if result.is_a?(Hash) && result[:ok]
         # Record file modification in task notes for context continuity
-        change_note = "File modified: #{path}\nDiff applied:\n#{diff.truncate(200)}"
-        Mnemosyne.create_note(content: change_note, links: [path], tags: ['task_modification', "task_#{task_id}"])
+        change_note = "File modified: #{path}\nDiff applied:\n#{diff.truncate 200}"
+        Mnemosyne.create_note content: change_note, links: [path],
+                              tags: ['task_modification', "task_#{task_id}"]
       end
-      
+
       result.merge task_id: task_id if result.is_a? Hash
     end
 
@@ -101,7 +104,7 @@ class OpusInstrumenta
       result.merge task_id: task_id if result.is_a? Hash
     end
 
-    # TODO this is wrong and violates our schema, instead there should be only TASK_STOP_EXECUTION 
+    # TODO: this is wrong and violates our schema, instead there should be only TASK_STOP_EXECUTION
     # # Task progress and state management
     # task_prima.add_instrument :task_update_progress,
     #                           description: 'Update task progress with optional message.',
@@ -118,15 +121,35 @@ class OpusInstrumenta
     # end
 
     #
-    # # Task-specific oracle conjuration
-    # task_prima.add_instrument :task_oracle_conjuration,
-    #                 description: 'Invoke oracle reasoning with task context.',
-    #                 params: {
-    #                   prompt: { type: 'string', required: true }
-    #                 } do |prompt:|
-    #   enhanced_prompt = "[Task #{task_id}] #{prompt}"
-    #   Instrumenta::PRIMA_MATERIA.oracle_conjuration prompt: enhanced_prompt
-    # end
+    # Task-specific oracle conjuration
+    task_prima.add_instrument :task_oracle_conjuration,
+                              description: 'Invoke oracle reasoning with comprehensive task ' \
+                                           'context.',
+                              history_priority: 10,
+                              params: {
+                                prompt:  { type: 'string', required: true },
+                                context: { type:        Object,
+                                           required:    false,
+                                           description: 'Optional context to pass through' }
+                              } do |prompt:, context: nil|
+      # Get current step for enhanced context
+      current_step = task_engine.send :current_step, task_id
+
+      # Enhanced prompt with comprehensive task context
+      enhanced_prompt = <<~ENHANCED_CONTEXT
+        [Task #{task_id} | Step #{current_step}]
+
+        # TASK CONTEXT:
+        - Title: #{task_engine.instance_variable_get(:@mnemosyne).get_task(task_id)[:title] || 'Untitled'}
+        - Current Step: #{current_step}
+
+        # ORACLE REASONING REQUEST:
+        #{prompt}
+      ENHANCED_CONTEXT
+
+      Instrumenta::PRIMA_MATERIA.oracle_conjuration prompt: enhanced_prompt, history: false,
+                                                    context:
+    end
 
 
     # Task step rejection with restart capability
@@ -139,8 +162,8 @@ class OpusInstrumenta
       # Return clean divine interruption signal - engine handles step progression
       {
         __divine_interrupt: :step_rejected,
-        reason: reason,
-        restart_from_step: restart_from_step
+        reason:             reason,
+        restart_from_step:  restart_from_step
       }
     end
 
@@ -154,30 +177,52 @@ class OpusInstrumenta
       # Return clean divine interruption signal - engine handles step progression
       {
         __divine_interrupt: :step_completed,
-        result: result
+        result:             result
       }
     end
 
-    # TODO DEFINE WHICH STEP GET RESULTS FROM
-    # Access previous step results
+    # Access previous step results with optional step parameter
     task_prima.add_instrument :task_get_previous_results,
-                              description: 'Retrieve results from previous steps for context.',
+                              description: 'Retrieve results from previous step for context. Use ' \
+                                           'optional step parameter to get results from specific ' \
+                                           'step by number or name.',
                               params: {
+                                step:  { type:     'string',
+                                         required: false,
+                                         default:  '' },
                                 limit: { type:     'integer',
                                          required: false,
                                          default:  3,
                                          minimum:  1,
                                          maximum:  10 }
-                              } do |limit: 3|
+                              } do |step: nil, limit: 3|
       task = task_engine.instance_variable_get(:@mnemosyne).get_task task_id
       return { ok: true, task_id: task_id, results: {} } unless task && task[:step_results]
 
       begin
         results = JSON.parse(task[:step_results] || '{}')
+
+        # Handle specific step request
+        if step&.present?
+          # Try to find step by number or name
+          step_key = results.keys.find do |key|
+            key.to_s == step.to_s || key.to_s == step.to_s.gsub('step_', '') ||
+              (step.to_s.match?(/^\d+$/) && key.to_s == step.to_s)
+          end
+
+          if step_key && results[step_key]
+            return { ok: true, task_id: task_id, results: { step_key => results[step_key] } }
+          end
+
+
+          return { ok: true, task_id: task_id, results: {}, error: "Step '#{step}' not found" }
+
+        end
+
         # Return most recent results up to limit, excluding current step
         current_step = task_engine.send :current_step, task_id
-        filtered_results = results.reject { |step, _| step.to_i >= current_step }
-        recent_results = filtered_results.sort_by { |step, _| step.to_i }.last(limit).to_h
+        filtered_results = results.reject { |step_key, _| step_key.to_i >= current_step }
+        recent_results = filtered_results.sort_by { |step_key, _| step_key.to_i }.last(limit).to_h
         { ok: true, task_id: task_id, results: recent_results }
       rescue JSON::ParserError
         { ok: true, task_id: task_id, results: {} }
@@ -189,14 +234,16 @@ class OpusInstrumenta
     task_prima.add_instrument :task_aegis,
                               description: "Maintain active context with task focus. #{aegis_description}",
                               params: {
-                                tags:        { type: 'array', required: false, items: { type: 'string' } },
-                                summary:     { type:        'string',
-                                               required:    false,
-                                               description: 'Dynamic summary update without altering tags. Required for every invocation.' },
+                                tags:    { type:     'array',
+                                           required: false,
+                                           items:    { type: 'string' } },
+                                summary: { type:        'string',
+                                           required:    false,
+                                           description: 'Dynamic summary update without altering tags. Required for every invocation.' }
                               } do |tags: nil, summary: ''|
       # Call the original aegis but preserve the temperature parameter
-      result = Instrumenta::PRIMA_MATERIA.aegis(tags: tags, summary: summary)
-      result.merge(task_id: task_id) if result.is_a?(Hash)
+      result = Instrumenta::PRIMA_MATERIA.aegis tags: tags, summary: summary
+      result.merge task_id: task_id if result.is_a? Hash
     end
 
     task_prima

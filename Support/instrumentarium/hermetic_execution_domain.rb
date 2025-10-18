@@ -26,6 +26,9 @@ class HermeticExecutionDomain
   # Error indicating context length exceeded
   class ContextLengthError < Error; end
 
+  # Error indicating context length exceeded
+  class ParseErrorError < Error; end
+
   class << self
     # Execute a block within the hermetic execution domain
     # Provides structured error handling, automatic classification, and execution isolation

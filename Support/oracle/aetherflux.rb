@@ -8,6 +8,8 @@ require_relative 'oracle'
 
 using MetaprogrammingUtils
 
+
+
 # Aetherflux channel for oracle communication with functional purity
 class Aetherflux
   class << self
@@ -31,7 +33,7 @@ class Aetherflux
 
         puts "CHECK FOR DIVINE INTERRUPT #{result.inspect.truncate 200}"
         # Check if we got a divine interruption signal instead of regular answer
-        if result.is_a?(Hash) && result.key?(:__divine_interrupt)
+        if result.first&.is_a?(Hash) && result.first&.key?(:__divine_interrupt)
           puts 'DIVINE INTERRUPT FOUND - returning directly'
           # Return the divine interruption signal directly
           return result
@@ -60,16 +62,8 @@ class Aetherflux
 
       # Record with execution metrics if requested
       if params[:record]
-        # Convert tool_results to embedded tool_calls format
-        embedded_tool_calls = tool_results.map do |tool_result|
-          {
-            request: { tool: tool_result[:name], args: tool_result[:args] },
-            result: tool_result[:result]
-          }
-        end
-        
         Mnemosyne.record(prompt: params[:prompt], execution_time:,
-                         tool_call_count:, answer:, tool_calls: embedded_tool_calls)
+                         tool_call_count:, answer:, tool_calls: tool_results)
       end
 
       {

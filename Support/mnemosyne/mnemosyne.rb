@@ -355,7 +355,7 @@ class Mnemosyne
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
         SQL
-        
+
         db.execute <<~SQL
           CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -391,8 +391,8 @@ class Mnemosyne
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
         SQL
-        
-        
+
+
         # Add new columns if they don't exist
         existing_columns = db.execute('PRAGMA table_info(entries)').map { |col| col['name'] }
 
@@ -426,19 +426,19 @@ class Mnemosyne
       end
 
       # Migrate to version 3 - add tool_calls_json to entries table
-      if 3 > db_version
-        # Add tool_calls_json column to entries table if it doesn't exist
-        existing_entries_columns = db.execute('PRAGMA table_info(entries)').map do |col|
-          col['name']
-        end
+      return unless 3 > db_version
 
-        unless existing_entries_columns.include? 'tool_calls_json'
-          db.execute 'ALTER TABLE entries ADD COLUMN tool_calls_json TEXT'
-        end
-
-        # Update to version 3
-        db.execute "INSERT OR REPLACE INTO meta (key, value) VALUES ('db_version', '3')"
+      # Add tool_calls_json column to entries table if it doesn't exist
+      existing_entries_columns = db.execute('PRAGMA table_info(entries)').map do |col|
+        col['name']
       end
+
+      unless existing_entries_columns.include? 'tool_calls_json'
+        db.execute 'ALTER TABLE entries ADD COLUMN tool_calls_json TEXT'
+      end
+
+      # Update to version 3
+      db.execute "INSERT OR REPLACE INTO meta (key, value) VALUES ('db_version', '3')"
     end
 
 
@@ -587,9 +587,9 @@ class Mnemosyne
 
       # Apply priority-based truncation to tool calls before storage
       truncated_tool_calls = truncate_tool_calls_by_priority tool_calls
-      
-      # TODO filter content
-      # Calculate tool call count 
+
+      # TODO: filter content
+      # Calculate tool call count
       actual_tool_call_count = truncated_tool_calls.is_a?(Array) ? truncated_tool_calls.size : 0
 
       # Store prompt, answer, and tool_calls in their respective fields
@@ -601,14 +601,17 @@ class Mnemosyne
       entry_id = db.last_insert_row_id
       entry_id
     end
-    
 
-    # Apply priority-based truncation to tool calls before storage
+
+    # TODO: apply this also to tool calls stored in tasks
+    # Apply priority-based truncation to tool calls before storage with security filtering
     def truncate_tool_calls_by_priority(tool_calls)
       return [] unless tool_calls.is_a? Array
 
+      puts "truncate_tool_calls_by_priority=#{tool_calls.inspect}"
+
       tool_calls.map do |tool_call|
-        tool_name = tool_call[:request]&.[](:tool) || tool_call['request']&.[]('tool')
+        tool_name = tool_call[:name]
         tool_priority = Instrumenta.tools[tool_name&.to_sym]&.history_priority || 1
 
         # Calculate base truncation limit based on tool priority
@@ -619,26 +622,12 @@ class Mnemosyne
                      else 3000 # Critical priority tools (10+)
                      end
 
-        # Apply truncation to request and result fields
+        # Apply truncation to request and result fields with security filtering
         truncated_tool_call = tool_call.dup
-
-        # Truncate request arguments
-        if truncated_tool_call[:request]
-          truncated_tool_call[:request] =
-            truncate_hash_by_priority(truncated_tool_call[:request], base_limit)
-        elsif truncated_tool_call['request']
-          truncated_tool_call['request'] =
-            truncate_hash_by_priority(truncated_tool_call['request'], base_limit)
-        end
-
-        # Truncate result content
-        if truncated_tool_call[:result]
-          truncated_tool_call[:result] =
-            truncate_hash_by_priority(truncated_tool_call[:result], base_limit)
-        elsif truncated_tool_call['result']
-          truncated_tool_call['result'] =
-            truncate_hash_by_priority(truncated_tool_call['result'], base_limit)
-        end
+        truncated_tool_call[:args] =
+          truncate_hash_by_priority truncated_tool_call[:args], base_limit
+        truncated_tool_call[:result] =
+          truncate_hash_by_priority truncated_tool_call[:result], base_limit
 
         truncated_tool_call
       end
@@ -777,6 +766,10 @@ class Mnemosyne
           db.execute 'UPDATE tasks SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
                      [params[:current_step], params[:id]]
         end
+        if params[:tool_calls_json]
+          db.execute 'UPDATE tasks SET tool_calls_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                     [params[:tool_calls_json], params[:id]]
+        end
         { ok: true }
       when :activate
         db.execute 'UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
@@ -809,7 +802,7 @@ class Mnemosyne
         included_rows = []
 
         rows.each do |row|
-          row_tokens = row.to_json.tok_len 
+          row_tokens = row.to_json.tok_len
 
           if row_tokens > max_tokens
             row[:message] = row[:message].to_s.gsub(/\n\s*```(\w*).*?\n\s*```\s*\n/m,
@@ -863,17 +856,23 @@ class Mnemosyne
     end
 
 
-    def format_history_tool_calls(tool_calls, index)
+    def format_history_tool_calls(tool_calls, index = 0)
       # Enhanced base_priority calculation with exponential decay
       base_priority = Math.exp(-index.to_f / 1.0) * 3
-      
+
       # Calculate tool call density factor
       total_tool_calls = tool_calls.size
       density_factor = [1.0, total_tool_calls.to_f / 5.0].max
 
-      tool_calls_str = tool_calls.map.with_index do |tcall, tool_index|
-        tool_name = tcall[:request][:tool]
-        next '' if tool_name.nil? && tcall[:content].nil?
+      isLastCommand = true
+      isFirstCommand = false
+
+      tool_calls_strs = tool_calls.map.with_index do |tcall, tool_index|
+        tool_name = tcall[:name] || ''
+        next nil if tool_name.empty? && tcall[:content].nil?
+
+        isFirst = tool_index.zero?
+        isLast = tool_calls.size - 1 == tool_index
 
         tool_priority = Instrumenta.tools[tool_name.to_sym]&.history_priority || 0
 
@@ -920,30 +919,54 @@ class Mnemosyne
           result_truncate = (result_truncate * 1.5).to_i
           content_truncate = (content_truncate * 1.5).to_i
         end
-        
-        args = if 20 < args_truncate
-                 " #{(tcall[:request][:args] || {}).to_s_no_quotes.truncate args_truncate, :middle}"
+
+        tool_name = "• #{tool_name}" if tool_name.present?
+        args = if 20 < args_truncate && tcall[:args]
+                 (tcall[:args] || {}).to_s_no_quotes.truncate(args_truncate, :middle).to_s
                else
                  ''
                end
-        result = if 30 < result_truncate
-                   " → #{tcall[:result].to_s_no_quotes.truncate result_truncate, :middle}\n"
-                 else
+        result = if 30 < result_truncate && tcall[:result]
+                   " → #{tcall[:result].to_s_no_quotes.truncate result_truncate, :middle}"
+                 elsif args.present?
                    ' # result omitted'
+                 else
+                   ''
                  end
+        isFirstCommand = true if isFirst && args.present?
+
         # Include content field if present in tool call
         content = if tcall[:content]
-                    "=== END TOOL HISTORY ===\n" \
-                    "#{tcall[:content].truncate content_truncate}\n" \
-                    "=== BEGIN TOOL HISTORY ===\n"
+                    isLastCommand = false if isLast
+                    (isFirst ? '' : "=== END TOOL HISTORY ===\n\n") +
+                      "#{tcall[:content].truncate content_truncate}\n\n" +
+                      (isLast ? '' : '=== BEGIN TOOL HISTORY ===')
                   else
                     ''
                   end
 
         "#{tool_name}#{args}#{result}#{content}"
-      end.join "\n"
-      
-      "=== BEGIN TOOL HISTORY ===\n#{tool_calls_str}\n=== END TOOL HISTORY ==="
+      end.compact
+
+      if tool_calls_strs.length.positive?
+        (isFirstCommand ? '=== BEGIN TOOL HISTORY ===' : '') +
+          tool_calls_strs.join("\n").to_s +
+          (isLastCommand ? '=== END TOOL HISTORY ===' : '')
+      else
+        ''
+      end
+    end
+
+
+    # Helper method for safe JSON parsing
+    def safe_parse_json(json_string, default = {})
+      return default if json_string.nil? || json_string.empty?
+
+      begin
+        JSON.parse json_string
+      rescue JSON::ParserError
+        default
+      end
     end
   end
 end

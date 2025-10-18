@@ -117,13 +117,14 @@ instrument :oracle_conjuration,
            timeout: 6600,
            returns: { reasoning: String,
                       content:   String,
-                      context:   Object } do |prompt:, context: nil|
+                      context:   Object } do |prompt:, context: nil, history: true|
   # Add reasoning flag to context for proper system prompt selection
   context_with_reasoning = context ? context.merge(reasoning: true) : { reasoning: true }
 
   params = {
     prompt:  prompt,
-    context: context_with_reasoning
+    context: context_with_reasoning,
+    history:
   }
   HorologiumAeternum.oracle_conjuration prompt
 
@@ -150,16 +151,17 @@ instrument :oracle_conjuration,
     unless reasoning.to_s.empty?
       HorologiumAeternum.oracle_conjuration_revelation 'Oracle Reasoning', reasoning
     end
+    
     unless answer.to_s.empty?
       HorologiumAeternum.oracle_conjuration_revelation 'Oracle Answer', answer
     end
   else
     puts "[CONJURATION][DEBUG]: Failed - status: #{result[:status]}, response: #{result[:response].inspect.truncate 200}"
     reasoning = nil
-    content = nil
+    answer = nil
   end
 
-  { reasoning:, content: }
+  { reasoning:, content: answer }
 rescue StandardError => e
   { error: "Reasoning failed: #{e.message}" }
 end
@@ -629,6 +631,17 @@ instrument :evaluate_task,
   evaluation = engine.evaluate_task task_id
 
   if :success == evaluation[:status]
+    # Send status message to Horologium Aeternum
+    HorologiumAeternum.task_evaluated(
+      task_id: task_id,
+      title: evaluation[:task][:title] || "Task #{task_id}",
+      status: evaluation[:task][:status].to_sym,
+      current_step: evaluation[:task][:current_step] || 0,
+      total_steps: evaluation[:task][:total_steps] || 10,
+      alchemical_stage: evaluation[:task][:alchemical_stage] || 'nigredo',
+      step_results_count: evaluation[:task][:step_results]&.size || 0
+    )
+    
     # Maintain backward compatibility with original format while adding enhanced data
     {
       status:                 evaluation[:task][:status].to_sym,
@@ -698,6 +711,7 @@ end
 # end
 
 
+# TODO interface for using ast-grep for only searching inside the codebase as well.
 instrument :symbolic_patch_file,
            description: <<~DESC,
              Apply semantic patches using AST-GREP for pattern-based transformations.

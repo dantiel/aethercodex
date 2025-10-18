@@ -25,7 +25,28 @@ class Pythia
     @horologium = null
     @activeTaskLogs = {}  # Track active task logs for persistence
     @attachments = []     # Array for multiple attachments
+    @magnumOpus = new MagnumOpus(this)
+    @createScrollToBottomButton()
+    @loadMermaid()
 
+  # Mermaid.js Loading
+  loadMermaid: =>
+    # Check if Mermaid is already loaded
+    if window.mermaid
+      console.log('Mermaid already loaded')
+      @initializeMermaid()
+      return
+    
+    # Load Mermaid from CDN
+    console.log('Loading Mermaid.js...')
+    script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js'
+    script.onload = =>
+      console.log('Mermaid.js loaded successfully')
+      @initializeMermaid()
+    script.onerror = =>
+      console.error('Failed to load Mermaid.js')
+    document.head.appendChild(script)
 
   # WebSocket Connection Management
   connectWebSocket: (uuid) =>
@@ -159,6 +180,9 @@ class Pythia
         m.scrollTop = 100 + m.scrollHeight if is_near_bottom
         
       do @saveMessages
+      
+      # Render any Mermaid diagrams in the new content
+      @renderMermaidDiagrams()
       
     if uuid
       @messageBuffer.push add_message
@@ -359,23 +383,35 @@ class Pythia
         @isThinking = true
         do @updateSendButton
         @log 'status', uuid, "#{data.message} #{timestamp_html}"
-        @renderTaskProgress data
+        @updateTaskProgress data
       when 'task_completed'
         @isThinking = false
         do @updateSendButton
         @log 'system', uuid, "#{data.message} #{timestamp_html}"
-        @renderTaskProgress data
+        @updateTaskProgress data
       when 'task_created'
         @log 'system', uuid, """
           <details>
             <summary>#{data.message} #{timestamp_html}</summary>
             <div class=\"task-description\">#{data.plan}</div>
           </details>"""
-        @renderTaskProgress data
+        @updateTaskProgress data
       when 'task_updated'
         if data.show_progress
           @log 'system', uuid, "#{data.message} #{timestamp_html}"
-        @renderTaskProgress data
+        
+        # Update task progress with step results if available
+        task_data = {}
+        task_data.id = data.id if data.id
+        task_data.task_id = data.id if data.id
+        task_data.current_step = data.current_step if data.current_step
+        task_data.title = data.title if data.title
+        task_data.plan = data.plan if data.plan
+        task_data.status = data.status if data.status
+        task_data.step_results = data.step_results if data.step_results
+        task_data.show_progress = data.show_progress if data.show_progress
+        
+        @updateTaskProgress task_data
       when 'task_step_completed'
         @log 'system', uuid, """
           <details>
@@ -406,7 +442,7 @@ class Pythia
         # If no log container exists in unified panel, ensure task progress is rendered first
         unless taskLogElement
           # Render the task progress panel which now includes logs container
-          @renderTaskProgress data
+          @updateTaskProgress data
           taskLogElement = document.getElementById "task-logs-#{task_id}"
         
         if taskLogElement
@@ -432,167 +468,40 @@ class Pythia
           @log 'ai', null, "#{@replaceFileTags entry.answer} #{timestamp_html}"
           @log 'status', null, "#{entry.completed} #{timestamp_html}"
         @log 'system', uuid, "#{data.message} #{timestamp_html}"
+      when 'step_result'
+        # Handle step result response for detailed step view
+        @displayStepResult data
+      when 'task_evaluated'
+        @log 'status', null, """
+          <details>
+            <summary>#{data.message}</summary>
+            <div class="task-evaluation-summary">
+              <p><strong>Task:</strong> #{data.title} (ID: #{data.task_id})</p>
+              <p><strong>Progress:</strong> Step #{data.current_step} of #{data.total_steps} (#{data.alchemical_stage})</p>
+              <p><strong>Status:</strong> #{data.status}</p>
+              <p><strong>Step Results:</strong> #{data.step_results_count} available</p>
+            </div>
+          </details>"""
           
-
 
   # Task Management
   toggleTaskProgress: (task_id) =>
-    taskProgress = document.getElementById 'task_progress'
-    
-    # Toggle between expanded, collapsed, and compact views
-    if taskProgress.classList.contains('collapsed')
-      # Currently collapsed -> switch to compact view
-      taskProgress.classList.remove('collapsed')
-      taskProgress.classList.add('compact-view')
-    else if taskProgress.classList.contains('compact-view')
-      # Currently compact -> expand fully
-      taskProgress.classList.remove('compact-view')
-    else
-      # Currently expanded -> collapse to minimal
-      taskProgress.classList.add('collapsed')
-    
-    button = taskProgress.querySelector('.task-header button')
-    if taskProgress.classList.contains('collapsed')
-      button.textContent = '▶'
-      button.title = 'Show compact view'
-    else if taskProgress.classList.contains('compact-view')
-      button.textContent = '▼'
-      button.title = 'Expand fully'
-    else
-      button.textContent = '▼'
-      button.title = 'Minimize task panel'
+    @magnumOpus.toggleTaskProgress(task_id)
 
 
-  renderTaskProgress: (task) =>
-    taskProgress = document.getElementById 'task_progress'
-    task_id = task.task_id or task.id
-    
-    unless taskProgress
-      taskProgress = document.createElement 'div'
-      taskProgress.id = "task_progress"
-      taskProgress.className = 'task-progress'
-      
-      inputBar = document.getElementById 'input-bar'
-      inputBar.insertAdjacentElement "beforebegin", taskProgress
-    
-    # Fix step counting: current_step is number of completed steps (0-10)
-    # display_step should be current step number (1-10), 0 for Initium
-    current_step = task.current_step || 0
-    display_step = if current_step == 0 then 0 else current_step  # 0 for Initium, 1-10 for steps
-    progress_percent = Math.round(current_step/10*100)
-    
-    # Get alchemical stage based on progress
-    alchemical_stage = @getAlchemicalStage(display_step)
-    
-    # Add step results to display if available
-    step_results = task.step_results || []
-    result_display = if step_results.length > 0
-      latest_result = step_results[step_results.length - 1]
-      """<div class=\"step-result-preview\">Latest Result: #{latest_result.substring(0, 100)}#{if latest_result.length > 100 then '...' else ''}</div>"""
-    else
-      ''
-    
-    # Check if we already have progress elements
-    taskHeader = taskProgress.querySelector('.task-header')
-    progressBar = taskProgress.querySelector('.progress-bar')
-    taskControls = taskProgress.querySelector('.task-controls')
-    logsContainer = document.getElementById "task-logs-#{task_id}"
-    
-    # If we don't have a task progress structure yet, create it
-    unless taskHeader
-      # Display task plan as description (not individual steps)
-      task_plan_html = if task.plan
-        """<div class=\"task-description\"><strong>Plan:</strong> #{task.plan}</div>"""
-      else
-        ''
-      
-      # Create unified task panel with progress and logs
-      taskProgress.innerHTML = """
-        <div class=\"task-header\">
-          <strong>#{task.title}</strong>
-          <span>#{alchemical_stage} (#{if display_step == 0 then 'Initium' else display_step}/10)</span>
-          <button onclick=\"pythia.toggleTaskProgress('#{task_id}')\" title=\"Toggle task panel\">▼</button>
-        </div>
-        <div class=\"progress-bar\">
-          <div class=\"progress\" style=\"width: #{progress_percent}%\"></div>
-        </div>
-        #{result_display}
-        #{task_plan_html}
-        <div class=\"task-controls\">
-          <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'pause', id: #{task_id} }}))\" title=\"Pause task\">⏸</button>
-          <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'resume', id: #{task_id} }}))\" title=\"Resume task\">▶</button>
-          <button onclick=\"pythia.ws.send(JSON.stringify({ method: 'task', params: { action: 'cancel', id: #{task_id} }}))\" title=\"Cancel task\">✕</button>
-        </div>
-        <div class=\"task-logs-container\" id=\"task-logs-#{task_id}\">
-          <div class=\"task-log-header\">
-            <h4>📋 Task ##{task_id} Execution Log - #{alchemical_stage} (#{display_step}/10)</h4>
-            <button onclick=\"pythia.toggleTaskLogs('#{task_id}')\" title=\"Hide logs\">📋</button>
-          </div>
-          <div class=\"task-log-entries\"></div>
-        </div>
-      """
-      
-      # Start in compact view by default for better UX
-      taskProgress.classList.add('compact-view')
-      
-      # Load any existing logs from storage
-      @loadTaskLogs(task_id)
-    else
-      # Just update the progress elements without destroying logs
-      headerSpan = taskHeader.querySelector('span')
-      headerSpan.textContent = "#{alchemical_stage} (#{if display_step == 0 then 'Initium' else display_step}/10)" if headerSpan
-      
-      progress = progressBar.querySelector('.progress')
-      progress.classList.add do alchemical_stage.toLowerCase
-      progress.style.width = "#{progress_percent}%" if progress
-      
-      # Update step result display if available
-      resultElement = taskProgress.querySelector('.step-result-preview')
-      if step_results.length > 0
-        latest_result = step_results[step_results.length - 1]
-        resultHtml = "Latest Result: #{latest_result.substring(0, 100)}#{if latest_result.length > 100 then '...' else ''}"
-        if resultElement
-          resultElement.innerHTML = resultHtml
-        else
-          resultElement = document.createElement 'div'
-          resultElement.className = 'step-result-preview'
-          resultElement.innerHTML = resultHtml
-          # Insert after progress bar
-          progressBar.insertAdjacentElement 'afterend', resultElement
-      else if resultElement
-        resultElement.remove()
-      
-      # Ensure logs container exists and is properly loaded
-      unless logsContainer
-        logsContainer = document.createElement 'div'
-        logsContainer.className = 'task-logs-container'
-        logsContainer.id = "task-logs-#{task_id}"
-        logsContainer.innerHTML = """
-          <div class=\"task-log-header\">
-            <h4>📋 Task ##{task_id} Execution Log - #{alchemical_stage} (#{display_step}/10)</h4>
-            <button onclick=\"pythia.toggleTaskLogs('#{task_id}')\" title=\"Hide logs\">📋</button>
-          </div>
-          <div class=\"task-log-entries\"></div>
-        """
-        taskProgress.appendChild logsContainer
-      else
-        # Preserve existing log entries - only update header and progress
-        logEntries = logsContainer.querySelector('.task-log-entries')
-        if logEntries
-          # Store current scroll position and content to preserve user view
-          scrollPosition = logEntries.scrollTop
-          logContent = logEntries.innerHTML
-          
-          # Update the log header to show current progress
-          logHeader = logsContainer.querySelector('.task-log-header h4')
-          logHeader.textContent = "📋 Task ##{task_id} Execution Log - #{alchemical_stage} (#{display_step}/10)" if logHeader
-          
-          # Restore the log content and scroll position
-          logEntries.innerHTML = logContent
-          logEntries.scrollTop = scrollPosition
-      
-      # Always load logs from storage when panel is accessed
-      @loadTaskLogs(task_id)
+  # Toggle step results visibility
+  toggleStepResults: (task_id) =>
+    @magnumOpus.toggleStepResults(task_id)
+
+
+  showStepResult: (task_id, step_number) =>
+    console.log "showStepResult", task_id, step_number
+    @magnumOpus.showStepResult(task_id, step_number)
+
+
+  # Update task progress display
+  updateTaskProgress: (task) =>
+    @magnumOpus.updateTaskProgress(task)
 
 
   toggleTaskLogs: (task_id) =>
@@ -607,6 +516,36 @@ class Pythia
       else
         button.textContent = '' #📋'
         button.title = 'Hide logs'
+
+
+  # toggleStepResults: (task_id) =>
+  #   stepResultsElement = document.getElementById "step-results-#{task_id}"
+  #   if stepResultsElement
+  #     stepResultsElement.style.display = if stepResultsElement.style.display == 'none' then 'block' else 'none'
+  #     button = stepResultsElement.previousElementSibling?.querySelector('.step-results-toggle')
+  #     if button
+  #       button.textContent = if stepResultsElement.style.display == 'none' then '📊' else '📈'
+  #       button.title = if stepResultsElement.style.display == 'none' then 'Show all step results' else 'Hide step results'
+
+
+  # Enhanced step result display with better error handling
+  displayStepResult: (step_data) =>
+    @taskResultsManager.handleStepResultResponse(step_data)
+
+
+  # Get alchemical stage name for step number
+  getAlchemicalStage: (step_number) =>
+    @taskResultsManager.getAlchemicalStage(step_number)
+
+
+  # HTML escaping function to prevent XSS attacks
+  escapeHtml: (text) =>
+    @taskResultsManager.escapeHtml(text)
+
+
+  # Safe substring utility function that handles all data types with XSS protection
+  safeSubstring: (value, maxLength) =>
+    @taskResultsManager.extractTextPreview(value, maxLength)
 
 
   # Message Handling
@@ -629,12 +568,19 @@ class Pythia
             switch l.type
               when 'prelude' then @log 'ai', null, l.data
               when 'say'     then @log 'ai', null, l.data.message
+      when 'task'
+        @handleTaskResponse data.result
+      when 'step_result'
+        @handleStepResult data.result
       when 'toolResult'
         # Special handling for task evaluation results
+        console.log("DEBUG: toolResult received:", data.result)
+        
         if data.result?.task?.id && data.result?.alchemical_progression
           @renderTaskEvaluation data.result
         else
           resultJson = JSON.stringify data.result, null, 2
+          
           if resultJson.length > 300
             @log 'system', null, "<details><summary>🔧 Tool Result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
           else
@@ -648,86 +594,20 @@ class Pythia
       else
         @log 'system', null, "<pre>#{JSON.stringify data, null, 2}</pre>"
 
+
+  # Handle task method responses
+  handleTaskResponse: (result) =>
+    @magnumOpus.handleTaskResponse(result)
+
+
+  # Handle step result responses
+  handleStepResult: (result) =>
+    @magnumOpus.handleStepResult(result)
+
+
   # Render comprehensive task evaluation results
   renderTaskEvaluation: (evaluation) =>
-    task = evaluation.task
-    stepResults = evaluation.step_results || {}
-    executionLogs = evaluation.execution_logs || []
-    progression = evaluation.alchemical_progression || []
-    
-    # Create detailed evaluation HTML
-    evaluationHtml = """
-      <div class=\"task-evaluation\">
-        <div class=\"evaluation-header\">
-          <h3>📊 Task Evaluation: #{task.title}</h3>
-          <span class=\"task-status\">Status: #{task.status}</span>
-        </div>
-        
-        <div class=\"task-details\">
-          <div><strong>ID:</strong> #{task.id}</div>
-          <div><strong>Current Stage:</strong> #{task.current_stage} (Step #{task.current_step}/#{task.total_steps})</div>
-          <div><strong>Progress:</strong> #{task.progress_percentage}%</div>
-          <div><strong>Created:</strong> #{task.created_at}</div>
-          <div><strong>Updated:</strong> #{task.updated_at}</div>
-        </div>
-        
-        <div class=\"task-plan\">
-          <h4>Plan:</h4>
-          <p>#{task.plan || 'No plan specified'}</p>
-        </div>
-        
-        <div class=\"alchemical-progression\">
-          <h4>Alchemical Progression:</h4>
-          <div class=\"progression-steps\">
-    """
-    
-    # Add alchemical progression steps
-    progression.forEach (stage) =>
-      statusClass = if stage.completed then 'completed' else if stage.current then 'current' else 'pending'
-      evaluationHtml += """
-            <div class=\"progression-step #{statusClass}\">
-              <span class=\"step-number\">#{stage.step}</span>
-              <span class=\"stage-name\">#{stage.stage}</span>
-              <span class=\"status-indicator\">#{if stage.completed then '✅' else if stage.current then '⏳' else '⏱'}</span>
-            </div>
-      """
-    
-    evaluationHtml += """
-          </div>
-        </div>
-        
-        <div class=\"step-results\">
-          <h4>Step Results:</h4>
-          <pre>#{JSON.stringify(stepResults, null, 2)}</pre>
-        </div>
-        
-        <div class=\"execution-logs\">
-          <h4>Execution Logs (#{executionLogs.length} entries):</h4>
-          <div class=\"log-entries\">
-    """
-    
-    # Add execution logs
-    executionLogs.forEach (log, index) =>
-      if index < 10  # Show only last 10 logs to avoid overwhelming
-        evaluationHtml += """
-            <div class=\"log-entry\">
-              <span class=\"log-index\">#{index + 1}.</span>
-              <span class=\"log-content\">#{log}</span>
-            </div>
-        """
-    
-    if executionLogs.length > 10
-      evaluationHtml += """
-            <div class=\"log-more\">... and #{executionLogs.length - 10} more log entries</div>
-      """
-    
-    evaluationHtml += """
-          </div>
-        </div>
-      </div>
-    """
-    
-    @log 'system', null, evaluationHtml
+    @magnumOpus.renderTaskEvaluation(evaluation)
 
 
   # Attachment Handling
@@ -830,11 +710,17 @@ class Pythia
     text = document.getElementById('chat-input').value
     return unless text?.length
     
+    # Check if this is a command (starts with /)
+    if text.startsWith('/')
+      @processCommand(text)
+      document.getElementById('chat-input').value = ''
+      return
+    
     # remove old attachments
     
     
     # Prepare all attachments for sending
-    attachments_data = @attachments.map (att) =>       
+    attachments_data = @attachments.map (att) =>
       (
         file: att.file,
         selection: att.selection,
@@ -870,6 +756,61 @@ class Pythia
     @isThinking = false
     do @updateSendButton
     
+
+  # Command Processing
+  processCommand: (command) =>
+    command = command.trim()
+    parts = command.split(' ')
+    cmd = parts[0].toLowerCase()
+    args = parts.slice(1)
+    
+    switch cmd
+      when '/list', '/tasks'
+        @listTasks()
+      when '/start', '/execute'
+        taskId = parseInt(args[0])
+        if isNaN(taskId)
+          @log 'system', null, '<span class="error">Invalid task ID. Usage: /start &lt;task_id&gt;</span>'
+        else
+          @executeTask(taskId)
+      when '/status'
+        taskId = parseInt(args[0])
+        if isNaN(taskId)
+          @log 'system', null, '<span class="error">Invalid task ID. Usage: /status &lt;task_id&gt;</span>'
+        else
+          @getTaskStatus(taskId)
+      when '/help'
+        @showCommandHelp()
+      else
+        @log 'system', null, "<span class=\"error\">Unknown command: #{cmd}. Type /help for available commands.</span>"
+
+
+  listTasks: =>
+    @ws.send JSON.stringify method: 'manageTask', params: (action: 'list')
+
+
+  executeTask: (taskId) =>
+    @ws.send JSON.stringify method: 'manageTask', params: (action: 'execute', id: taskId)
+
+
+  getTaskStatus: (taskId) =>
+    @ws.send JSON.stringify method: 'manageTask', params: (action: 'get', id: taskId)
+
+
+  showCommandHelp: =>
+    helpText = """
+    <div class=\"command-help\">
+      <h3>Available Commands</h3>
+      <ul>
+        <li><code>/list</code> or <code>/tasks</code> - List all active tasks</li>
+        <li><code>/start &lt;task_id&gt;</code> or <code>/execute &lt;task_id&gt;</code> - Start/execute a task</li>
+        <li><code>/status &lt;task_id&gt;</code> - Get detailed status of a task</li>
+        <li><code>/help</code> - Show this help message</li>
+      </ul>
+    </div>
+    """
+    @log 'system', null, helpText
+
 
   updateSendButton: =>
     sendBtn = document.getElementById 'send-btn'
@@ -920,6 +861,7 @@ class Pythia
       </a>
     </span>
     """
+
 
   # Open markdown preview in popup window
   openMarkdownPreview: (event, fileUrl) =>
@@ -1113,19 +1055,7 @@ class Pythia
 
   # Alchemical stage mapping
   getAlchemicalStage: (step) =>
-    stages = [
-      'Nigredo',      # Step 1: Understanding the prima materia
-      'Albedo',       # Step 2: Defining the purified solution
-      'Citrinitas',   # Step 3: Exploring golden implementation paths
-      'Rubedo',       # Step 4: Selecting the philosopher\'s stone
-      'Solve',        # Step 5: Identifying required dissolutions
-      'Coagula',      # Step 6: Implementing solid transformations
-      'Test',         # Step 7: Probing the elixir\'s purity
-      'Purify',       # Step 8: Edge cases as alchemical impurities
-      'Validate',     # Step 9: Ensuring the elixir\'s perfection
-      'Documentatio'  # Step 10: Inscribing the magnum opus
-    ]
-    stages[step - 1] || 'Initium'
+    @magnumOpus.getAlchemicalStage(step)
 
   # Task log persistence methods
   storeTaskLog: (task_id, content, timestamp) =>
@@ -1201,6 +1131,9 @@ class Pythia
         do e.preventDefault
         do @askAI
         do @adjustInputHeight
+
+    # Initialize Mermaid.js
+    @initializeMermaid()
 
   adjustInputHeight: => 
     textarea = document.getElementById 'chat-input'
@@ -1300,6 +1233,291 @@ class Pythia
     textarea = document.getElementById 'chat-input'
     textarea.addEventListener 'input', @adjustInputHeight
     setTimeout @adjustInputHeight, 100
+    
+    # Single document-level click handler for Mermaid diagrams
+    document.addEventListener 'click', (event) =>
+      # Check if click is on a Mermaid SVG or its container
+      target = event.target
+      mermaidContainer = target.closest('.mermaid')
+      
+      if mermaidContainer
+        event.stopPropagation()
+        event.preventDefault()
+        @openMermaidPopup(mermaidContainer.innerHTML)
+
+
+  # Mermaid.js Integration
+  initializeMermaid: =>
+    # Initialize Mermaid with detailed Argonaut theme styling
+    if window.mermaid
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        securityLevel: 'loose',
+        fontFamily: 'var(--mono)',
+        themeCSS: '''
+          /* Node styling */
+          .node rect, .node circle, .node ellipse, .node polygon {
+            fill: var(--argonaut-deep);
+            stroke: var(--argonaut-azure);
+            stroke-width: 3px;
+            rx: 8px;
+            ry: 8px;
+          }
+          .node.label {
+            color: var(--argonaut-azure);
+            font-weight: bold;
+            font-family: var(--hermetic);
+          }
+          
+          /* Edge styling */
+          .edgePath path {
+            stroke: var(--argonaut-steel);
+            stroke-width: 2px;
+            fill: none;
+          }
+          .edgeLabel:not(:empty) {
+            background-color: var(--argonaut-void);
+            color: var(--argonaut-steel);
+            font-weight: bold;
+            font-family: var(--sans);
+            border: 1px solid var(--argonaut-steel);
+            border-radius: 4px;
+            padding: 0px 6px;
+          }
+          
+          /* Cluster styling */
+          .cluster rect {
+            fill: var(--argonaut-void);
+            stroke: var(--argonaut-mystic);
+            stroke-width: 3px;
+            rx: 12px;
+            ry: 12px;
+          }
+          .cluster text {
+            fill: var(--argonaut-mystic);
+            font-weight: bold;
+            font-family: var(--sigil);
+          }
+          
+          /* Message text and labels */
+          .messageText {
+            fill: var(--argonaut-emerald);
+            font-weight: bold;
+            font-family: var(--sans);
+          }
+          
+          .note rect {
+            fill: var(--argonaut-void);
+            stroke: var(--argonaut-amber);
+            stroke-width: 2px;
+          }
+          
+          .note text {
+            fill: var(--argonaut-amber);
+            font-weight: bold;
+            font-family: var(--mono);
+          }
+          
+          .actor {
+            fill: var(--argonaut-deep);
+            stroke: var(--argonaut-cosmic);
+            stroke-width: 3px;
+          }
+          
+          .actor text {
+            fill: var(--argonaut-cosmic);
+            font-weight: bold;
+            font-family: var(--hermetic);
+          }
+          
+          .label-container {
+            background-color: var(--argonaut-void);
+            color: var(--argonaut-steel);
+            font-weight: bold;
+            font-family: var(--sans);
+          }
+          
+          .nodeLabel {
+            color: var(--argonaut-azure);
+            font-weight: bold;
+            font-family: var(--hermetic);
+          }
+        '''
+      })
+      
+      # Render any existing Mermaid diagrams
+      @renderMermaidDiagrams()
+
+  renderMermaidDiagrams: =>
+    console.log('renderMermaidDiagrams called, window.mermaid:', window.mermaid)
+    console.log('mermaid.render function exists:', !!window.mermaid?.render)
+    
+    # Initialize mermaid if not already done
+    if window.mermaid && !window.mermaid._initialized
+      window.mermaid.initialize({startOnLoad: false})
+      window.mermaid._initialized = true
+      console.log('Mermaid initialized')
+    
+    if window.mermaid && window.mermaid.run
+      # Find all Mermaid containers in message content only (not input area)
+      messageContainer = document.querySelector('#message-container')
+      if messageContainer
+        mermaidContainers = messageContainer.querySelectorAll('.mermaid')
+      else
+        mermaidContainers = document.querySelectorAll('.mermaid')
+        
+      console.log('Found mermaid containers in messages:', mermaidContainers.length)
+      
+      # Use mermaid.run for auto-rendering
+      window.mermaid.run({
+        querySelector: '.mermaid',
+        nodes: Array.from(mermaidContainers)
+      })
+      console.log('mermaid.run called for all containers')
+      
+      # Add pointer cursor to indicate clickability
+      setTimeout(() =>
+        mermaidContainers.forEach((container) =>
+          svgElement = container.querySelector('svg')
+          if svgElement
+            svgElement.style.cursor = 'pointer'
+            console.log('Added pointer cursor to Mermaid diagram')
+        )
+      , 500)
+    else
+      console.error('Mermaid not available or run method missing')
+  
+  openMermaidPopup: (svgContent) =>
+    console.log('Opening Mermaid diagram in new window')
+    
+    # Create a new window with the SVG content
+    popupWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes')
+    
+    if popupWindow
+      # Get the glyphs.css href from the current document
+      glyphsStylesheet = document.getElementById('glyphs-stylesheet')
+      glyphsHref = if glyphsStylesheet then glyphsStylesheet.href else '/Support/pythia/glyphs.css'
+      
+      # Remove any inline max-width styles from the SVG content
+      cleanedSvgContent = svgContent.replace(/style=\"[^\"]*max-width[^\"]*\"/gi, '')
+      
+      # Create HTML content for the new window
+      htmlContent = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Mermaid Diagram</title>
+          <link rel="stylesheet" href="#{glyphsHref}" id="glyphs-stylesheet">
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              background: #000C16;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              font-family: 'Argonaut', 'JetBrains Mono', monospace;
+              overflow: hidden;
+            }
+            .mermaid-content {
+              width: 100vw;
+              height: 100vh;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            svg {
+              width: 100% !important;
+              height: 100% !important;
+              max-width: none !important;
+              max-height: none !important;
+            }
+            .label { font-size: 0.8em; }
+          </style>
+        </head>
+        <body>
+          <div class="mermaid-content">
+            #{cleanedSvgContent}
+          </div>
+        </body>
+        </html>
+      """
+      
+      popupWindow.document.write(htmlContent)
+      popupWindow.document.close()
+      console.log('Mermaid popup window opened successfully with glyphs.css')
+    else
+      console.error('Failed to open popup window - popup might be blocked')
+      alert('Please allow popups for this site to view Mermaid diagrams in full screen')
+
+  # Scroll to Bottom Button
+  createScrollToBottomButton: =>
+    @scrollButton = document.createElement('button')
+    @scrollButton.innerHTML = '↓'
+    @scrollButton.className = 'scroll-to-bottom'
+    
+    @scrollButton.onclick = @scrollToBottom
+    
+    # Add to input bar container
+    document.body.appendChild(@scrollButton)
+    
+    # Add scroll detection and resize observers
+    messagesElement = document.getElementById('messages')
+    if messagesElement
+      messagesElement.addEventListener('scroll', @checkScrollPosition)
+      window.addEventListener('resize', @updateScrollButtonPosition)
+      
+      # Observe input height changes
+      chatInput = document.getElementById('chat-input')
+      if chatInput
+        @inputObserver = new MutationObserver(@updateScrollButtonPosition)
+        @inputObserver.observe(chatInput, { attributes: true, attributeFilter: ['style'] })
+    
+    # Initial position update
+    @updateScrollButtonPosition()
+
+
+  updateScrollButtonPosition: =>
+    return unless @scrollButton
+    
+    messagesElement = document.getElementById('messages')
+    
+    return unless messagesElement 
+    
+    # Calculate position above input, centered horizontally
+    messagesRect = messagesElement.getBoundingClientRect()
+    messagesHeight = messagesRect.height
+    
+    # Position button 10px above the input bar
+    buttonTop = -32 - 10 - 16  + messagesHeight
+    
+    @scrollButton.style.top = buttonTop + 'px'
+    
+
+  checkScrollPosition: =>
+    messagesElement = document.getElementById('messages') 
+    return unless messagesElement && @scrollButton
+    
+    isNearBottom = (messagesElement.scrollHeight - 
+                    messagesElement.scrollTop - 
+                    messagesElement.offsetHeight) < 100
+    
+    if isNearBottom
+      @scrollButton.classList.remove('visible')
+    else
+      @scrollButton.classList.add('visible')
+
+
+  scrollToBottom: =>
+    messagesElement = document.getElementById('messages')
+    return unless messagesElement
+    
+    messagesElement.scrollTo({
+      top: messagesElement.scrollHeight,
+      behavior: 'smooth'
+    })
 
 
   # Main Initialization

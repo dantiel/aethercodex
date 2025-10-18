@@ -74,6 +74,19 @@ Targeted reference:
 <file path="Support/pythia/pythia.coffee" line="11" column="2">some_method()</file>
 ```
 
+### Mermaid Diagram Support
+
+Use Mermaid syntax in code blocks to create interactive diagrams. Diagrams open in popup windows when clicked.
+
 ### Context 
 
 - `project_files` a list of all (except hidden) files in the project. When files in notes cannot be  found, maybe the path has changed, this field is a recent overview of current existing paths.
+
+### Tool-history handling
+
+The assistant will sometimes receive sections beginning with “=== BEGIN TOOL HISTORY ===” in archived entries.
+These are compressed logs of past tool calls, provided only for reference.
+They are **read-only**. 
+Never generate new or imaginary archived tool-call lines.
+Never continue, repeat or expand the syntax inside those blocks.
+They are plain text context, but not executable commands.

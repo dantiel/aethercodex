@@ -20,7 +20,6 @@ using TokenExtensions
 
 
 
-
 # The Coniunctio module orchestrates symbolic computation for the oracle, weaving together:
 # - **Contextual Threads**: Dynamic binding of files, selections, and Aegis states.
 # - **Token Alchemy**: Encoding/decoding with Tiktoken for precise LLM interactions.
@@ -31,7 +30,9 @@ module Coniunctio
   # Constants for context and token limits
   MAX_CONTEXT_LINES = 120
   MAX_HISTORY_TOKENS = 2200
+  MAX_HISTORY_MESSAGES = 20
   MAX_SUMMARY_TOKENS = 400
+  MAX_AEGIS_TOKENS = 500
 
   @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
 
@@ -70,10 +71,10 @@ module Coniunctio
                 else
                   # Use provided history array
                   params[:history].reverse
-                  .flat_map.with_index(&method(:format_history_entry)).reverse
+                                  .flat_map.with_index(&method(:format_history_entry)).reverse
                 end
 
-      aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: 500
+      aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: MAX_AEGIS_TOKENS
 
       ctx = { history:       prepend_summaries(history),
               extra_context: build_extra_context(attachments, project_files, aegis_notes,
@@ -96,9 +97,9 @@ module Coniunctio
 
     def fetch_and_format_history
       # Fetch general chat history with tool calls included
-      Mnemosyne.fetch_history(limit: 7, max_tokens: 2200,
+      Mnemosyne.fetch_history(limit: MAX_HISTORY_MESSAGES, max_tokens: MAX_HISTORY_TOKENS,
                               include_tool_calls: true)
-                              .reverse.flat_map.with_index(&method(:format_history_entry)).reverse
+               .reverse.flat_map.with_index(&method(:format_history_entry)).reverse
     end
 
 
@@ -108,13 +109,17 @@ module Coniunctio
       assistant_message = { role: 'assistant', content: entry[:answer], ts: entry[:created_at] }
 
       # Include tool calls if present with content field integration
-      if entry[:tool_calls]&.present?
-        tool_calls = Mnemosyne.format_history_tool_calls entry[:tool_calls], index
+      tools_message = if entry[:tool_calls]&.present?
+                        { role:    'user',
+                          ts:      entry[:created_at],
+                          content: [
+                            '(archived assistant message; reasoning has already concluded)',
+                            Mnemosyne.format_history_tool_calls(entry[:tool_calls], index),
+                            '# End of archived material — resume normal reasoning below'
+                          ].join("\n\n") }
+                      end
 
-        assistant_message[:content] = [tool_calls, assistant_message[:content]].join "\n\n"
-      end
-
-      [user_message, assistant_message]
+      [assistant_message, tools_message, user_message].compact
     end
 
 

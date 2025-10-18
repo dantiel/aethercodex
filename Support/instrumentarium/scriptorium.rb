@@ -13,9 +13,15 @@ require 'cgi'
 class RougeRenderer < Redcarpet::Render::HTML
   def block_code(code, language)
     if language && !language.empty?
-      lexer = Rouge::Lexer.find_fancy(language) || Rouge::Lexers::PlainText
-      formatter = Rouge::Formatters::HTMLPygments.new Rouge::Formatters::HTML.new, 'highlight'
-      formatter.format lexer.lex(code)
+      # Handle Mermaid diagrams specially
+      if language.downcase == 'mermaid'
+        mermaid_id = "mermaid-#{Time.now.to_i}-#{rand(36**8).to_s(36)}"
+        return "<div class='mermaid-container'><div class='mermaid' id='#{mermaid_id}'>#{html_escape code}</div></div>"
+      else
+        lexer = Rouge::Lexer.find_fancy(language) || Rouge::Lexers::PlainText
+        formatter = Rouge::Formatters::HTMLPygments.new Rouge::Formatters::HTML.new, 'highlight'
+        formatter.format lexer.lex(code)
+      end
     else
       "<pre><code>#{html_escape code}</code></pre>"
     end

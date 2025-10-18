@@ -86,6 +86,20 @@ module HorologiumAeternum
   end
 
 
+  def self.task_evaluated(task_id:, title:, current_step:, total_steps:, alchemical_stage:, status:, step_results_count:, uuid: nil)
+    send_status('task_evaluated', {
+                  message: Scriptorium.html("📊 Task Evaluation: #{title}"),
+                  task_id: task_id,
+                  title: title,
+                  current_step: current_step,
+                  total_steps: total_steps,
+                  alchemical_stage: alchemical_stage,
+                  status: status,
+                  step_results_count: step_results_count
+                }, uuid:)
+  end
+
+
   def self.oracle_conjuration(prompt, uuid: nil)
     send_status('oracle_conjuration', {
                   message: Scriptorium.html('🏛️ Oracle Conjuration'),
@@ -100,7 +114,7 @@ module HorologiumAeternum
       {
         prompt:    Scriptorium.html_with_syntax_highlight(entry[:prompt]),
         answer:    Scriptorium.html_with_syntax_highlight(entry[:answer]),
-        completed: Scriptorium.html("🎯 Response ready with **#{entry[:tool_call_count] || 0}** "\
+        completed: Scriptorium.html("🎯 Response ready with **#{entry[:tool_call_count] || 0}** " \
                                     "tools executed in #{(entry[:execution_time] || 0).round 2}s")
       }
     end
@@ -315,11 +329,11 @@ module HorologiumAeternum
 
   def self.symbolic_patch_complete(path, operation, result, uuid: nil)
     # Add debugging output
-    puts "[DEBUG] symbolic_patch_complete called with:"
+    puts '[DEBUG] symbolic_patch_complete called with:'
     puts "  path: #{path}"
     puts "  operation: #{operation}"
-    puts "  result: #{result.inspect.truncate(500)}"
-    
+    puts "  result: #{result.inspect.truncate 500}"
+
     # Format the result for better display - show actual changes made with proper syntax highlighting
     result_display = if result.is_a?(Hash) && result[:success]
                        if result[:result] && !result[:result].empty?
@@ -331,7 +345,7 @@ module HorologiumAeternum
                      else
                        Scriptorium.html "\n\n**Result:** #{result.inspect}"
                      end
-    
+
     # Get count for display - handle both Array and other types
     count = if result.is_a?(Hash) && result[:result].is_a?(Array)
               result[:result].count
@@ -347,12 +361,9 @@ module HorologiumAeternum
                   result_display:
                 }, uuid:)
   end
-  
-  
+
+
   def self.symbolic_patch_failed(path, operation, result, uuid: nil)
-  "Search pattern cannot be empty"
-
-
     # Get count for display - handle both Array and other types
     count = if result.is_a?(Hash) && result[:result].is_a?(Array)
               result[:result].count
@@ -368,6 +379,7 @@ module HorologiumAeternum
                   result_display:
                 }, uuid:)
   end
+
 
   def self.formatSymbolicPatchResult(result_data, file_path, operation = nil, patterns = nil)
     return Scriptorium.html "\n\n**No transformations found**" if result_data.empty?
@@ -532,8 +544,7 @@ module HorologiumAeternum
   end
 
 
-  def self.task_updated(uuid: nil, show_progress: false, **task)
-    puts "task_updated #{task.inspect.truncate 300}"
+  def self.task_updated(uuid: nil, show_progress: false, step_results: nil, **task)
     progress = task[:current_step] || 0
     max_steps = 10
     workflow_type = task[:workflow_type] || 'full'
@@ -543,11 +554,13 @@ module HorologiumAeternum
 
     task = render_task_fields task
     send_status('task_updated', {
-                  message:       Scriptorium.html("🔄 Task progress: **#{stage_name}** (#{progress + 0}/#{max_steps})"),
-                  **task,
-                  show_progress:
+                  message: Scriptorium.html("🔄 Task progress: **#{stage_name}** " \
+                                            "(#{progress}/#{max_steps})"),
+                  **task
                 }, uuid:)
   end
+
+
 
 
   def self.task_step_completed(result:, uuid: nil, **task)

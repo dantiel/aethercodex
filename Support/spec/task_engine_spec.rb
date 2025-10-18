@@ -174,6 +174,90 @@ RSpec.describe MagnumOpusEngine do
       expect(task_state['current_step']).to eq(3)  # Should progress to step 3
     end
 
+    it 'handles markdown content in step results correctly' do
+      # Test rich markdown content in step results
+      markdown_content = "**Bold text** and *italic text* with `code` example"
+      
+      aetherflux.configure_response('CURRENT STEP: 1', { status: :success, response: markdown_content })
+      expect { subject.execute_step(1, 1) }.to raise_error(MagnumOpusEngine::StepCompleted)
+
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      
+      # Verify markdown content is stored correctly
+      expect(step_results['1']).to eq(markdown_content)
+      
+      # Verify backend processing preserves markdown
+      expect(step_results['1']).to include('**Bold text**')
+      expect(step_results['1']).to include('*italic text*')
+      expect(step_results['1']).to include('`code`')
+    end
+
+    it 'handles complex step navigation with multiple markdown steps' do
+      # Create multiple steps with rich markdown content
+      steps_content = {
+        1 => "NIGREDO PHASE: **Prima Materia** analysis complete",
+        2 => "ALBEDO PHASE: *Purified* architecture defined with `code examples`",
+        3 => "CITRINITAS PHASE: **Golden** paths identified with *insights*",
+        4 => "RUBEDO PHASE: **Philosopher's Stone** selected with complex formatting"
+      }
+
+      steps_content.each do |step_num, content|
+        aetherflux.configure_response("CURRENT STEP: #{step_num}", { status: :success, response: content })
+        expect { subject.execute_step(1, step_num) }.to raise_error(MagnumOpusEngine::StepCompleted)
+      end
+
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      
+      # Verify all steps are stored correctly
+      expect(step_results.keys.length).to eq(4)
+      
+      # Verify markdown content preservation
+      steps_content.each do |step_num, expected_content|
+        expect(step_results[step_num.to_s]).to eq(expected_content)
+        expect(step_results[step_num.to_s]).to include('**') if expected_content.include?('**')
+        expect(step_results[step_num.to_s]).to include('*') if expected_content.include?('*')
+        expect(step_results[step_num.to_s]).to include('`') if expected_content.include?('`')
+      end
+
+      # Verify step counter is correct
+      expect(task_state['current_step']).to eq(4)
+    end
+
+    it 'handles object results with .result and .content properties' do
+      # Test object results with different property names
+      object_result = {
+        result: "Step completed with **markdown** content",
+        metadata: { timestamp: Time.now.to_s }
+      }
+      
+      content_result = {
+        content: "Step analysis with *italic* emphasis",
+        type: "analysis"
+      }
+      
+      # Test .result property
+      aetherflux.configure_response('CURRENT STEP: 1', { status: :success, response: object_result })
+      expect { subject.execute_step(1, 1) }.to raise_error(MagnumOpusEngine::StepCompleted)
+
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      
+      # Backend should extract .result property
+      expect(step_results['1']).to eq(object_result[:result])
+
+      # Test .content property
+      aetherflux.configure_response('CURRENT STEP: 2', { status: :success, response: content_result })
+      expect { subject.execute_step(1, 2) }.to raise_error(MagnumOpusEngine::StepCompleted)
+
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      
+      # Backend should extract .content property
+      expect(step_results['2']).to eq(content_result[:content])
+    end
+
     it 'maintains correct step counter with multiple error types' do
       # Step 1: Success
       aetherflux.configure_response('CURRENT STEP: 1', { status: :success, response: 'Step 1 completed' })
@@ -486,6 +570,79 @@ RSpec.describe MagnumOpusEngine do
 
     it 'rejects non-integer task IDs' do
       expect { subject.execute_step('invalid', 1) }.to raise_error(MagnumOpusEngine::TaskStateError, /Task not found: invalid/)
+    end
+  end
+
+  # COMMAND SYSTEM INTEGRATION TESTS
+  context 'with command system integration' do
+    it 'verifies command system integration with task completion workflow' do
+      # Configure oracle to complete step with command execution result
+      aetherflux.configure_response('CURRENT STEP: 1', {
+        status: :success,
+        response: 'Command system integration test completed successfully'
+      })
+
+      # Execute step that should complete normally
+      result = subject.execute_step(1, 1)
+      
+      # Verify step completed successfully
+      expect(result[:status]).to eq(:step_not_completed)
+      
+      # Verify step results stored correctly
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      expect(step_results['1']).to include('Command system integration test completed successfully')
+    end
+
+    it 'verifies command system handles step completion workflow' do
+      # Configure oracle to use task_complete_step to finish the step
+      aetherflux.configure_response('CURRENT STEP: 1', {
+        status: :success,
+        response: 'task_complete_step()'
+      })
+
+      # Execute step that should complete via divine interruption
+      result = subject.execute_step(1, 1)
+      
+      # Verify step completed with divine interruption
+      expect(result).to include(__divine_interrupt: :step_completed)
+      
+      # Verify task state updated correctly
+      task_state = mnemosyne.task_state 1
+      expect(task_state['status']).to eq('completed')
+      expect(task_state['current_step']).to eq(1)
+    end
+
+    it 'verifies command system supports multiple step execution' do
+      # Configure multiple steps with different responses
+      aetherflux.configure_response('CURRENT STEP: 1', {
+        status: :success,
+        response: 'Step 1 command execution completed'
+      })
+
+      aetherflux.configure_response('CURRENT STEP: 2', {
+        status: :success,
+        response: 'Step 2 command execution completed'
+      })
+
+      # Execute both steps
+      result1 = subject.execute_step(1, 1)
+      result2 = subject.execute_step(1, 2)
+      
+      # Verify both steps completed successfully
+      expect(result1[:status]).to eq(:step_not_completed)
+      expect(result2[:status]).to eq(:step_not_completed)
+
+      # Verify step results are properly stored and navigable
+      task_state = mnemosyne.task_state 1
+      step_results = JSON.parse(task_state['step_results'] || '{}')
+      
+      expect(step_results['1']).to include('Step 1 command execution completed')
+      expect(step_results['2']).to include('Step 2 command execution completed')
+      
+      # Verify task completed successfully
+      expect(task_state['status']).to eq('completed')
+      expect(task_state['current_step']).to eq(2)
     end
   end
 end

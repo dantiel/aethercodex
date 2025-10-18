@@ -132,7 +132,7 @@ class Oracle
       # Check if we got a divine interruption signal instead of a regular answer
       if result.is_a?(Hash) && result.key?(:__divine_interrupt)
         # Return the divine interruption signal directly (just the hash, not the array)
-        return result
+        return [result || '<<empty>>', arts, tool_results]
       end
 
       [result || '<<empty>>', arts, tool_results]
@@ -163,7 +163,7 @@ class Oracle
       reminder = nil
 
       # puts "[ORACLE][DIVINATION_LOOP]: Reasoning mode: #{reasoning}"
-      puts "[ORACLE][DIVINATION_LOOP]: Tools: #{tools.inspect}"
+      puts "[ORACLE][DIVINATION_LOOP]: Tools: #{tools.inspect.truncate 200}"
 
       (1..max_depth).each do |_depth|
         json = Conduit.generate_ai_response [*messages, reminder].compact, tools, reasoning,
@@ -275,11 +275,26 @@ class Oracle
                                   [nil, prompt_or_messages]
                                 end
       hermetic_manifest = context.dig :extra_context, :hermetic_manifest
+      hermetic_manifest = hermetic_manifest[:content] if hermetic_manifest.present?
       attachments = context.dig :extra_context, :attachments
-
+      project_files = context.dig :extra_context, :project_files
+      project_files = if project_files.present?
+        "CURRENT PROJECT FILES: #{project_files.join "\n"}"
+      end
+      aegis_orientation = context.dig :extra_context, :aegis_orientation
+      aegis_orientation = if aegis_orientation.present?
+        "AEGIS ORIENTATION: #{aegis_orientation.to_s_no_quotes}" 
+      end
+      aegis_notes = context.dig :extra_context, :aegis_notes
+      aegis_notes = if aegis_notes.present?
+        aegis_notes.map!{ |note| note.to_s_no_quotes }
+        "AEGIS NOTES: #{aegis_notes.join "\n------\n"}" 
+      end      
+      
       system_prompt = [
         (reasoning ? REASONING_PROMPT : SYSTEM_PROMPT),
         system_prompt,
+        project_files,
         hermetic_manifest
       ].compact.join "\n\n=======\n\n"
 
@@ -318,7 +333,7 @@ class Oracle
         puts "[ORACLE][DEBUG]: Message #{i}: role=#{msg[:role]}, " \
              "byte_length=#{msg[:content].to_s.size}, " \
              "token_length=#{msg[:content].to_s.tok_len}, " \
-             "message=#{msg.inspect.truncate 15000}"
+             "message=#{msg.inspect.truncate 150000}"
       end
 
       messages

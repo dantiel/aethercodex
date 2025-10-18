@@ -134,6 +134,11 @@ class FakeAetherflux
     nil
   end
 
+  # Debug method to check what responses are configured
+  def debug_responses
+    @responses
+  end
+
   # Get current task state for testing
   def task_state(task_id)
     @task_states[task_id] || { current_step: 0, completed_steps: [] }

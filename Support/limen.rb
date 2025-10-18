@@ -120,6 +120,14 @@ get '/ws' do
           startThinkingThread ws, req
         when :stopThinking
           stopThinkingThread true
+        when :showStepResult
+          task_id = req[:params][:task_id]
+          step_number = req[:params][:step_number]
+          result = get_step_result(task_id, step_number)
+          ws.send(result.to_json)
+        when :manageTask
+          result = do_tasks(req[:params])
+          ws.send(result.to_json)
         end
       end
     rescue StandardError => e
@@ -181,6 +189,7 @@ def handle_request(req)
   when :tool            then do_tool req[:params]
   when :complete        then do_complete req[:params]
   when :manageTask      then do_tasks req[:params]
+  when :task            then do_tasks req[:params]
   when :readFile        then do_read req[:params]
   when :patchFile       then do_patch req[:params]
   when :runCommand      then do_run req[:params]
@@ -312,9 +321,162 @@ def do_complete(p)
 end
 
 
-def do_tasks(_p)
-  { method: 'tasks', result: { ok: true, msg: 'Task system TBD' } }
+def do_tasks(p)
+  puts "[DEBUG] do_tasks received: #{p.inspect}"
+  action = p[:action]
+  task_id = p[:id]
+  
+  puts "[DEBUG] action: #{action.inspect}, task_id: #{task_id.inspect}"
+  
+  case action.to_sym
+  when :get_step_result
+    step_number = p['step']
+    get_step_result task_id, step_number
+  when :get
+    get_task task_id
+  when :pause
+    pause_task task_id
+  when :resume
+    resume_task task_id
+  when :cancel
+    cancel_task task_id
+  when :list
+    list_tasks
+  when :execute
+    execute_task task_id
+  else
+    { method: 'task', result: { ok: false, error: "Unknown task action: #{action}" } }
+  end
 end
+
+
+private
+
+
+def get_step_result(task_id, step_number)
+  # Get task evaluation which includes step results
+  evaluation = Instrumenta.handle(tool: :evaluate_task, args: { task_id: task_id })
+  
+  if evaluation[:error]
+    return { method: 'step_result', result: { ok: false, error: "Task #{task_id} not found: #{evaluation[:error]}" } }
+  end
+  
+  # Use raw step results (markdown) for AI vision
+  step_results = evaluation[:step_results] || {}
+  step_result = step_results[step_number.to_s]
+  
+  if step_result.nil?
+    return { method: 'step_result', result: { ok: false, error: "Step #{step_number} not found in task #{task_id}" } }
+  end
+  
+  { method: 'step_result', result: { ok: true, task_id: task_id, step: step_number, result: step_result } }
+end
+
+
+def get_task(task_id)
+  # Get full task evaluation
+  evaluation = Instrumenta.handle(tool: :evaluate_task, args: { task_id: task_id })
+  
+  if evaluation[:error]
+    return { method: 'task', result: { ok: false, error: "Task #{task_id} not found: #{evaluation[:error]}" } }
+  end
+  
+  # Debug: check what evaluation contains
+  puts "[DEBUG] Evaluation keys: #{evaluation.keys.inspect}"
+  puts "[DEBUG] Evaluation step_results: #{evaluation[:step_results].inspect}"
+  puts "[DEBUG] Evaluation step_results type: #{evaluation[:step_results].class}"
+  
+  # Return task data with step_results at the top level for frontend compatibility
+  task_data = evaluation[:task] || {}
+  
+  # Use formatted step results for HTML display
+  step_results = evaluation[:formatted_step_results] || evaluation[:step_results] || {}
+  
+  # If step_results is a string (placeholder), convert it to empty hash
+  step_results = {} if step_results.is_a?(String) && step_results.include?('<p>step_results</p>')
+  
+  puts "[DEBUG] Final step_results: #{step_results.inspect}"
+  puts "[DEBUG] Final step_results type: #{step_results.class}"
+  
+  {
+    method: 'task',
+    result: {
+      ok: true,
+      task_id: task_id,
+      **task_data,
+      step_results: step_results
+    }
+  }
+end
+
+
+def pause_task(task_id)
+  # Pause task execution
+  result = Instrumenta.handle(tool: :pause_task, args: { task_id: task_id })
+  
+  if result[:error]
+    return { method: 'task', result: { ok: false, error: "Failed to pause task #{task_id}: #{result[:error]}" } }
+  end
+  
+  { method: 'task', result: { ok: true, message: "Task #{task_id} paused" } }
+end
+
+
+def resume_task(task_id)
+  # Resume task execution
+  result = Instrumenta.handle(tool: :resume_task, args: { task_id: task_id })
+  
+  if result[:error]
+    return { method: 'task', result: { ok: false, error: "Failed to resume task #{task_id}: #{result[:error]}" } }
+  end
+  
+  { method: 'task', result: { ok: true, message: "Task #{task_id} resumed" } }
+end
+
+
+def cancel_task(task_id)
+  # Cancel task execution
+  result = Instrumenta.handle(tool: :cancel_task, args: { task_id: task_id })
+  
+  if result[:error]
+    return { method: 'task', result: { ok: false, error: "Failed to cancel task #{task_id}: #{result[:error]}" } }
+  end
+  
+  { method: 'task', result: { ok: true, message: "Task #{task_id} cancelled" } }
+end
+
+
+def execute_task(task_id)
+  stopThinkingThread if @ask_thread
+
+  @ask_thread = Thread.new do
+    begin
+      puts "[DEBUG]: Executing task #{task_id} in background thread"
+      HorologiumAeternum.send('status', 'thinking', { ok: true, message: "#{task_id}: ars ars ars" })
+      result = Instrumenta.handle(tool: :execute_task, args: { task_id: task_id })
+      puts "[DEBUG]: Task execution completed: #{result}"
+      HorologiumAeternum.send('task', 'completion', { ok: true, task_id: task_id, result: result })
+    rescue => e
+      puts "[DEBUG]: Task execution error: #{e.message}"
+      HorologiumAeternum.send('task', 'error', { ok: false, task_id: task_id, error: e.message })
+    end
+  end
+  
+  { method: 'task', result: { ok: true, task_id: task_id, status: 'running_in_background' } }
+end
+
+
+def list_tasks
+  # Get list of all tasks using Mnemosyne
+  tasks = Mnemosyne.manage_tasks(action: :list)
+
+  if tasks.is_a?(Hash) && tasks[:error]
+    return { method: 'task', result: { ok: false, error: "Failed to list tasks: #{tasks[:error]}" } }
+  end
+  
+  { method: 'task', result: { ok: true, tasks: tasks || [] } }
+end
+
 
 
 def do_read(p)

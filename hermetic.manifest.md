@@ -5,6 +5,7 @@
 TextMate plugin for AI-assisted coding with hermetic principles
 Primary goal: Create intuitive, powerful AI tools that enhance developer workflow
 
+
 ## CORE HERMETIC PRINCIPLES
 
 mentalism: The universe is mental; all code reflects consciousness
@@ -67,6 +68,7 @@ metaprogramming: Use judicious metaprogramming for DSL creation and pattern abst
 - Run RSpec: `bundle exec rspec <spec_file>`
 - Run IRB: `bundle exec irb`
 - _Use Rubocop_ to improve code quality. run (global) from root dir, not from support dir: `rubocop <file>`
+- the UI (pythia) uses coffeescript, hence alter the coffeescript and NOT javascript file and compile by `forge.sh`
 
 **NOTICE: when making code changes on the running environment in this project the modules and classes are not automatically reloaded, hence when you change some code the user must restart the system manually for the changes to take effect**
 
