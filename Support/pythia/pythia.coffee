@@ -28,6 +28,7 @@ class Pythia
     @magnumOpus = new MagnumOpus(this)
     @createScrollToBottomButton()
     @loadMermaid()
+    
 
   # Mermaid.js Loading
   loadMermaid: =>
@@ -380,12 +381,12 @@ class Pythia
             #{overviewHtml}
           </details>"""
       when 'task_started'
-        @isThinking = true
+        @setThinking true
         do @updateSendButton
         @log 'status', uuid, "#{data.message} #{timestamp_html}"
         @updateTaskProgress data
       when 'task_completed'
-        @isThinking = false
+        @setThinking false
         do @updateSendButton
         @log 'system', uuid, "#{data.message} #{timestamp_html}"
         @updateTaskProgress data
@@ -425,7 +426,7 @@ class Pythia
             #{data.reason}
           </details>"""
       when 'task_removed'
-        @isThinking = false
+        @setThinking false
         do @updateSendButton
         @log 'system', uuid, "#{data.message} #{timestamp_html}"
       when 'task_list'
@@ -554,14 +555,14 @@ class Pythia
     data = JSON.parse e.data
     
     if 'success' is data.status
-      @isThinking = false
+      @setThinking false
       return do @updateSendButton  
     
     switch data.method
       when 'status'
         @showStatus data.result.type, data.result.data, data.result.uuid
       when 'answer'
-        @isThinking = false
+        @setThinking false
         do @updateSendButton
         if data.result.logs?
           data.result.logs.forEach (l) =>
@@ -747,14 +748,13 @@ class Pythia
     
     uuid = @log 'user', null, message_html
     document.getElementById('chat-input').value = ''
-    @isThinking = true
+    @setThinking true
     do @updateSendButton
 
 
   stopThinking: =>
     @ws.send JSON.stringify method: 'stopThinking'
-    @isThinking = false
-    do @updateSendButton
+    @setThinking false
     
 
   # Command Processing
@@ -822,6 +822,11 @@ class Pythia
     else
       sendBtnGlyph.textContent = '⚡️'
       sendBtn.classList.remove 'thinking'
+      
+      
+  setThinking: (is_thinking)=>
+    TextMate.isBusy = @isThinking = is_thinking
+    do @updateSendButton
 
 
   # Utility Functions

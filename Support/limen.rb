@@ -27,6 +27,8 @@ require_relative 'argonaut/argonaut'
 require_relative 'oracle/coniunctio'
 require_relative 'oracle/oracle'
 require_relative 'oracle/aetherflux'
+require_relative 'oracle/fim_completion'
+puts "FIM Completion loaded successfully" if defined?(Rails)
 require_relative 'markdown_preview'
 require_relative 'config'
 

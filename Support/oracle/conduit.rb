@@ -436,7 +436,7 @@ class Conduit
       body = build_body prompt, ctx
       raw = post body
       json = ensure_json raw
-      log_json json: json
+      # log_json json: json
       json.dig('choices', 0, 'message', 'content') || ''
     rescue StandardError => e
       log_json error: e.message, backtrace: e.backtrace

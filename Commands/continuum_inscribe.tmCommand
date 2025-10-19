@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>beforeRunningCommand</key>
+	<string>nop</string>
+	<key>command</key>
+	<string><![CDATA[#!/usr/bin/env bash
+set -e
+SUPPORT="${TM_BUNDLE_SUPPORT:=$TM_DIRECTORY/Support}"
+
+# Get the entire document content from stdin
+DOCUMENT_CONTENT=$(cat)
+
+# Calculate before context
+export BEFORE_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
+  document_content = ARGF.read
+  
+  # Split into lines
+  lines = document_content.split(\"\n\")
+  
+  # Get cursor position
+  line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i - 1  # Convert to 0-based index
+  column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i - 1  # Convert to 0-based index
+  
+  # Get up to 20 lines before cursor, but limit to ~4000 characters
+  max_chars = 2000
+  before_start_line = [0, line_num - 20].max
+  before_lines = lines[before_start_line...line_num] || []
+  
+  # Collect lines until we reach character limit
+  collected_lines = []
+  current_chars = 0
+  
+  # Add complete lines from before context
+  before_lines.reverse_each do |line|
+    line_length = line.length + 1  # +1 for newline
+    if current_chars + line_length <= max_chars
+      collected_lines.unshift(line)
+      current_chars += line_length
+    else
+      break
+    end
+  end
+  
+  # Get current line up to cursor position
+  current_line_before = lines[line_num][0...column_num] if lines[line_num]
+  
+  # Add current line if we have space
+  if current_line_before && current_chars + current_line_before.length <= max_chars
+    collected_lines << current_line_before
+  end
+  
+  # Combine before context
+  before_context = collected_lines.join(\"\n\")
+  
+  puts before_context
+" <<< "$DOCUMENT_CONTENT")
+
+# Calculate after context
+export AFTER_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
+  document_content = ARGF.read
+  
+  # Split into lines
+  lines = document_content.split(\"\n\")
+  
+  # Get cursor position
+  line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i - 1  # Convert to 0-based index
+  column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i - 1  # Convert to 0-based index
+  
+  # Get after context, limiting to ~4000 characters
+  max_chars = 2000
+  collected_lines = []
+  current_chars = 0
+  
+  # Get current line after cursor
+  current_line_after = lines[line_num][column_num..-1] if lines[line_num]
+  
+  # Add current line after cursor if we have space
+  if current_line_after && current_chars + current_line_after.length <= max_chars
+    collected_lines << current_line_after
+    current_chars += current_line_after.length
+  end
+  
+  # Add complete lines from after context
+  after_start_line = line_num + 1
+  after_end_line = [lines.length, after_start_line + 20].min
+  after_lines = lines[after_start_line...after_end_line] || []
+  
+  after_lines.each do |line|
+    line_length = line.length + 1  # +1 for newline
+    if current_chars + line_length <= max_chars
+      collected_lines << line
+      current_chars += line_length
+    else
+      break
+    end
+  end
+  
+  # Combine after context
+  after_context = collected_lines.join(\"\n\")
+  
+  puts after_context
+" <<< "$DOCUMENT_CONTENT")
+
+# Call continuum weaver for inscription
+RESULT=$(cd "$SUPPORT" && bundle exec ruby -e "
+  require_relative 'config'
+  require_relative 'oracle/continuum_weaver'
+  
+  result = ContinuumWeaver.complete(
+    before_context: ENV['BEFORE_CONTEXT'],
+    after_context: ENV['AFTER_CONTEXT'],
+    file_path: ENV['TM_FILEPATH'],
+    cursor_line: (ENV['TM_LINE_NUMBER'] || '1').to_i,
+    cursor_column: (ENV['TM_COLUMN_NUMBER'] || '1').to_i
+  )
+  
+  puts result
+")
+
+# Inscribe the result
+echo -n "$RESULT"
+]]></string>
+	<key>input</key>
+	<string>document</string>
+	<key>inputFormat</key>
+	<string>text</string>
+	<key>keyEquivalent</key>
+	<string>^~g</string>
+	<key>name</key>
+	<string>Continuum Inscribe</string>
+	<key>outputCaret</key>
+	<string>afterOutput</string>
+	<key>outputLocation</key>
+	<string>atCaret</string>
+	<key>outputFormat</key>
+	<string>text</string>
+	<key>scope</key>
+	<string>source</string>
+	<key>uuid</key>
+	<string>7D6540A1-E0DC-4AA1-A16F-EE57E7AF5380</string>
+	<key>version</key>
+	<string>2</string>
+</dict>
+</plist>
