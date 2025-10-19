@@ -468,7 +468,7 @@ class Conduit
       # puts "[ORACLE][CONDUIT][BODY_MESSAGES_LAST]: #{body[:messages].last.transform_values do |v|
       #   v.to_s.truncate(100)
       # end.inspect}"
-
+ # !> assigned but unused variable - max_tokens
       start_time = Time.now
       max_tokens = select_max_tokens reasoning
       puts '[CONDUIT][GENERATE_AI_RESPONSE]: ' \
@@ -568,3 +568,6 @@ class Conduit
     end
   end
 end
+# ~> <internal:/Users/d/.rvm/rubies/ruby-3.1.7/lib/ruby/3.1.0/rubygems/core_ext/kernel_require.rb>:85:in `require': cannot load such file -- faraday (LoadError)
+# ~> 	from <internal:/Users/d/.rvm/rubies/ruby-3.1.7/lib/ruby/3.1.0/rubygems/core_ext/kernel_require.rb>:85:in `require'
+# ~> 	from -:3:in `<main>'

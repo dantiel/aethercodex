@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>name</key>
+  <string>AetherCodex Live Observe</string>
+  <key>scope</key>
+  <string>source</string>
+  <key>input</key>
+  <string>document</string>
+  <key>output</key>
+  <string>discard</string>
+  <key>autoRefresh</key>
+  <true/>
+  <key>semanticClass</key>
+  <string>callback.document.did-open.aethercodex</string>
+
+  <key>command</key>
+  <string>#!/usr/bin/env ruby
+require "json"
+require "net/http"
+
+path    = ENV["TM_FILEPATH"]
+cursor  = ENV["TM_LINE_NUMBER"].to_i
+content = STDIN.read
+
+payload = {
+  path: path,
+  cursor: cursor,
+  content: content,
+  timestamp: Time.now.to_f
+}
+
+# write snapshot for debugging
+File.write("/tmp/aethercodex_live.json", JSON.pretty_generate(payload))
+
+# push to your local AI/webview if available
+begin
+  uri = URI("http://127.0.0.1:5001/live_update")
+  Net::HTTP.post(uri, JSON.dump(payload), "Content-Type" => "application/json")
+rescue StandardError
+  # ignore if backend not running
+end
+  </string>
+</dict>
+</plist>

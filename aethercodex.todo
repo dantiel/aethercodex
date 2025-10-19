@@ -19,6 +19,9 @@
     ◯ develop intelligent autocomplete suggestions based on context
     ◯ integrate with existing AI reasoning capabilities
     ◯ test and refine pair programming interactions
+#### integrate textmate tools
+  /Users/d/Library/Application Support/TextMate/Managed/Bundles/Bundle Support.tmbundle/Support/shared/bin/
+  **play** - play pythia voice or other hermetic sounds.
 
 ### 📁 FILE & MEMORY SYSTEMS
 ✔︎ Basic File Operations @done(27-07-2025 19:11)
