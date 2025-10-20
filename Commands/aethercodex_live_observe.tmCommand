@@ -5,67 +5,74 @@
 	<key>beforeRunningCommand</key>
   <string>nop</string>
   <key>command</key>
-  <string><![CDATA[#!/usr/bin/env ruby
- require "json"
- require "net/http"
- 
- # Hermetic time-based buffering to prevent rapid-fire execution
- class HermeticTimeBuffer
-   def self.should_process?(path, timestamp)
-     buffer_file = "/tmp/aethercodex_#{File.basename(path || 'global')}_buffer.json"
-     
-     # Check if we have recent state
-     if File.exist?(buffer_file)
-       buffer_state = JSON.parse(File.read(buffer_file))
-       last_time = buffer_state["last_processed"]
-       
-       # Only process if at least 200ms have passed
-       return false if last_time && (timestamp - last_time) < 0.2
-     end
-     
-     # Update buffer state
-     File.write(buffer_file, JSON.dump({"last_processed" => timestamp}))
-     true
-   end
- end
- 
- # Main implementation
- path = ENV["TM_FILEPATH"]
- cursor = ENV["TM_LINE_NUMBER"].to_i
- content = STDIN.read
- 
- # State management with file-specific persistence
- state_file = "/tmp/aethercodex_#{File.basename(path || 'global')}_state.json"
- last_state = File.exist?(state_file) ? JSON.parse(File.read(state_file)) : {}
- 
- if HermeticTimeBuffer.should_process?(path, Time.now.to_f)
-   payload = {
-     path: path,
-     cursor: cursor,
-     content: content,
-     timestamp: Time.now.to_f,
-     type: "hermetic_document_update",
-     scope: ENV["TM_SCOPE"],
-     language: ENV["TM_SCOPE"].to_s.split('.').last
-   }
-   
-   # Non-blocking HTTP with timeout protection
-   Thread.new do
-     begin
-       uri = URI("http://127.0.0.1:4567/hermetic_live_update")
-       http = Net::HTTP.new(uri.host, uri.port)
-       http.open_timeout = 1
-       http.read_timeout = 2
-       http.post(uri.path, JSON.dump(payload), "Content-Type" => "application/json")
-     rescue => e
-       # Silent failure - hermetic acceptance of network volatility
-     end
-   end
-   
-   # Update state with hermetic persistence
-   File.write(state_file, JSON.dump(payload))
- end
- ]]></string>
+  <string><![CDATA[#!/usr/bin/env bash
+set -e
+BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
+PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
+export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
+export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
+export GEM_PATH="$GEM_HOME"
+
+# optional RVM
+if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
+  source "$HOME/.rvm/scripts/rvm"
+  rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
+fi
+
+# Get server port from boot.rb
+JSON=$(bundle exec ruby "$BUNDLE_SUPPORT/boot.rb")
+PORT=$(echo "$JSON" | bundle exec ruby -rjson -e 'puts JSON.parse(STDIN.read)["port"]')
+
+# Read document content from stdin
+CONTENT=$(cat)
+
+# Hermetic time-based buffer to prevent rapid-fire execution
+STATE_FILE="/tmp/aethercodex_$(basename "$TM_FILEPATH")_buffer.json"
+CURRENT_TIME=$(date +%s.%N)
+
+if [[ -f "$STATE_FILE" ]]; then
+  LAST_TIME=$(cat "$STATE_FILE" | bundle exec ruby -rjson -e 'puts JSON.parse(STDIN.read)["last_processed"]')
+  if (( $(echo "$CURRENT_TIME - $LAST_TIME < 0.2" | bc -l) )); then
+    exit 0
+  fi
+fi
+
+# Update the buffer state
+echo "{\"last_processed\": $CURRENT_TIME}" > "$STATE_FILE"
+
+# Prepare payload with proper JSON escaping
+PAYLOAD_JSON=$(bundle exec ruby -rjson -e '
+  puts JSON.generate({
+    path: ENV["TM_FILEPATH"],
+    cursor: ENV["TM_LINE_NUMBER"].to_i,
+    content: STDIN.read,
+    timestamp: ENV["CURRENT_TIME"].to_f,
+    type: "hermetic_document_update",
+    scope: ENV["TM_SCOPE"],
+    language: ENV["TM_SCOPE"].to_s.split(".").last
+  })
+' <<< "$CONTENT")
+
+# Write snapshot for debugging
+echo "$PAYLOAD_JSON" > "/tmp/aethercodex_live.json"
+
+# Push to server with timeout
+bundle exec ruby -rnet/http -rjson -rtimeout -e '
+  begin
+    Timeout.timeout(1) do
+      Thread.new do
+        uri = URI("http://127.0.0.1:" + ENV["PORT"] + "/hermetic_live_update")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.open_timeout = 1
+        http.read_timeout = 2
+        http.post(uri.path, ENV["PAYLOAD_JSON"], "Content-Type" => "application/json")
+      end
+    end
+  rescue StandardError
+    # ignore if backend not running
+  end
+'
+]]></string>
   
 	<key>input</key>
 	<string>document</string>
@@ -74,7 +81,7 @@
 	<key>keyEquivalent</key>
 	<string></string>
 	<key>name</key>
-	<string>Enable / Disable AetherCodex Pair Mode</string>
+	<string>AetherCodex Live Observe</string>
 
 	<key>outputCaret</key>
 	<string>afterOutput</string>

@@ -27,7 +27,7 @@ require_relative 'argonaut/argonaut'
 require_relative 'oracle/coniunctio'
 require_relative 'oracle/oracle'
 require_relative 'oracle/aetherflux'
-require_relative 'oracle/fim_completion'
+require_relative 'oracle/continuum_weaver'
 puts "FIM Completion loaded successfully" if defined?(Rails)
 require_relative 'markdown_preview'
 require_relative 'config'
@@ -580,8 +580,8 @@ def process_hermetic_live_update(payload)
     )
     
     # Send suggestion to frontend via WebSocket
-    if @websocket
-      @websocket.send({
+    if websocket
+      websocket.send({
         method: 'hermetic_suggestion',
         result: {
           path: payload['path'],
@@ -599,6 +599,6 @@ def process_hermetic_live_update(payload)
 end
 
 # WebSocket instance accessor for live updates
-def @websocket
+def websocket
   HorologiumAeternum.instance_variable_get(:@websocket)
 end
