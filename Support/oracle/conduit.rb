@@ -429,7 +429,7 @@ class Conduit
       HorologiumAeternum.system_error "Failed to execute API request: #{e.message.truncate 100}"
       raise e
     end
-
+    
 
     def complete(ctx)
       prompt = "Provide a code completion for the cursor based on context:\n#{ctx[:snippet]}"

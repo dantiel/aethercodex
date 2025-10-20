@@ -47,6 +47,68 @@ class LiveObserver
       # Calculate context around cursor for proactive suggestions
       cursor_line = payload['cursor']
       
+  def self.process_hermetic_live_update(payload)
+    log_json(json: {
+      type: 'hermetic_live_update_received',
+      path: payload['path'],
+      cursor_line: payload['cursor'],
+      content_length: payload['content']&.length || 0,
+      scope: payload['scope'],
+      language: payload['language'],
+      timestamp: payload['timestamp']
+    })
+
+    # Store current document state with enhanced context
+    store_hermetic_document_snapshot(payload)
+    
+    # Generate proactive suggestions using ContinuumWeaver
+    suggestions = generate_hermetic_proactive_suggestions(payload)
+    
+    # Return suggestions for frontend display
+    {
+      status: 'hermetic_observed',
+      timestamp: Time.now.to_f,
+      suggestions: suggestions,
+      context: {
+        path: payload['path'],
+        cursor_line: payload['cursor'],
+        language: payload['language']
+      }
+    }
+  end
+
+  def self.store_hermetic_document_snapshot(payload)
+    # Enhanced storage with language and scope context
+    @hermetic_document_states ||= {}
+    @hermetic_document_states[payload['path']] = {
+      content: payload['content'],
+      cursor_line: payload['cursor'],
+      scope: payload['scope'],
+      language: payload['language'],
+      timestamp: payload['timestamp']
+    }
+  end
+
+  def self.generate_hermetic_proactive_suggestions(payload)
+    # Use ContinuumWeaver for intelligent proactive suggestions
+    begin
+      weaver = ContinuumWeaver.new
+      
+      # Generate proactive suggestion based on current context
+      suggestion = weaver.generate_proactive_suggestion(
+        content: payload['content'],
+        cursor_line: payload['cursor'],
+        file_path: payload['path'],
+        language: payload['language']
+      )
+      
+      return [suggestion].compact
+    rescue => e
+      log_json(error: e, info: "Failed to generate hermetic proactive suggestions")
+      return []
+    end
+  end
+
       # Extract context around cursor (similar to ContinuumWeaver but proactive)
       before_context, after_context = extract_context_around_cursor(current_content, cursor_line)
       

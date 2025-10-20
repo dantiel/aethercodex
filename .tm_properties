@@ -42,3 +42,7 @@ fontName              = $IOSEVKA_CURLY_FONT
 fontName              = $INPUT_MONO_COMPRESSED
 fontName              = $IOSEVKA_CURLY_FONT
 
+
+
+[ ** ]
+scopeAttributes = "attraethercodex"

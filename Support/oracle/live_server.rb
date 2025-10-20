@@ -31,6 +31,25 @@ class LiveObserverServer < Sinatra::Base
     end
   end
 
+  post '/hermetic_live_update' do
+    content_type :json
+    
+    begin
+      payload = JSON.parse(request.body.read)
+      
+      # Process hermetic live update with enhanced context
+      result = LiveObserver.process_hermetic_live_update(payload)
+      
+      JSON.generate(result)
+    rescue JSON::ParserError => e
+      status 400
+      JSON.generate({ error: 'Invalid JSON payload', details: e.message })
+    rescue StandardError => e
+      status 500
+      JSON.generate({ error: 'Internal server error', details: e.message })
+    end
+  end
+
   get '/' do
     content_type :json
     JSON.generate({ status: 'live_observer_server_running', timestamp: Time.now.to_f })

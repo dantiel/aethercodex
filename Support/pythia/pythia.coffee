@@ -198,6 +198,8 @@ class Pythia
     console.log "showStatus", timestamp, type, data
     
     switch type
+      when 'hermetic_live_update'
+        @handleHermeticLiveUpdate(data)
       when 'thinking'
         if data.content
           @log 'system', uuid, """
@@ -1353,6 +1355,176 @@ class Pythia
       
       # Render any existing Mermaid diagrams
       @renderMermaidDiagrams()
+
+  # Hermetic Pair Programming Live Update Handler
+  handleHermeticLiveUpdate: (data) =>
+    console.log('Hermetic live update received:', data.path, data.cursor)
+    
+    # Create or update pair programming panel
+    @ensurePairProgrammingPanel()
+    
+    # Update panel with current document state
+    @updatePairProgrammingPanel(data)
+    
+    # Generate proactive suggestions using ContinuumWeaver
+    @generateProactiveSuggestions(data)
+
+  ensurePairProgrammingPanel: =>
+    return if @pairProgrammingPanel
+    
+    # Create pair programming panel
+    @pairProgrammingPanel = document.createElement('div')
+    @pairProgrammingPanel.className = 'pair-programming-panel'
+    @pairProgrammingPanel.innerHTML = """
+      <div class="panel-header">
+        <h3>🧙 Hermetic Pair Programming</h3>
+        <button class="close-panel">×</button>
+      </div>
+      <div class="panel-content">
+        <div class="current-context">
+          <h4>Current Context</h4>
+          <div class="context-preview"></div>
+        </div>
+        <div class="suggestions">
+          <h4>Proactive Suggestions</h4>
+          <div class="suggestions-list"></div>
+        </div>
+      </div>
+    """
+    
+    # Add to document
+    document.body.appendChild(@pairProgrammingPanel)
+    
+    # Add close button handler
+    closeButton = @pairProgrammingPanel.querySelector('.close-panel')
+    closeButton.onclick = => @hidePairProgrammingPanel()
+    
+    # Add styles
+    @addPairProgrammingStyles()
+
+  hidePairProgrammingPanel: =>
+    return unless @pairProgrammingPanel
+    @pairProgrammingPanel.style.display = 'none'
+
+  updatePairProgrammingPanel: (data) =>
+    return unless @pairProgrammingPanel
+    
+    # Update context preview
+    contextPreview = @pairProgrammingPanel.querySelector('.context-preview')
+    if contextPreview
+      # Show relevant context around cursor
+      lines = data.content.split('\n')
+      startLine = Math.max(0, data.cursor - 5)
+      endLine = Math.min(lines.length - 1, data.cursor + 5)
+      
+      contextLines = lines.slice(startLine, endLine + 1)
+      contextPreview.textContent = contextLines.join('\n')
+
+  generateProactiveSuggestions: (data) =>
+    # Send request to backend for proactive suggestions
+    @sendMessage('generate_proactive_suggestions', {
+      path: data.path,
+      cursor: data.cursor,
+      content: data.content,
+      language: data.language
+    })
+
+  addPairProgrammingStyles: =>
+    return if document.getElementById('pair-programming-styles')
+    
+    styleElement = document.createElement('style')
+    styleElement.id = 'pair-programming-styles'
+    styleElement.textContent = """
+      .pair-programming-panel {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 400px;
+        max-height: 600px;
+        background: var(--argonaut-deep);
+        border: 1px solid var(--argonaut-cosmic);
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        font-family: var(--mono);
+        font-size: 12px;
+        overflow: hidden;
+      }
+      
+      .pair-programming-panel .panel-header {
+        background: var(--argonaut-void);
+        padding: 10px;
+        border-bottom: 1px solid var(--argonaut-cosmic);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .pair-programming-panel .panel-header h3 {
+        margin: 0;
+        color: var(--argonaut-azure);
+        font-size: 14px;
+      }
+      
+      .pair-programming-panel .close-panel {
+        background: none;
+        border: none;
+        color: var(--argonaut-steel);
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .pair-programming-panel .panel-content {
+        padding: 10px;
+        max-height: 500px;
+        overflow-y: auto;
+      }
+      
+      .pair-programming-panel h4 {
+        margin: 0 0 8px 0;
+        color: var(--argonaut-emerald);
+        font-size: 12px;
+      }
+      
+      .pair-programming-panel .context-preview {
+        background: var(--argonaut-void);
+        padding: 8px;
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 11px;
+        max-height: 150px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        color: var(--argonaut-steel);
+      }
+      
+      .pair-programming-panel .suggestions-list {
+        margin-top: 10px;
+      }
+      
+      .pair-programming-panel .suggestion-item {
+        background: var(--argonaut-void);
+        padding: 8px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        border-left: 3px solid var(--argonaut-emerald);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      
+      .pair-programming-panel .suggestion-item:hover {
+        background: var(--argonaut-cosmic);
+        border-left-color: var(--argonaut-azure);
+      }
+    """
+    
+    document.head.appendChild(styleElement)
 
   renderMermaidDiagrams: =>
     console.log('renderMermaidDiagrams called, window.mermaid:', window.mermaid)

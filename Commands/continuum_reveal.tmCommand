@@ -245,7 +245,7 @@ echo "$RESULT"
 	<string>^~f</string>
 	<key>name</key>
 	<string>Continuum Reveal</string>
-
+  
   <!--
 	<key>semanticClass</key>
 	<string>callback.document.did-open</string>

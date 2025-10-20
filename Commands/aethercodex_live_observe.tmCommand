@@ -1,46 +1,97 @@
-<?xml version="1.0" encoding="UTF-8">
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>name</key>
-  <string>AetherCodex Live Observe</string>
-  <key>scope</key>
-  <string>source</string>
-  <key>input</key>
-  <string>document</string>
-  <key>output</key>
-  <string>discard</string>
-  <key>autoRefresh</key>
-  <true/>
-  <key>semanticClass</key>
-  <string>callback.document.did-open.aethercodex</string>
-
+	<key>beforeRunningCommand</key>
+  <string>nop</string>
   <key>command</key>
-  <string>#!/usr/bin/env ruby
-require "json"
-require "net/http"
+  <string><![CDATA[#!/usr/bin/env ruby
+ require "json"
+ require "net/http"
+ 
+ # Hermetic change detection with semantic awareness
+ class HermeticChangeDetector
+   def self.significant_change?(new_content, old_content, new_cursor, old_cursor)
+     return true if old_content.nil?
+     
+     # Ignore whitespace-only changes and minor cursor movements
+     content_changed = new_content.strip != old_content.strip
+     cursor_moved_significantly = old_cursor && (new_cursor - old_cursor).abs > 2
+     
+     content_changed || cursor_moved_significantly
+   end
+ end
+ 
+ # Main implementation
+ path = ENV["TM_FILEPATH"]
+ cursor = ENV["TM_LINE_NUMBER"].to_i
+ content = STDIN.read
+ 
+ # State management with file-specific persistence
+ state_file = "/tmp/aethercodex_#{File.basename(path || 'global')}_state.json"
+ last_state = File.exist?(state_file) ? JSON.parse(File.read(state_file)) : {}
+ 
+ if HermeticChangeDetector.significant_change?(content, last_state["content"], cursor, last_state["cursor"])
+   payload = {
+     path: path,
+     cursor: cursor,
+     content: content,
+     timestamp: Time.now.to_f,
+     type: "hermetic_document_update",
+     scope: ENV["TM_SCOPE"],
+     language: ENV["TM_SCOPE"].to_s.split('.').last
+   }
+   
+   # Non-blocking HTTP with timeout protection
+   Thread.new do
+     begin
+       uri = URI("http://127.0.0.1:5001/hermetic_live_update")
+       http = Net::HTTP.new(uri.host, uri.port)
+       http.open_timeout = 1
+       http.read_timeout = 2
+       http.post(uri.path, JSON.dump(payload), "Content-Type" => "application/json")
+     rescue => e
+       # Silent failure - hermetic acceptance of network volatility
+     end
+   end
+   
+   # Update state with hermetic persistence
+   File.write(state_file, JSON.dump(payload))
+ end
+ ]]></string>
+  
+	<key>input</key>
+	<string>document</string>
+	<key>inputFormat</key>
+	<string>text</string>
+	<key>keyEquivalent</key>
+	<string></string>
+	<key>name</key>
+	<string>Enable / Disable AetherCodex Pair Mode</string>
 
-path    = ENV["TM_FILEPATH"]
-cursor  = ENV["TM_LINE_NUMBER"].to_i
-content = STDIN.read
-
-payload = {
-  path: path,
-  cursor: cursor,
-  content: content,
-  timestamp: Time.now.to_f
-}
-
-# write snapshot for debugging
-File.write("/tmp/aethercodex_live.json", JSON.pretty_generate(payload))
-
-# push to your local AI/webview if available
-begin
-  uri = URI("http://127.0.0.1:5001/live_update")
-  Net::HTTP.post(uri, JSON.dump(payload), "Content-Type" => "application/json")
-rescue StandardError
-  # ignore if backend not running
-end
-  </string>
+	<key>outputCaret</key>
+	<string>afterOutput</string>
+	<key>outputLocation</key>
+	<string>toolTip</string>
+	<key>outputFormat</key>
+	<string>text</string>
+	<key>scope</key>
+	<string>attr.aethercodex</string>
+	<key>uuid</key>
+	<string>C86306D6-AD8C-42A4-8D8E-8D840BC00E74</string>
+	<key>version</key>
+	<string>3</string>
+  
+    
+  <key>autoRefresh</key>
+  <array>
+    <string>DocumentChanged</string>
+    <string>DocumentClosed</string>
+    <string>DocumentSaved</string>
+  </array>
+  
+  <key>semanticClass</key>
+  <string>callback.document.did-open</string>
+  
 </dict>
 </plist>
