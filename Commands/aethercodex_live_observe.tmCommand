@@ -9,16 +9,23 @@
  require "json"
  require "net/http"
  
- # Hermetic change detection with semantic awareness
- class HermeticChangeDetector
-   def self.significant_change?(new_content, old_content, new_cursor, old_cursor)
-     return true if old_content.nil?
+ # Hermetic time-based buffering to prevent rapid-fire execution
+ class HermeticTimeBuffer
+   def self.should_process?(path, timestamp)
+     buffer_file = "/tmp/aethercodex_#{File.basename(path || 'global')}_buffer.json"
      
-     # Ignore whitespace-only changes and minor cursor movements
-     content_changed = new_content.strip != old_content.strip
-     cursor_moved_significantly = old_cursor && (new_cursor - old_cursor).abs > 2
+     # Check if we have recent state
+     if File.exist?(buffer_file)
+       buffer_state = JSON.parse(File.read(buffer_file))
+       last_time = buffer_state["last_processed"]
+       
+       # Only process if at least 200ms have passed
+       return false if last_time && (timestamp - last_time) < 0.2
+     end
      
-     content_changed || cursor_moved_significantly
+     # Update buffer state
+     File.write(buffer_file, JSON.dump({"last_processed" => timestamp}))
+     true
    end
  end
  
@@ -31,7 +38,7 @@
  state_file = "/tmp/aethercodex_#{File.basename(path || 'global')}_state.json"
  last_state = File.exist?(state_file) ? JSON.parse(File.read(state_file)) : {}
  
- if HermeticChangeDetector.significant_change?(content, last_state["content"], cursor, last_state["cursor"])
+ if HermeticTimeBuffer.should_process?(path, Time.now.to_f)
    payload = {
      path: path,
      cursor: cursor,
@@ -45,7 +52,7 @@
    # Non-blocking HTTP with timeout protection
    Thread.new do
      begin
-       uri = URI("http://127.0.0.1:5001/hermetic_live_update")
+       uri = URI("http://127.0.0.1:4567/hermetic_live_update")
        http = Net::HTTP.new(uri.host, uri.port)
        http.open_timeout = 1
        http.read_timeout = 2

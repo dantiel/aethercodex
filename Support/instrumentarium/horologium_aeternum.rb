@@ -211,9 +211,9 @@ module HorologiumAeternum
 
   def self.temp_file_created(path, content, bytes, domain: nil, uuid: nil)
     message = if domain
-                Scriptorium.html "📄 Created temporary file #{create_file_link path} (#{display_bytes bytes}) in domain #{domain[0..8]}..."
+                Scriptorium.html "✅ 📄 Created temporary file #{create_file_link path} (#{display_bytes bytes}) in domain #{domain[0..8]}..."
               else
-                Scriptorium.html "📄 Created temporary file #{create_file_link path} (#{display_bytes bytes})"
+                Scriptorium.html "✅ 📄 Created temporary file #{create_file_link path} (#{display_bytes bytes})"
               end
 
     type = Scriptorium.language_tag_from_path path

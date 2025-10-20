@@ -72,6 +72,21 @@ post '/api' do
   end
 end
 
+# Hermetic pair programming live update endpoint
+post '/hermetic_live_update' do
+  content_type :json
+  begin
+    payload = JSON.parse(request.body.read)
+    
+    # Process the live update
+    result = process_hermetic_live_update(payload)
+    
+    { method: 'hermetic_live_update', result: result }.to_json
+  rescue StandardError => e
+    { method: 'error', result: { error: e.message } }.to_json
+  end
+end
+
 
 get '/ws' do
   puts '[LIMEN][WS]: try open'
@@ -541,4 +556,49 @@ end
 def do_run(p)
   result = Verbum.run p['cmd']
   { method: 'commandResult', result: result }
+end
+
+# Hermetic pair programming live update processing
+def process_hermetic_live_update(payload)
+  puts "[HERMETIC_LIVE_UPDATE] Processing: #{payload['path']} at line #{payload['cursor']}"
+  
+  # Store document state for change detection
+  @hermetic_document_states ||= {}
+  @hermetic_document_states[payload['path']] = {
+    content: payload['content'],
+    cursor: payload['cursor'],
+    timestamp: payload['timestamp'],
+    scope: payload['scope']
+  }
+  
+  # Generate proactive suggestions using ContinuumWeaver
+  if defined?(ContinuumWeaver)
+    suggestion = ContinuumWeaver.generate_proactive_suggestion(
+      payload['content'],
+      payload['cursor'],
+      payload['path']
+    )
+    
+    # Send suggestion to frontend via WebSocket
+    if @websocket
+      @websocket.send({
+        method: 'hermetic_suggestion',
+        result: {
+          path: payload['path'],
+          cursor: payload['cursor'],
+          suggestion: suggestion,
+          timestamp: payload['timestamp']
+        }
+      }.to_json)
+    end
+    
+    { ok: true, suggestion_generated: !suggestion.nil? }
+  else
+    { ok: true, suggestion_generated: false, reason: "ContinuumWeaver not available" }
+  end
+end
+
+# WebSocket instance accessor for live updates
+def @websocket
+  HorologiumAeternum.instance_variable_get(:@websocket)
 end
