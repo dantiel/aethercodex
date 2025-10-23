@@ -6,73 +6,71 @@
   <string>nop</string>
   <key>command</key>
   <string><![CDATA[#!/usr/bin/env bash
-set -e
-BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
-PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
-export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
-export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
-export GEM_PATH="$GEM_HOME"
-
-# optional RVM
-if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
-  source "$HOME/.rvm/scripts/rvm"
-  rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
-fi
-
-# Get server port from boot.rb
-JSON=$(bundle exec ruby "$BUNDLE_SUPPORT/boot.rb")
-PORT=$(echo "$JSON" | bundle exec ruby -rjson -e 'puts JSON.parse(STDIN.read)["port"]')
-
-# Read document content from stdin
-CONTENT=$(cat)
-
-# Hermetic time-based buffer to prevent rapid-fire execution
-STATE_FILE="/tmp/aethercodex_$(basename "$TM_FILEPATH")_buffer.json"
-CURRENT_TIME=$(date +%s.%N)
-
-if [[ -f "$STATE_FILE" ]]; then
-  LAST_TIME=$(cat "$STATE_FILE" | bundle exec ruby -rjson -e 'puts JSON.parse(STDIN.read)["last_processed"]')
-  if (( $(echo "$CURRENT_TIME - $LAST_TIME < 0.2" | bc -l) )); then
-    exit 0
-  fi
-fi
-
-# Update the buffer state
-echo "{\"last_processed\": $CURRENT_TIME}" > "$STATE_FILE"
-
-# Prepare payload with proper JSON escaping
-PAYLOAD_JSON=$(bundle exec ruby -rjson -e '
-  puts JSON.generate({
-    path: ENV["TM_FILEPATH"],
-    cursor: ENV["TM_LINE_NUMBER"].to_i,
-    content: STDIN.read,
-    timestamp: ENV["CURRENT_TIME"].to_f,
-    type: "hermetic_document_update",
-    scope: ENV["TM_SCOPE"],
-    language: ENV["TM_SCOPE"].to_s.split(".").last
-  })
-' <<< "$CONTENT")
-
-# Write snapshot for debugging
-echo "$PAYLOAD_JSON" > "/tmp/aethercodex_live.json"
-
-# Push to server with timeout
-bundle exec ruby -rnet/http -rjson -rtimeout -e '
-  begin
-    Timeout.timeout(1) do
-      Thread.new do
-        uri = URI("http://127.0.0.1:" + ENV["PORT"] + "/hermetic_live_update")
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.open_timeout = 1
-        http.read_timeout = 2
-        http.post(uri.path, ENV["PAYLOAD_JSON"], "Content-Type" => "application/json")
-      end
-    end
-  rescue StandardError
-    # ignore if backend not running
-  end
-'
-]]></string>
+ # IMMEDIATELY fork to background to prevent UI blocking
+ {
+ set -e
+ BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
+ PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
+ export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
+ export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
+ export GEM_PATH="$GEM_HOME"
+ 
+ cd "$BUNDLE_SUPPORT"
+ 
+ # Read document content from stdin
+ CONTENT=$(cat)
+ 
+ # Simple time-based debouncing using file timestamps
+ STATE_FILE="/tmp/aethercodex_$(basename "$TM_FILEPATH" 2>/dev/null || echo "unknown")_buffer"
+ CURRENT_TIME=$(date +%s)
+ 
+ # Check if we should skip (processed within last 200ms)
+ if [[ -f "$STATE_FILE" ]]; then
+   LAST_TIME=$(stat -f %m "$STATE_FILE" 2>/dev/null || echo "0")
+   if (( CURRENT_TIME - LAST_TIME < 1 )); then  # 1 second debounce
+     exit 0
+   fi
+ fi
+ 
+ # Update the buffer state (touch file)
+ touch "$STATE_FILE"
+ 
+ export PORT="4567"
+ 
+ # Prepare payload with minimal processing
+ PAYLOAD_JSON=$(cat << EOF
+ {
+   "path": "$TM_FILEPATH",
+   "cursor": $TM_LINE_NUMBER,
+   "content": $(ruby -rjson -e 'puts JSON.generate(STDIN.read)' <<< "$CONTENT"),
+   "timestamp": $(date +%s.%N),
+   "event": "$TM_REFRESH",
+   "type": "hermetic_document_update",
+   "scope": "$TM_SCOPE",
+   "language": "$(echo "$TM_SCOPE" | sed 's/.*\.//')"
+ }
+ EOF
+ )
+ 
+ # Push to server with minimal overhead (use system ruby)
+ /usr/bin/ruby -rnet/http -rjson -e '
+   begin
+     Thread.new do
+       uri = URI("http://127.0.0.1:4567/hermetic_live_update")
+       http = Net::HTTP.new(uri.host, uri.port)
+       http.open_timeout = 0.5
+       http.read_timeout = 1
+       response = http.post(uri.path, ARGV[0], "Content-Type" => "application/json")
+     end
+   rescue StandardError
+     # ignore all errors
+   end
+ ' "$PAYLOAD_JSON"
+ 
+ } &  # This & forks the entire block to background
+ 
+ # TextMate command exits immediately
+ ]]></string>
   
 	<key>input</key>
 	<string>document</string>
@@ -82,26 +80,24 @@ bundle exec ruby -rnet/http -rjson -rtimeout -e '
 	<string></string>
 	<key>name</key>
 	<string>AetherCodex Live Observe</string>
-
 	<key>outputCaret</key>
 	<string>afterOutput</string>
 	<key>outputLocation</key>
-	<string>toolTip</string>
+	<string>discard</string>
 	<key>outputFormat</key>
 	<string>text</string>
 	<key>scope</key>
-	<string>attr.aethercodex</string>
+	<string>source</string>
 	<key>uuid</key>
 	<string>C86306D6-AD8C-42A4-8D8E-8D840BC00E74</string>
 	<key>version</key>
-	<string>3</string>
+	<string>4</string>
   
-    
   <key>autoRefresh</key>
   <array>
+    <string>DocumentSaved</string>
     <string>DocumentChanged</string>
     <string>DocumentClosed</string>
-    <string>DocumentSaved</string>
   </array>
   
   <key>semanticClass</key>

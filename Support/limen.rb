@@ -72,12 +72,15 @@ post '/api' do
   end
 end
 
+
 # Hermetic pair programming live update endpoint
 post '/hermetic_live_update' do
+  puts "hermetic live update"
   content_type :json
   begin
     payload = JSON.parse(request.body.read)
-    
+    #
+    puts payload.inspect
     # Process the live update
     result = process_hermetic_live_update(payload)
     
