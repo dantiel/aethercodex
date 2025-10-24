@@ -569,39 +569,42 @@ def process_hermetic_live_update(payload)
     cursor: payload['cursor'],
     timestamp: payload['timestamp'],
     scope: payload['scope']
-  }
-  
-  # Generate proactive suggestions using ContinuumWeaver
-  if defined?(ContinuumWeaver)
-    suggestion = ContinuumWeaver.generate_proactive_suggestion(
-      payload['content'],
-      payload['cursor'],
-      payload['path']
-    )
+  # Generate proactive suggestions
+  def do_generate_proactive_suggestions(params)
+    puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
     
-    # Return WebSocket message for frontend
-    {
-      method: 'hermetic_suggestion',
-      result: {
-        path: payload['path'],
-        cursor: payload['cursor'],
-        suggestion: suggestion,
-        timestamp: payload['timestamp']
-      }
-    }
-  else
-    {
-      method: 'hermetic_suggestion',
-      result: {
-        path: payload['path'],
-        cursor: payload['cursor'],
-        suggestion: nil,
-        error: "ContinuumWeaver not available",
-        timestamp: payload['timestamp']
-      }
-    }
+    if defined?(ContinuumWeaver)
+      suggestion = ContinuumWeaver.generate_proactive_suggestion(
+        params['content'],
+        params['cursor'],
+        params['path']
+      )
+      
+      # Send directly via WebSocket
+      if defined?(HorologiumAeternum)
+        HorologiumAeternum.send('proactive_suggestion', 'suggestion', {
+          path: params['path'],
+          cursor: params['cursor'],
+          suggestion: suggestion,
+          timestamp: Time.now.to_f
+        })
+      end
+    else
+      # Send error via WebSocket
+      if defined?(HorologiumAeternum)
+        HorologiumAeternum.send('proactive_suggestion', 'error', {
+          path: params['path'],
+          cursor: params['cursor'],
+          suggestion: nil,
+          error: "ContinuumWeaver not available",
+          timestamp: Time.now.to_f
+        })
+      end
+    end
+    
+    # Return empty result since we're sending directly via WebSocket
+    { method: 'proactive_suggestion', result: { sent: true } }
   end
-end
 
 # WebSocket instance accessor for live updates (not needed - handled by limen framework)
 # def websocket
