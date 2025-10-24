@@ -569,16 +569,25 @@ def process_hermetic_live_update(payload)
     cursor: payload['cursor'],
     timestamp: payload['timestamp'],
     scope: payload['scope']
+  }
+  
   # Generate proactive suggestions
-  def do_generate_proactive_suggestions(params)
-    puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
-    
-    if defined?(ContinuumWeaver)
-      suggestion = ContinuumWeaver.generate_proactive_suggestion(
-        params['content'],
-        params['cursor'],
-        params['path']
-      )
+  do_generate_proactive_suggestions(payload)
+  
+  # Return empty result (WebSocket messaging handled internally)
+  { method: 'hermetic_live_update', result: { status: 'processed' } }
+end
+
+# Generate proactive suggestions
+def do_generate_proactive_suggestions(params)
+  puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
+  
+  if defined?(ContinuumWeaver)
+    suggestion = ContinuumWeaver.generate_proactive_suggestion(
+      params['content'],
+      params['cursor'],
+      params['path']
+    )
       
       # Send directly via WebSocket
       if defined?(HorologiumAeternum)
