@@ -25,174 +25,58 @@ fi
 
 # Calculate context based on mode
 export BEFORE_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
+  require_relative 'instrumentarium/context_extractor'
+  
   document_content = ARGF.read
-
-  # Split into lines
-  lines = document_content.split(\"\n\")
   
   if ENV['SELECTION_MODE'] == 'true'
-    # Selection mode - parse selection range
-    selection_range = ENV['SELECTION_RANGE']
-    selected_text = ENV['SELECTED_TEXT']
-    
-    # Parse selection range format: 36:20-37:4 or 36-37 or 36:20-37 or 36-37:4 or 36:20
-    if selection_range =~ /^(\d+)(?::(\d+))?(-(\d+)(?::(\d+))?)?$/
-      start_line = \$1.to_i - 1  # Convert to 0-based
-      start_col = \$2 ? \$2.to_i - 1 : 0
-      end_line = \$4 ? \$4.to_i - 1 : start_line
-      end_col = \$5 ? \$5.to_i : -1
-      
-      # Get context before selection
-      max_chars = 2000
-      collected_lines = []
-      current_chars = 0
-      
-      # Add lines before selection
-      before_start_line = [0, start_line - 20].max
-      before_lines = lines[before_start_line...start_line] || []
-      
-      before_lines.reverse_each do |line|
-        line_length = line.length + 1
-        if current_chars + line_length <= max_chars
-          collected_lines.unshift(line)
-          current_chars += line_length
-        else
-          break
-        end
-      end
-      
-      # Add start line up to selection
-      if lines[start_line]
-        start_line_before = lines[start_line][0...start_col]
-        if start_line_before && current_chars + start_line_before.length <= max_chars
-          collected_lines << start_line_before
-        end
-      end
-      
-      before_context = collected_lines.join(\"\n\")
-      puts before_context
-    else
-      # Fallback to cursor mode if selection parsing fails
-      puts ''
-    end
+    # Selection mode
+    context = ContextExtractor.extract_context_around_selection(
+      document_content,
+      ENV['SELECTION_RANGE'],
+      ENV['SELECTED_TEXT']
+    )
+    puts context[:before]
   else
-    # Cursor mode - original logic
-    line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i - 1
-    column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i - 1
+    # Cursor mode
+    line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i
+    column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i
     
-    max_chars = 2000
-    before_start_line = [0, line_num - 20].max
-    before_lines = lines[before_start_line...line_num] || []
-    
-    collected_lines = []
-    current_chars = 0
-    
-    before_lines.reverse_each do |line|
-      line_length = line.length + 1
-      if current_chars + line_length <= max_chars
-        collected_lines.unshift(line)
-        current_chars += line_length
-      else
-        break
-      end
-    end
-    
-    current_line_before = lines[line_num][0...column_num] if lines[line_num]
-    
-    if current_line_before && current_chars + current_line_before.length <= max_chars
-      collected_lines << current_line_before
-    end
-    
-    before_context = collected_lines.join(\"\n\")
-    puts before_context
+    context = ContextExtractor.extract_context_around_cursor(
+      document_content,
+      line_num,
+      column_num
+    )
+    puts context[:before]
   end
 " <<< "$DOCUMENT_CONTENT")
 
 
 # Calculate after context
 export AFTER_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
-  document_content = ARGF.read
+  require_relative 'instrumentarium/context_extractor'
   
-  # Split into lines
-  lines = document_content.split(\"\n\")
+  document_content = ARGF.read
   
   if ENV['SELECTION_MODE'] == 'true'
     # Selection mode
-    selection_range = ENV['SELECTION_RANGE']
-    selected_text = ENV['SELECTED_TEXT']
-    
-    if selection_range =~ /^(\d+)(?::(\d+))?-(\d+)(?::(\d+))?$/
-      start_line = \$1.to_i - 1
-      start_col = \$2 ? \$2.to_i - 1 : 0
-      end_line = \$3 ? \$3.to_i - 1 : start_line
-      end_col = \$4 ? \$4.to_i : -1
-      
-      # Get context after selection
-      max_chars = 2000
-      collected_lines = []
-      current_chars = 0
-      
-      # Add end line after selection
-      if lines[end_line] && end_col >= 0
-        end_line_after = lines[end_line][end_col..-1]
-        if end_line_after && current_chars + end_line_after.length <= max_chars
-          collected_lines << end_line_after
-          current_chars += end_line_after.length
-        end
-      end
-      
-      # Add lines after selection
-      after_start_line = end_line + 1
-      after_end_line = [lines.length, after_start_line + 20].min
-      after_lines = lines[after_start_line...after_end_line] || []
-      
-      after_lines.each do |line|
-        line_length = line.length + 1
-        if current_chars + line_length <= max_chars
-          collected_lines << line
-          current_chars += line_length
-        else
-          break
-        end
-      end
-      
-      after_context = collected_lines.join(\"\n\")
-      puts after_context
-    else
-      puts ''
-    end
+    context = ContextExtractor.extract_context_around_selection(
+      document_content,
+      ENV['SELECTION_RANGE'],
+      ENV['SELECTED_TEXT']
+    )
+    puts context[:after]
   else
-    # Cursor mode - original logic
-    line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i - 1
-    column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i - 1
+    # Cursor mode
+    line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i
+    column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i
     
-    max_chars = 2000
-    collected_lines = []
-    current_chars = 0
-    
-    current_line_after = lines[line_num][column_num..-1] if lines[line_num]
-    
-    if current_line_after && current_chars + current_line_after.length <= max_chars
-      collected_lines << current_line_after
-      current_chars += current_line_after.length
-    end
-    
-    after_start_line = line_num + 1
-    after_end_line = [lines.length, after_start_line + 20].min
-    after_lines = lines[after_start_line...after_end_line] || []
-    
-    after_lines.each do |line|
-      line_length = line.length + 1
-      if current_chars + line_length <= max_chars
-        collected_lines << line
-        current_chars += line_length
-      else
-        break
-      end
-    end
-    
-    after_context = collected_lines.join(\"\n\")
-    puts after_context
+    context = ContextExtractor.extract_context_around_cursor(
+      document_content,
+      line_num,
+      column_num
+    )
+    puts context[:after]
   end
 " <<< "$DOCUMENT_CONTENT")
 

@@ -54,36 +54,19 @@ class ContinuumWeaver
 
     # Generate proactive code suggestions based on current context
     def generate_proactive_suggestion(content, cursor_line, file_path)
-      # Split content into lines
-      lines = content.split("\n")
+      require_relative '../instrumentarium/context_extractor'
       
-      puts "generate_proactive_suggestion1"
+      # Extract context using unified extractor (cursor_line is 1-based)
+      context = ContextExtractor.extract_context_around_cursor(
+        content,
+        cursor_line,
+        1,  # Default column 1 for proactive suggestions
+        max_chars: 2000,
+        context_lines: 20
+      )
       
-      # Get context around cursor using the same pattern as continuum commands
-      max_chars = 2000
-      
-      # Calculate before context
-      before_start_line = [0, cursor_line - 20].max
-      before_lines = lines[before_start_line...cursor_line] || []
-      
-      collected_lines = []
-      current_chars = 0
-      
-      before_lines.reverse_each do |line|
-        line_length = line.length + 1
-        if current_chars + line_length <= max_chars
-          collected_lines.unshift(line)
-          current_chars += line_length
-        else
-          break
-        end
-      end
-      
-      current_line_before = lines[cursor_line][0...cursor_column] if lines[cursor_line]
-      
-      if current_line_before && current_chars + current_line_before.length <= max_chars
-        collected_lines << current_line_before
-      end
+      before_context = context[:before]
+      after_context = context[:after]
       
       before_context = collected_lines.join("\n")
       
@@ -345,11 +328,13 @@ class ContinuumWeaver
 
     # Build context for proactive suggestions
     def build_proactive_context(before_context:, after_context:, cursor_line:, scope:, file_path:)
+      puts "build_proactive_context1"
       # Get file structure overview
       file_structure = get_file_structure file_path
 
       # Get relevant notes for context
       relevant_notes = get_relevant_notes file_path
+      puts "build_proactive_context2"
 
       # Build the proactive suggestion prompt
       {
