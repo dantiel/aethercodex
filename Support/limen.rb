@@ -584,6 +584,7 @@ def do_generate_proactive_suggestions(params)
   puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
   
   if defined?(ContinuumWeaver)
+    puts params['content'].size
     suggestion = ContinuumWeaver.generate_proactive_suggestion(
       params['content'],
       params['cursor'],
@@ -592,6 +593,9 @@ def do_generate_proactive_suggestions(params)
       
     # Send directly via WebSocket
     if defined?(HorologiumAeternum)
+      puts "test: #{suggestion.inspect}"
+      puts suggestion
+      
       HorologiumAeternum.send('proactive_suggestion', 'suggestion', {
         path: params['path'],
         cursor: params['cursor'],
@@ -599,6 +603,8 @@ def do_generate_proactive_suggestions(params)
         timestamp: Time.now.to_f
       })
     end
+    puts "blah"
+    
   else
     # Send error via WebSocket
     if defined?(HorologiumAeternum)

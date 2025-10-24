@@ -196,6 +196,7 @@ export AFTER_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
   end
 " <<< "$DOCUMENT_CONTENT")
 
+
 # Call continuum weaver for inscription
 RESULT=$(cd "$SUPPORT" && bundle exec ruby -e "
   require_relative 'config'

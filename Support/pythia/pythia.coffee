@@ -485,10 +485,7 @@ class Pythia
               <p><strong>Step Results:</strong> #{data.step_results_count} available</p>
             </div>
           </details>"""
-      when 'hermetic_live_update'
-        @handleHermeticLiveUpdate(data)
-      when 'proactive_suggestion'
-        @handleProactiveSuggestion(data)
+          
 
   # Task Management
   toggleTaskProgress: (task_id) =>
@@ -597,6 +594,10 @@ class Pythia
         @attachSelection data.result.data
       when 'error'
         @log 'error', null, "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
+      when 'hermetic_live_update'
+        @handleHermeticLiveUpdate data
+      when 'proactive_suggestion'
+        @handleProactiveSuggestion data
       else
         @log 'system', null, "<pre>#{JSON.stringify data, null, 2}</pre>"
 

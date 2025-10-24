@@ -52,21 +52,90 @@ class ContinuumWeaver
     end
 
 
-    # Generate proactive suggestions for real-time pair programming
-    def self.generate_proactive_suggestion(before_context:, after_context:, cursor_line:, file_path:)
-      # Build context for proactive suggestion
-      context = build_proactive_context \
+    # Generate proactive code suggestions based on current context
+    def generate_proactive_suggestion(content, cursor_line, file_path)
+      # Split content into lines
+      lines = content.split("\n")
+      
+      puts "generate_proactive_suggestion1"
+      
+      # Get context around cursor using the same pattern as continuum commands
+      max_chars = 2000
+      
+      # Calculate before context
+      before_start_line = [0, cursor_line - 20].max
+      before_lines = lines[before_start_line...cursor_line] || []
+      
+      collected_lines = []
+      current_chars = 0
+      
+      before_lines.reverse_each do |line|
+        line_length = line.length + 1
+        if current_chars + line_length <= max_chars
+          collected_lines.unshift(line)
+          current_chars += line_length
+        else
+          break
+        end
+      end
+      
+      current_line_before = lines[cursor_line][0...cursor_column] if lines[cursor_line]
+      
+      if current_line_before && current_chars + current_line_before.length <= max_chars
+        collected_lines << current_line_before
+      end
+      
+      before_context = collected_lines.join("\n")
+      
+      # Calculate after context
+      collected_lines = []
+      current_chars = 0
+      
+      current_line_after = lines[cursor_line][cursor_column..-1] if lines[cursor_line]
+      
+      if current_line_after && current_chars + current_line_after.length <= max_chars
+        collected_lines << current_line_after
+        current_chars += current_line_after.length
+      end
+      
+      after_start_line = cursor_line + 1
+      after_end_line = [lines.length, after_start_line + 20].min
+      after_lines = lines[after_start_line...after_end_line] || []
+      
+      after_lines.each do |line|
+        line_length = line.length + 1
+        if current_chars + line_length <= max_chars
+          collected_lines << line
+          current_chars += line_length
+        else
+          break
+        end
+      end
+      
+      after_context = collected_lines.join("\n")
+      
+      puts "generate_proactive_suggestion2"
+      
+      # Build proactive context
+      context = build_proactive_context(
         before_context: before_context,
         after_context: after_context,
         cursor_line: cursor_line,
+        scope: scope,
         file_path: file_path
-
-      # Use Oracle completion with proactive suggestion prompt
-      result = Oracle.complete context
+      )
       
-      # Extract suggestion content
-      extract_response_content(result)
+      puts "generate_proactive_suggestion3"
+      
+      # Use Oracle for proactive suggestions
+      result = Oracle.complete(context)
+      
+      puts "generate_proactive_suggestion4"
+      
+      # Extract and return the suggestion
+      extract_response_content result
     end
+
 
     private
 
@@ -275,7 +344,7 @@ class ContinuumWeaver
 
 
     # Build context for proactive suggestions
-    def build_proactive_context(before_context:, after_context:, cursor_line:, file_path:)
+    def build_proactive_context(before_context:, after_context:, cursor_line:, scope:, file_path:)
       # Get file structure overview
       file_structure = get_file_structure file_path
 
@@ -332,28 +401,5 @@ class ContinuumWeaver
     end
     
 
-    # Generate proactive code suggestions based on current context
-    def generate_proactive_suggestion(content, cursor_line, file_path)
-      # Split content into lines
-      lines = content.split("\n")
-      
-      # Get context around cursor
-      before_context = lines[0...cursor_line].join("\n")
-      after_context = lines[cursor_line..-1].join("\n")
-      
-      # Build proactive context
-      context = build_proactive_context(
-        before_context: before_context,
-        after_context: after_context,
-        cursor_line: cursor_line,
-        file_path: file_path
-      )
-      
-      # Use Oracle for proactive suggestions
-      result = Oracle.complete(context)
-      
-      # Extract and return the suggestion
-      extract_response_content(result)
-    end
   end
 end
