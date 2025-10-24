@@ -598,12 +598,18 @@ def do_generate_proactive_suggestions(params)
     begin
       if defined?(ContinuumWeaver)
         puts "[PROACTIVE_SUGGESTIONS] Content size: #{params['content'].size}, Event: #{params['event']}"
+        # Handle selection context
+        selection_range = params['selection_range']
+        selected_text = params['selected_text']
+        
         suggestion = ContinuumWeaver.generate_proactive_suggestion(
           params['content'],
           params['cursor'],
           params['path'],
           params['scope'],
-          params['event'] || 'change'
+          params['event'] || 'change',
+          selection_range,
+          selected_text
         )
           
         # Send directly via WebSocket

@@ -20,6 +20,12 @@ set -e
 # Read document content from stdin
 export CONTENT=$(cat)
 
+# Get selection information if available
+export TM_SELECTED_TEXT="${TM_SELECTED_TEXT:-}"
+export TM_SELECTION_START="${TM_SELECTION_START:-}"
+export TM_SELECTION_END="${TM_SELECTION_END:-}"
+export TM_CURRENT_LINE="${TM_CURRENT_LINE:-}"
+
 # Simple time-based debouncing using file timestamps
 STATE_FILE="/tmp/aethercodex_buffer"
 CURRENT_TIME=$(date +%s)
@@ -48,6 +54,12 @@ content = ENV["CONTENT"] || ""
 error_log = "/tmp/aethercodex_errors.log"
 
 begin
+  # Parse selection range if available
+  selection_range = nil
+  if ENV["TM_SELECTION_START"] && ENV["TM_SELECTION_END"]
+    selection_range = "#{ENV["TM_SELECTION_START"]}:#{ENV["TM_SELECTION_END"]}"
+  end
+  
   payload = {
     path: filepath,
     cursor: cursor_line.to_i,
@@ -56,7 +68,10 @@ begin
     event: ENV["TM_REFRESH"] || "change", # Get env var if set
     type: "hermetic_document_update",
     scope: scope,
-    language: scope.split(".").last || "unknown"
+    language: scope.split(".").last || "unknown",
+    selected_text: ENV["TM_SELECTED_TEXT"] || "",
+    selection_range: selection_range,
+    current_line: ENV["TM_CURRENT_LINE"] || ""
   }.to_json # Generate JSON *here*
   
   uri = URI("http://0.0.0.0:4567/hermetic_live_update")
