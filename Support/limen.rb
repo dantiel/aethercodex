@@ -578,6 +578,7 @@ def process_hermetic_live_update(payload)
   { method: 'hermetic_live_update', result: { status: 'processed' } }
 end
 
+
 # Generate proactive suggestions
 def do_generate_proactive_suggestions(params)
   puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
@@ -589,67 +590,30 @@ def do_generate_proactive_suggestions(params)
       params['path']
     )
       
-      # Send directly via WebSocket
-      if defined?(HorologiumAeternum)
-        HorologiumAeternum.send('proactive_suggestion', 'suggestion', {
-          path: params['path'],
-          cursor: params['cursor'],
-          suggestion: suggestion,
-          timestamp: Time.now.to_f
-        })
-      end
-    else
-      # Send error via WebSocket
-      if defined?(HorologiumAeternum)
-        HorologiumAeternum.send('proactive_suggestion', 'error', {
-          path: params['path'],
-          cursor: params['cursor'],
-          suggestion: nil,
-          error: "ContinuumWeaver not available",
-          timestamp: Time.now.to_f
-        })
-      end
-    end
-    
-    # Return empty result since we're sending directly via WebSocket
-    { method: 'proactive_suggestion', result: { sent: true } }
-  end
-
-# WebSocket instance accessor for live updates (not needed - handled by limen framework)
-# def websocket
-#   HorologiumAeternum.instance_variable_get(:@websocket)
-# end
-
-# Generate proactive suggestions
-def do_generate_proactive_suggestions(params)
-  puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
-  
-  if defined?(ContinuumWeaver)
-    suggestion = ContinuumWeaver.generate_proactive_suggestion(
-      params['content'],
-      params['cursor'],
-      params['path']
-    )
-    
-    {
-      method: 'proactive_suggestion',
-      result: {
+    # Send directly via WebSocket
+    if defined?(HorologiumAeternum)
+      HorologiumAeternum.send('proactive_suggestion', 'suggestion', {
         path: params['path'],
         cursor: params['cursor'],
         suggestion: suggestion,
         timestamp: Time.now.to_f
-      }
-    }
+      })
+    end
   else
-    {
-      method: 'proactive_suggestion',
-      result: {
+    # Send error via WebSocket
+    if defined?(HorologiumAeternum)
+      HorologiumAeternum.send('proactive_suggestion', 'error', {
         path: params['path'],
         cursor: params['cursor'],
         suggestion: nil,
         error: "ContinuumWeaver not available",
         timestamp: Time.now.to_f
-      }
-    }
+      })
+    end
   end
 end
+
+# WebSocket instance accessor for live updates (not needed - handled by limen framework)
+# def websocket
+#   HorologiumAeternum.instance_variable_get(:@websocket)
+# end
