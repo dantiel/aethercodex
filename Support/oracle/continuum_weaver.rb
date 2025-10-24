@@ -314,7 +314,8 @@ class ContinuumWeaver
           file_structure: file_structure,
           relevant_notes: relevant_notes,
           file_path: file_path,
-          cursor_line: cursor_line
+          cursor_line: cursor_line,
+          scope: scope
         )
       }
     end
@@ -380,7 +381,7 @@ class ContinuumWeaver
     end
 
     # Build event-aware proactive suggestion prompt
-    def build_event_aware_proactive_prompt(before_context:, after_context:, file_structure:, relevant_notes:, file_path:, cursor_line:, cursor_column:, event_type:, git_diff:)
+    def build_event_aware_proactive_prompt(before_context:, after_context:, file_structure:, relevant_notes:, file_path:, cursor_line:, cursor_column:, event_type:, git_diff:, scope:)
       event_instructions = case event_type
       when "DocumentSave"
         "**EVENT: Document Saved** - Focus on overall code quality, potential improvements, and architectural suggestions. Look for patterns across the entire file."
