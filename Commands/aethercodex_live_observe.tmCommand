@@ -49,6 +49,7 @@ nohup /usr/bin/ruby -rnet/http -rjson -e '
 # Arguments passed from Bash
 filepath = ENV["TM_FILEPATH"] || "unknown"
 cursor_line = ENV["TM_LINE_NUMBER"] || "1"
+cursor_column = ENV["TM_COLUMN_NUMBER"] || "1"
 scope = ENV["TM_SCOPE"] || "unknown"
 content = ENV["CONTENT"] || ""
 error_log = "/tmp/aethercodex_errors.log"
@@ -63,6 +64,7 @@ begin
   payload = {
     path: filepath,
     cursor: cursor_line.to_i,
+    cursor_column: cursor_column.to_i,
     content: content, # Raw content, JSON encoding happens below
     timestamp: Time.now.to_f, # Higher precision timestamp
     event: ENV["TM_REFRESH"] || "change", # Get env var if set

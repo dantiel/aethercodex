@@ -60,7 +60,7 @@ class ContinuumWeaver
 
 
     # Generate proactive suggestions based on document context and event type
-    def generate_proactive_suggestion(content, cursor_line, file_path, scope, event_type = 'change', selection_range = nil, selected_text = nil)
+    def generate_proactive_suggestion(content, cursor_line, cursor_column, file_path, scope, event_type = 'change', selection_range = nil, selected_text = nil)
       puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for event: #{event_type}"
       puts "[PROACTIVE_SUGGESTIONS] Selection range: #{selection_range}, Selected text length: #{selected_text&.size || 0}"
 
@@ -72,7 +72,7 @@ class ContinuumWeaver
       else
         # Use cursor-based context extraction
         before_context, after_context = ContextExtractor.extract_context_around_cursor \
-          content, cursor_line, 1, max_chars: 2000, context_lines: 20
+          content, cursor_line, cursor_column, max_chars: 2000, context_lines: 20
       end
 
 
@@ -84,9 +84,9 @@ class ContinuumWeaver
         before_context: before_context,
         after_context: after_context,
         scope: scope,
-        file_path: file_path,
         cursor_line: cursor_line,
-        cursor_column: 1,
+        cursor_column: cursor_column,
+        file_path: file_path,
         event_type: event_type,
         git_diff: git_diff,
         selection_range: selection_range,
@@ -314,7 +314,7 @@ class ContinuumWeaver
 
 
     # Build context for proactive suggestions
-    def build_proactive_context(before_context:, after_context:, cursor_line:, scope:, file_path:, event_type: 'change', git_diff: nil, selection_range: nil, selected_text: nil)
+    def build_proactive_context(before_context:, after_context:, scope:, cursor_line:, cursor_column:, file_path: nil, git_diff: nil, event_type: 'change', selection_range: nil, selected_text: nil)
       puts 'build_proactive_context1'
       # Get file structure overview
       file_structure = get_file_structure file_path
