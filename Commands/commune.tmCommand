@@ -19,6 +19,7 @@ if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
   rvm use 3.1@aethercodex --create >/dev/null 2>&1 || true
 fi
 
+
 # Ensure server running & get port
 JSON=$(bundle exec ruby "$BUNDLE_SUPPORT/boot.rb")
 PORT=$(echo "$JSON" | ruby -rjson -e 'puts JSON.parse(STDIN.read)["port"]')

@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 require_relative 'oracle'
+# require_relative '../config'
+# LOG = File.open CONFIG.log_file_path, 'a'
+# LOG.sync = true
+# $stdout = $stderr = LOG
 
 
 
@@ -10,11 +14,12 @@ require_relative 'oracle'
 class ContinuumWeaver
   class << self
     # Generate FIM completion for given context (cursor mode)
-    def complete(before_context:, after_context:, file_path:, cursor_line:, cursor_column:)
+    def complete(before_context:, after_context:, scope:, file_path:, cursor_line:, cursor_column:)
       # Build comprehensive context including file structure and notes
       context = build_completion_context \
         before_context: before_context,
         after_context: after_context,
+        scope: scope,
         file_path: file_path,
         cursor_line: cursor_line,
         cursor_column: cursor_column
@@ -24,25 +29,26 @@ class ContinuumWeaver
       puts "FIM Debug: Oracle result = #{result.inspect}" if defined?(Rails)
       
       # Extract just the completion content from the result
-      extract_completion_content(result)
+      extract_completion extract_response_content(result)
     end
 
     # Generate refactoring for selected text (selection mode)
-    def refactor(before_context:, after_context:, selected_text:, selection_range:, file_path:)
+    def refactor(before_context:, after_context:, selected_text:, selection_range:, scope:, file_path:)
       # Build comprehensive context for refactoring
       context = build_refactoring_context \
         before_context: before_context,
         after_context: after_context,
         selected_text: selected_text,
         selection_range: selection_range,
+        scope: scope,
         file_path: file_path
-
+      
       # Use Oracle completion with specialized refactoring prompt
       result = Oracle.complete context
       puts "Refactor Debug: Oracle result = #{result.inspect}" if defined?(Rails)
       
       # Extract just the refactoring content from the result
-      extract_completion_content(result)
+      extract_replacement extract_response_content(result)
     end
 
 
@@ -59,7 +65,7 @@ class ContinuumWeaver
       result = Oracle.complete context
       
       # Extract suggestion content
-      extract_completion_content(result)
+      extract_response_content(result)
     end
 
     private
@@ -68,6 +74,7 @@ class ContinuumWeaver
     # Build completion context with file structure and notes
     def build_completion_context(before_context:,
                                  after_context:,
+                                 scope:,
                                  file_path:,
                                  cursor_line:,
                                  cursor_column:)
@@ -84,6 +91,7 @@ class ContinuumWeaver
           after_context:  after_context,
           file_structure: file_structure,
           relevant_notes: relevant_notes,
+          scope: scope,
           file_path: file_path,
           cursor_line: cursor_line,
           cursor_column: cursor_column
@@ -128,41 +136,42 @@ class ContinuumWeaver
                          after_context:,
                          file_structure:,
                          relevant_notes:,
+                         scope:,
                          file_path:,
                          cursor_line:,
                          cursor_column:)
       <<~PROMPT
-        You are a FIM (Fill-In-Middle) completion assistant. Your ONLY task is to generate the code that should appear between the provided context.
+      You are a FIM (Fill-In-Middle) completion assistant. Your ONLY task is to generate the code that should appear between the provided context.
 
-        **RULES:**
-        - Generate ONLY the code that belongs between the contexts
-        - Do NOT include the before or after context in your response
-        - Do NOT add explanations, comments about what you're doing, or any extra text
-        - Match the style, indentation, and patterns of the surrounding code
-        - Generate clean, idiomatic code that fits naturally
+      RULES:
+      - Generate ONLY the code that belongs between the contexts.
+      - Do NOT include the before or after context in your response.
+      - Do NOT add explanations, comments, or any extra text.
+      - Match the style, indentation, and patterns of the surrounding code.
+      - Generate clean, idiomatic code that fits naturally.
+      - Leak guard: do not output any entire line that appears in before_context or after_context, and do not output any substring of 12+ consecutive characters from them. Identifiers/literals may be reused when necessary.
 
-        **CONTEXT:**
-        File: #{file_path}
-        Position: Line #{cursor_line}, Column #{cursor_column}
+      CONTEXT:
+      File: #{file_path}
+      Position: Line #{cursor_line}, Column #{cursor_column}
+      Scope: #{scope}
 
-        **FILE STRUCTURE:**
-        #{file_structure}
+      FILE STRUCTURE (orientation only; do not copy):
+      #{file_structure}
 
-        **RELEVANT NOTES:**
-        #{relevant_notes}
+      RELEVANT NOTES (read-only; identifiers here may be reused):
+      #{relevant_notes}
 
-        **BEFORE CURSOR:**
-        ```
-        #{before_context}
-        ```
+      FILE CONTENT (read-only; may include elisions like ⟪…N lines elided…⟫ — do NOT expand or reproduce them):
+      `[[CURSOR]]` marks the position where content must be inserted.
+      [file part begin]
+      #{before_context}[[CURSOR]]#{after_context}
+      [file part end]
 
-        **AFTER CURSOR:**
-        ```
-        #{after_context}
-        ```
-
-        **YOUR TASK:**
-        Generate ONLY the code that should appear between these contexts. Return nothing else.
+      OUTPUT:
+      <COMPLETION>
+      [Only the code to insert at [[CURSOR]]. Nothing else.]
+      </COMPLETION>
       PROMPT
     end
 
@@ -171,6 +180,7 @@ class ContinuumWeaver
                                   after_context:,
                                   selected_text:,
                                   selection_range:,
+                                  scope:,
                                   file_path:)
       # Get file structure overview
       file_structure = get_file_structure file_path
@@ -187,6 +197,7 @@ class ContinuumWeaver
           selection_range: selection_range,
           file_structure: file_structure,
           relevant_notes: relevant_notes,
+          scope: scope,
           file_path: file_path
         )
       }
@@ -199,58 +210,69 @@ class ContinuumWeaver
                                  selection_range:,
                                  file_structure:,
                                  relevant_notes:,
+                                 scope:,
                                  file_path:)
+      
       <<~PROMPT
-        You are a code refactoring assistant. Your task is to replace the selected text with improved, refactored code.
+      You are a code refactoring assistant. Replace ONLY the selected text with improved code.
 
-        **RULES:**
-        - Replace the selected text with better, cleaner, or more efficient code
-        - Maintain the same functionality but improve the implementation
-        - Match the style, indentation, and patterns of the surrounding code
-        - Do NOT include the before or after context in your response
-        - Do NOT add explanations, comments about what you're doing, or any extra text
-        - Generate clean, idiomatic code that fits naturally
+      HARD RULES:
+      - Edit scope is restricted to the selection. Surrounding code is READ-ONLY.
+      - Do not include, duplicate, or modify any content from before_context or after_context.
+      - Leak guard: do not output any entire line that appears in before_context or after_context, and do not output any substring of 12+ consecutive characters from them. You may reuse identifiers and literals if needed.
+      - Do not add or remove outer scope delimiters that belong outside the selection. No extra or missing def/class/module/function/braces/ends/tags beyond what exists inside the selection.
+      - Keep public API stable (names, signatures, return shape, side effects) unless those are wholly defined inside the selection.
+      - Match indentation and style implied by the surrounding code and scope.
 
-        **CONTEXT:**
-        File: #{file_path}
-        Selection Range: #{selection_range}
+      CONTEXT (READ-ONLY):
+      File: #{file_path}
+      Selection Range: #{selection_range}
+      Scope: #{scope}
 
-        **FILE STRUCTURE:**
-        #{file_structure}
+      FILE STRUCTURE (orientation only; do not copy):
+      #{file_structure}
 
-        **RELEVANT NOTES:**
-        #{relevant_notes}
+      RELEVANT NOTES (read-only; identifiers here may be reused):
+      #{relevant_notes}
 
-        **BEFORE SELECTION:**
-        ```
-        #{before_context}
-        ```
+      CONTENT WINDOW (read-only; may include elisions like ⟪…N lines elided…⟫ — do NOT expand or reproduce them):
+      [[SELECTION WINDOW]]
+      #{before_context}[[SELECTION BEGIN]]#{selected_text}[[SELECTION END]]#{after_context}
+      [[/SELECTION WINDOW]]
 
-        **SELECTED TEXT (to be replaced):**
-        ```
-        #{selected_text}
-        ```
+      TASK:
+      - Produce improved, idiomatic code that drops in exactly where [[SELECTION BEGIN]]..[[SELECTION END]] was.
+      - If the selection is a single token (e.g., a name or literal), return a single-token replacement that remains valid in this context.
+      - Keep the outer function/class/module untouched if the selection is inside one. No duplicated signatures, no new wrappers.
 
-        **AFTER SELECTION:**
-        ```
-        #{after_context}
-        ```
-
-        **YOUR TASK:**
-        Generate ONLY the refactored code that should replace the selected text. Return nothing else.
+      STRICT OUTPUT:
+      <REPLACEMENT>
+      [Only the replacement code goes here. Nothing else.]
+      </REPLACEMENT>
       PROMPT
     end
 
     # Extract completion content from Oracle response
-    def extract_completion_content(result)
+    def extract_response_content result
       if result.is_a?(String) && result.include?('"content"=>')
         # Parse JSON response to extract content
         content_match = result.match(/"content"=>"([^"]+)"/)
-        content_match ? content_match[1] : result
-      else
-        result
+        result = content_match ? content_match[1] : result
       end
+      
+      result
     end
+
+
+    def extract_replacement raw
+      raw[/<REPLACEMENT>\s*\n?(.*)\n?\s*<\/REPLACEMENT>/m, 1] or raw
+    end
+
+
+    def extract_completion raw
+      raw[/<COMPLETION>\s*\n?(.*)\n?\s*<\/COMPLETION>/m, 1] or raw
+    end
+
 
     # Build context for proactive suggestions
     def build_proactive_context(before_context:, after_context:, cursor_line:, file_path:)
@@ -307,6 +329,31 @@ class ContinuumWeaver
         **YOUR TASK:**
         Suggest what code should come next at the cursor position. Keep it brief and actionable.
       PROMPT
+    end
+    
+
+    # Generate proactive code suggestions based on current context
+    def generate_proactive_suggestion(content, cursor_line, file_path)
+      # Split content into lines
+      lines = content.split("\n")
+      
+      # Get context around cursor
+      before_context = lines[0...cursor_line].join("\n")
+      after_context = lines[cursor_line..-1].join("\n")
+      
+      # Build proactive context
+      context = build_proactive_context(
+        before_context: before_context,
+        after_context: after_context,
+        cursor_line: cursor_line,
+        file_path: file_path
+      )
+      
+      # Use Oracle for proactive suggestions
+      result = Oracle.complete(context)
+      
+      # Extract and return the suggestion
+      extract_response_content(result)
     end
   end
 end

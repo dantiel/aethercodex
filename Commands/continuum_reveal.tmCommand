@@ -208,6 +208,7 @@ export AFTER_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
   end
 " <<< "$DOCUMENT_CONTENT")
 
+
 # Call continuum weaver for revelation
 RESULT=$(cd "$SUPPORT" && bundle exec ruby -e "
   require_relative 'config'
@@ -219,12 +220,14 @@ RESULT=$(cd "$SUPPORT" && bundle exec ruby -e "
       after_context: ENV['AFTER_CONTEXT'],
       selected_text: ENV['SELECTED_TEXT'],
       selection_range: ENV['SELECTION_RANGE'],
+      scope: ENV['TM_SCOPE'],
       file_path: ENV['TM_FILEPATH']
     )
   else
     result = ContinuumWeaver.complete(
       before_context: ENV['BEFORE_CONTEXT'],
       after_context: ENV['AFTER_CONTEXT'],
+      scope: ENV['TM_SCOPE'],
       file_path: ENV['TM_FILEPATH'],
       cursor_line: (ENV['TM_LINE_NUMBER'] || '1').to_i,
       cursor_column: (ENV['TM_COLUMN_NUMBER'] || '1').to_i
@@ -233,6 +236,7 @@ RESULT=$(cd "$SUPPORT" && bundle exec ruby -e "
   
   puts result
 ")
+
 
 echo "Continuum Revelation ($MODE mode):"
 echo "$RESULT"

@@ -6,71 +6,77 @@
   <string>nop</string>
   <key>command</key>
   <string><![CDATA[#!/usr/bin/env bash
- # IMMEDIATELY fork to background to prevent UI blocking
- {
- set -e
- BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
- PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
- export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
- export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
- export GEM_PATH="$GEM_HOME"
- 
- cd "$BUNDLE_SUPPORT"
- 
- # Read document content from stdin
- CONTENT=$(cat)
- 
- # Simple time-based debouncing using file timestamps
- STATE_FILE="/tmp/aethercodex_$(basename "$TM_FILEPATH" 2>/dev/null || echo "unknown")_buffer"
- CURRENT_TIME=$(date +%s)
- 
- # Check if we should skip (processed within last 200ms)
- if [[ -f "$STATE_FILE" ]]; then
-   LAST_TIME=$(stat -f %m "$STATE_FILE" 2>/dev/null || echo "0")
-   if (( CURRENT_TIME - LAST_TIME < 1 )); then  # 1 second debounce
-     exit 0
-   fi
- fi
- 
- # Update the buffer state (touch file)
- touch "$STATE_FILE"
- 
- export PORT="4567"
- 
- # Prepare payload with minimal processing
- PAYLOAD_JSON=$(cat << EOF
- {
-   "path": "$TM_FILEPATH",
-   "cursor": $TM_LINE_NUMBER,
-   "content": $(ruby -rjson -e 'puts JSON.generate(STDIN.read)' <<< "$CONTENT"),
-   "timestamp": $(date +%s.%N),
-   "event": "$TM_REFRESH",
-   "type": "hermetic_document_update",
-   "scope": "$TM_SCOPE",
-   "language": "$(echo "$TM_SCOPE" | sed 's/.*\.//')"
- }
- EOF
- )
- 
- # Push to server with minimal overhead (use system ruby)
- /usr/bin/ruby -rnet/http -rjson -e '
-   begin
-     Thread.new do
-       uri = URI("http://127.0.0.1:4567/hermetic_live_update")
-       http = Net::HTTP.new(uri.host, uri.port)
-       http.open_timeout = 0.5
-       http.read_timeout = 1
-       response = http.post(uri.path, ARGV[0], "Content-Type" => "application/json")
-     end
-   rescue StandardError
-     # ignore all errors
-   end
- ' "$PAYLOAD_JSON"
- 
- } &  # This & forks the entire block to background
- 
- # TextMate command exits immediately
- ]]></string>
+# IMMEDIATELY fork to background to prevent UI blocking
+
+set -e
+#BUNDLE_SUPPORT="$TM_BUNDLE_SUPPORT"
+#PROJECT_ROOT="$TM_PROJECT_DIRECTORY"
+#export BUNDLE_GEMFILE="$BUNDLE_SUPPORT/Gemfile"
+#export GEM_HOME="$BUNDLE_SUPPORT/.vendor_bundle"
+#export GEM_PATH="$GEM_HOME"
+#
+#cd "$BUNDLE_SUPPORT"
+
+# Read document content from stdin
+export CONTENT=$(cat)
+
+# Simple time-based debouncing using file timestamps
+STATE_FILE="/tmp/aethercodex_buffer"
+CURRENT_TIME=$(date +%s)
+
+# Check if we should skip (processed within last 200ms)
+if [[ -f "$STATE_FILE" ]]; then
+  LAST_TIME=$(stat -f %m "$STATE_FILE" 2>/dev/null || echo "0")
+  if (( CURRENT_TIME - LAST_TIME < 1 )); then  # 1 second debounce
+    exit 0
+    #echo "ok22"
+  fi
+fi
+
+# Update the buffer state (touch file)
+touch "$STATE_FILE"
+
+export PORT="4567"
+(
+# Push to server with minimal overhead (use system ruby)
+nohup /usr/bin/ruby -rnet/http -rjson -e '
+# Arguments passed from Bash
+filepath = ENV["TM_FILEPATH"] || "unknown"
+cursor_line = ENV["TM_LINE_NUMBER"] || "1"
+scope = ENV["TM_SCOPE"] || "unknown"
+content = ENV["CONTENT"] || ""
+error_log = "/tmp/aethercodex_errors.log"
+
+
+begin
+  payload = {
+    path: filepath,
+    cursor: cursor_line.to_i,
+    content: content, # Raw content, JSON encoding happens below
+    timestamp: Time.now.to_f, # Higher precision timestamp
+    event: ENV["TM_REFRESH"] || "change", # Get env var if set
+    type: "hermetic_document_update",
+    scope: scope,
+    language: scope.split(".").last || "unknown"
+  }.to_json # Generate JSON *here*
+  
+  uri = URI("http://0.0.0.0:4567/hermetic_live_update")
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.open_timeout = 0.5
+  http.read_timeout = 1
+  request = Net::HTTP::Post.new(uri.path, {"Content-Type" => "application/json"})
+  request.body = payload
+  response = http.request(request)
+rescue => e 
+  # ignore all errors
+  File.write(error_log, "[#{Time.now}] Error: #{e.class} - #{e.message}\n#{e.backtrace.join("\n")}\n---\n", mode: "a")
+end
+' &
+) & disown # This & forks the entire block to background
+
+exit 0
+# TextMate command exits immediately
+]]></string>
   
 	<key>input</key>
 	<string>document</string>
@@ -87,11 +93,11 @@
 	<key>outputFormat</key>
 	<string>text</string>
 	<key>scope</key>
-	<string>source</string>
+	<string>attr.aethercodex</string>
 	<key>uuid</key>
 	<string>C86306D6-AD8C-42A4-8D8E-8D840BC00E74</string>
 	<key>version</key>
-	<string>4</string>
+	<string>5</string>
   
   <key>autoRefresh</key>
   <array>

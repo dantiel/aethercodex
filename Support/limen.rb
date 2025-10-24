@@ -32,8 +32,6 @@ puts "FIM Completion loaded successfully" if defined?(Rails)
 require_relative 'markdown_preview'
 require_relative 'config'
 
-
-
 Faye::WebSocket.load_adapter 'thin'
 set :server, 'thin'
 set :port, ENV['AETHER_PORT'] || CONFIG.port
@@ -51,14 +49,12 @@ end
 
 trap('TERM') { exit }
 
-
 # Optional landing page not required if you inline HTML in command
 get '/' do
   File.read File.expand_path('pythia/chamber.html', __dir__)
 rescue StandardError
   'OK'
 end
-
 
 # Simple HTTP API endpoint for command-line usage
 post '/api' do
@@ -73,14 +69,14 @@ post '/api' do
 end
 
 
+
+
 # Hermetic pair programming live update endpoint
 post '/hermetic_live_update' do
-  puts "hermetic live update"
   content_type :json
   begin
     payload = JSON.parse(request.body.read)
-    #
-    puts payload.inspect
+    
     # Process the live update
     result = process_hermetic_live_update(payload)
     
@@ -214,6 +210,7 @@ def handle_request(req)
   when :patchFile       then do_patch req[:params]
   when :runCommand      then do_run req[:params]
   when :previewMarkdown then do_preview_markdown req[:params]
+  when :generate_proactive_suggestions then do_generate_proactive_suggestions req[:params]
   when :error           then { method: 'error', result: { error: 'Internal server error' } }
   else
     error = "Unknown method: #{req[:method]}"
@@ -485,7 +482,7 @@ def execute_task(task_id)
   { method: 'task', result: { ok: true, task_id: task_id, status: 'running_in_background' } }
 end
 
-
+# 
 def list_tasks
   # Get list of all tasks using Mnemosyne
   tasks = Mnemosyne.manage_tasks(action: :list)
@@ -496,7 +493,6 @@ def list_tasks
   
   { method: 'task', result: { ok: true, tasks: tasks || [] } }
 end
-
 
 
 def do_read(p)
@@ -561,9 +557,10 @@ def do_run(p)
   { method: 'commandResult', result: result }
 end
 
+
 # Hermetic pair programming live update processing
 def process_hermetic_live_update(payload)
-  puts "[HERMETIC_LIVE_UPDATE] Processing: #{payload['path']} at line #{payload['cursor']}"
+  puts "[HERMETIC_LIVE_UPDATE][#{payload['event']}] Processing: #{payload['path']} at line #{payload['cursor']}"
   
   # Store document state for change detection
   @hermetic_document_states ||= {}
@@ -604,4 +601,38 @@ end
 # WebSocket instance accessor for live updates
 def websocket
   HorologiumAeternum.instance_variable_get(:@websocket)
+end
+
+# Generate proactive suggestions
+def do_generate_proactive_suggestions(params)
+  puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
+  
+  if defined?(ContinuumWeaver)
+    suggestion = ContinuumWeaver.generate_proactive_suggestion(
+      params['content'],
+      params['cursor'],
+      params['path']
+    )
+    
+    {
+      method: 'proactive_suggestion',
+      result: {
+        path: params['path'],
+        cursor: params['cursor'],
+        suggestion: suggestion,
+        timestamp: Time.now.to_f
+      }
+    }
+  else
+    {
+      method: 'proactive_suggestion',
+      result: {
+        path: params['path'],
+        cursor: params['cursor'],
+        suggestion: nil,
+        error: "ContinuumWeaver not available",
+        timestamp: Time.now.to_f
+      }
+    }
+  end
 end

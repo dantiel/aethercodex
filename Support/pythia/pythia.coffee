@@ -485,7 +485,10 @@ class Pythia
               <p><strong>Step Results:</strong> #{data.step_results_count} available</p>
             </div>
           </details>"""
-          
+      when 'hermetic_live_update'
+        @handleHermeticLiveUpdate(data)
+      when 'proactive_suggestion'
+        @handleProactiveSuggestion(data)
 
   # Task Management
   toggleTaskProgress: (task_id) =>
@@ -1356,19 +1359,6 @@ class Pythia
       # Render any existing Mermaid diagrams
       @renderMermaidDiagrams()
 
-  # Hermetic Pair Programming Live Update Handler
-  handleHermeticLiveUpdate: (data) =>
-    console.log('Hermetic live update received:', data.path, data.cursor)
-    
-    # Create or update pair programming panel
-    @ensurePairProgrammingPanel()
-    
-    # Update panel with current document state
-    @updatePairProgrammingPanel(data)
-    
-    # Generate proactive suggestions using ContinuumWeaver
-    @generateProactiveSuggestions(data)
-
   ensurePairProgrammingPanel: =>
     return if @pairProgrammingPanel
     
@@ -1428,6 +1418,50 @@ class Pythia
       content: data.content,
       language: data.language
     })
+
+  handleProactiveSuggestion: (data) =>
+    console.log('Proactive suggestion received:', data.path, data.cursor)
+    
+    # Update the pair programming panel with the suggestion
+    @updateProactiveSuggestion(data)
+
+  updateProactiveSuggestion: (data) =>
+    return unless @pairProgrammingPanel
+    
+    suggestionsList = @pairProgrammingPanel.querySelector('.suggestions-list')
+    return unless suggestionsList
+    
+    if data.suggestion
+      # Create suggestion element
+      suggestionElement = document.createElement('div')
+      suggestionElement.className = 'suggestion-item'
+      suggestionElement.innerHTML = """
+        <div class="suggestion-content">#{data.suggestion}</div>
+        <div class="suggestion-actions">
+          <button class="accept-suggestion">Accept</button>
+          <button class="reject-suggestion">Ignore</button>
+        </div>
+      """
+      
+      # Add event handlers
+      acceptBtn = suggestionElement.querySelector('.accept-suggestion')
+      rejectBtn = suggestionElement.querySelector('.reject-suggestion')
+      
+      acceptBtn.onclick = => @acceptSuggestion(data.suggestion)
+      rejectBtn.onclick = => @rejectSuggestion(suggestionElement)
+      
+      # Add to suggestions list
+      suggestionsList.appendChild(suggestionElement)
+    else
+      suggestionsList.innerHTML = '<div class="no-suggestions">No proactive suggestions available</div>'
+
+  acceptSuggestion: (suggestion) =>
+    console.log('Accepting suggestion:', suggestion)
+    # TODO: Implement suggestion acceptance logic
+    # This would insert the suggestion at the current cursor position
+    
+  rejectSuggestion: (suggestionElement) =>
+    suggestionElement.remove()
 
   addPairProgrammingStyles: =>
     return if document.getElementById('pair-programming-styles')
@@ -1499,6 +1533,64 @@ class Pythia
         font-family: var(--mono);
         font-size: 11px;
         max-height: 150px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        color: var(--argonaut-steel);
+      }
+      
+      .pair-programming-panel .suggestions-list {
+        margin-top: 10px;
+      }
+      
+      .pair-programming-panel .suggestion-item {
+        background: var(--argonaut-void);
+        border: 1px solid var(--argonaut-cosmic);
+        border-radius: 4px;
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .pair-programming-panel .suggestion-content {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--argonaut-emerald);
+        margin-bottom: 8px;
+        white-space: pre-wrap;
+      }
+      
+      .pair-programming-panel .suggestion-actions {
+        display: flex;
+        gap: 8px;
+      }
+      
+      .pair-programming-panel .accept-suggestion,
+      .pair-programming-panel .reject-suggestion {
+        background: var(--argonaut-cosmic);
+        border: 1px solid var(--argonaut-azure);
+        color: var(--argonaut-steel);
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        cursor: pointer;
+        font-family: var(--sans);
+      }
+      
+      .pair-programming-panel .accept-suggestion:hover {
+        background: var(--argonaut-emerald);
+        color: var(--argonaut-void);
+      }
+      
+      .pair-programming-panel .reject-suggestion:hover {
+        background: var(--argonaut-amber);
+        color: var(--argonaut-void);
+      }
+      
+      .pair-programming-panel .no-suggestions {
+        color: var(--argonaut-steel);
+        font-style: italic;
+        text-align: center;
+        padding: 20px;
+      }
         overflow-y: auto;
         white-space: pre-wrap;
         color: var(--argonaut-steel);
