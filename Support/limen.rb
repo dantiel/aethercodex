@@ -588,7 +588,8 @@ def do_generate_proactive_suggestions(params)
     suggestion = ContinuumWeaver.generate_proactive_suggestion(
       params['content'],
       params['cursor'],
-      params['path']
+      params['path'],
+      params['scope']
     )
       
     # Send directly via WebSocket
@@ -603,7 +604,6 @@ def do_generate_proactive_suggestions(params)
         timestamp: Time.now.to_f
       })
     end
-    puts "blah"
     
   else
     # Send error via WebSocket

@@ -47,7 +47,6 @@ scope = ENV["TM_SCOPE"] || "unknown"
 content = ENV["CONTENT"] || ""
 error_log = "/tmp/aethercodex_errors.log"
 
-
 begin
   payload = {
     path: filepath,

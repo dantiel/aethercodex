@@ -17,6 +17,7 @@ class ContextExtractor
     { before: before_context, after: after_context }
   end
   
+  
   # Extract context around selection
   def self.extract_context_around_selection(content, selection_range, selected_text, max_chars: 2000, context_lines: 20)
     lines = content.split("\n")
@@ -38,7 +39,9 @@ class ContextExtractor
     end
   end
   
+  
   private
+  
   
   # Extract before context for cursor mode
   def self.extract_before_context(lines, line_idx, col_idx, max_chars, context_lines)
@@ -67,6 +70,7 @@ class ContextExtractor
     
     collected_lines.join("\n")
   end
+  
   
   # Extract after context for cursor mode
   def self.extract_after_context(lines, line_idx, col_idx, max_chars, context_lines)
@@ -97,6 +101,7 @@ class ContextExtractor
     
     collected_lines.join("\n")
   end
+  
   
   # Extract before context for selection mode
   def self.extract_before_context_selection(lines, start_line, start_col, max_chars, context_lines)

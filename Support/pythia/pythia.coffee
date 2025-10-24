@@ -595,9 +595,9 @@ class Pythia
       when 'error'
         @log 'error', null, "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
       when 'hermetic_live_update'
-        @handleHermeticLiveUpdate data
+        @handleHermeticLiveUpdate data.result.data
       when 'proactive_suggestion'
-        @handleProactiveSuggestion data
+        @handleProactiveSuggestion data.result.data
       else
         @log 'system', null, "<pre>#{JSON.stringify data, null, 2}</pre>"
 
@@ -1360,6 +1360,7 @@ class Pythia
       # Render any existing Mermaid diagrams
       @renderMermaidDiagrams()
 
+
   ensurePairProgrammingPanel: =>
     return if @pairProgrammingPanel
     
@@ -1393,9 +1394,11 @@ class Pythia
     # Add styles
     @addPairProgrammingStyles()
 
+
   hidePairProgrammingPanel: =>
     return unless @pairProgrammingPanel
     @pairProgrammingPanel.style.display = 'none'
+
 
   updatePairProgrammingPanel: (data) =>
     return unless @pairProgrammingPanel
@@ -1411,6 +1414,7 @@ class Pythia
       contextLines = lines.slice(startLine, endLine + 1)
       contextPreview.textContent = contextLines.join('\n')
 
+
   generateProactiveSuggestions: (data) =>
     # Send request to backend for proactive suggestions
     @sendMessage('generate_proactive_suggestions', {
@@ -1420,11 +1424,16 @@ class Pythia
       language: data.language
     })
 
+
   handleProactiveSuggestion: (data) =>
     console.log('Proactive suggestion received:', data.path, data.cursor)
     
+    # Ensure the pair programming panel exists
+    @ensurePairProgrammingPanel()
+    
     # Update the pair programming panel with the suggestion
-    @updateProactiveSuggestion(data)
+    @updateProactiveSuggestion data
+    
 
   updateProactiveSuggestion: (data) =>
     return unless @pairProgrammingPanel
@@ -1619,6 +1628,7 @@ class Pythia
     
     document.head.appendChild(styleElement)
 
+
   renderMermaidDiagrams: =>
     console.log('renderMermaidDiagrams called, window.mermaid:', window.mermaid)
     console.log('mermaid.render function exists:', !!window.mermaid?.render)
@@ -1657,6 +1667,7 @@ class Pythia
       , 500)
     else
       console.error('Mermaid not available or run method missing')
+  
   
   openMermaidPopup: (svgContent) =>
     console.log('Opening Mermaid diagram in new window')
@@ -1721,6 +1732,7 @@ class Pythia
     else
       console.error('Failed to open popup window - popup might be blocked')
       alert('Please allow popups for this site to view Mermaid diagrams in full screen')
+
 
   # Scroll to Bottom Button
   createScrollToBottomButton: =>
@@ -1796,7 +1808,6 @@ class Pythia
     do @startLoggingInterval
     do @setupEventListeners
     do @initializeUI
-
 
 
 # Initialize Pythia

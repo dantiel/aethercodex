@@ -5,6 +5,7 @@ require_relative 'oracle'
 # LOG = File.open CONFIG.log_file_path, 'a'
 # LOG.sync = true
 # $stdout = $stderr = LOG
+require_relative '../instrumentarium/context_extractor'
 
 
 
@@ -53,60 +54,30 @@ class ContinuumWeaver
 
 
     # Generate proactive code suggestions based on current context
-    def generate_proactive_suggestion(content, cursor_line, file_path)
-      require_relative '../instrumentarium/context_extractor'
-      
+    def generate_proactive_suggestion(content, cursor_line, file_path, scope)
+
       # Extract context using unified extractor (cursor_line is 1-based)
       context = ContextExtractor.extract_context_around_cursor(
         content,
-        cursor_line,
+        cursor_line.to_i,
         1,  # Default column 1 for proactive suggestions
         max_chars: 2000,
         context_lines: 20
       )
+      puts "generate_proactive_suggestion1 #{context.inspect}"
       
       before_context = context[:before]
-      after_context = context[:after]
-      
-      before_context = collected_lines.join("\n")
-      
-      # Calculate after context
-      collected_lines = []
-      current_chars = 0
-      
-      current_line_after = lines[cursor_line][cursor_column..-1] if lines[cursor_line]
-      
-      if current_line_after && current_chars + current_line_after.length <= max_chars
-        collected_lines << current_line_after
-        current_chars += current_line_after.length
-      end
-      
-      after_start_line = cursor_line + 1
-      after_end_line = [lines.length, after_start_line + 20].min
-      after_lines = lines[after_start_line...after_end_line] || []
-      
-      after_lines.each do |line|
-        line_length = line.length + 1
-        if current_chars + line_length <= max_chars
-          collected_lines << line
-          current_chars += line_length
-        else
-          break
-        end
-      end
-      
-      after_context = collected_lines.join("\n")
+      after_context  = context[:after]
       
       puts "generate_proactive_suggestion2"
       
       # Build proactive context
-      context = build_proactive_context(
+      context = build_proactive_context \
         before_context: before_context,
         after_context: after_context,
         cursor_line: cursor_line,
         scope: scope,
         file_path: file_path
-      )
       
       puts "generate_proactive_suggestion3"
       
@@ -117,6 +88,9 @@ class ContinuumWeaver
       
       # Extract and return the suggestion
       extract_response_content result
+
+    rescue e
+      puts "ERROR: #{e.inspect}"
     end
 
 

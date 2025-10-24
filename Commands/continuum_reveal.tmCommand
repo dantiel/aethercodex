@@ -42,26 +42,23 @@ export BEFORE_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
   
   document_content = ARGF.read
   
-  if ENV['SELECTION_MODE'] == 'true'
+  context = if ENV['SELECTION_MODE'] == 'true'
     # Selection mode
-    context = ContextExtractor.extract_context_around_selection(
+    ContextExtractor.extract_context_around_selection \
       document_content,
       ENV['SELECTION_RANGE'],
       ENV['SELECTED_TEXT']
-    )
-    puts context[:before]
   else
     # Cursor mode
     line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i
     column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i
     
-    context = ContextExtractor.extract_context_around_cursor(
+    ContextExtractor.extract_context_around_cursor \
       document_content,
       line_num,
       column_num
-    )
-    puts context[:before]
   end
+  puts context[:before]
 " <<< "$DOCUMENT_CONTENT")
 
 # Calculate after context
@@ -70,57 +67,50 @@ export AFTER_CONTEXT=$(cd "$SUPPORT" && bundle exec ruby -e "
   
   document_content = ARGF.read
   
-  if ENV['SELECTION_MODE'] == 'true'
+  context = if ENV['SELECTION_MODE'] == 'true'
     # Selection mode
-    context = ContextExtractor.extract_context_around_selection(
+    ContextExtractor.extract_context_around_selection \
       document_content,
       ENV['SELECTION_RANGE'],
       ENV['SELECTED_TEXT']
-    )
-    puts context[:after]
   else
     # Cursor mode
     line_num = (ENV['TM_LINE_NUMBER'] || '1').to_i
     column_num = (ENV['TM_COLUMN_NUMBER'] || '1').to_i
     
-    context = ContextExtractor.extract_context_around_cursor(
+    ContextExtractor.extract_context_around_cursor \
       document_content,
       line_num,
       column_num
-    )
-    puts context[:after]
   end
+  puts context[:after]
 " <<< "$DOCUMENT_CONTENT")
-
 
 # Call continuum weaver for revelation
 RESULT=$(cd "$SUPPORT" && bundle exec ruby -e "
   require_relative 'config'
   require_relative 'oracle/continuum_weaver'
   
-  if ENV['SELECTION_MODE'] == 'true'
-    result = ContinuumWeaver.refactor(
+  result = if ENV['SELECTION_MODE'] == 'true'
+    ContinuumWeaver.refactor \
       before_context: ENV['BEFORE_CONTEXT'],
       after_context: ENV['AFTER_CONTEXT'],
       selected_text: ENV['SELECTED_TEXT'],
       selection_range: ENV['SELECTION_RANGE'],
       scope: ENV['TM_SCOPE'],
       file_path: ENV['TM_FILEPATH']
-    )
   else
-    result = ContinuumWeaver.complete(
+    ContinuumWeaver.complete \
       before_context: ENV['BEFORE_CONTEXT'],
       after_context: ENV['AFTER_CONTEXT'],
       scope: ENV['TM_SCOPE'],
       file_path: ENV['TM_FILEPATH'],
       cursor_line: (ENV['TM_LINE_NUMBER'] || '1').to_i,
       cursor_column: (ENV['TM_COLUMN_NUMBER'] || '1').to_i
-    )
   end
   
   puts result
 ")
-
 
 echo "Continuum Revelation ($MODE mode):"
 echo "$RESULT"
