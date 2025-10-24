@@ -1512,7 +1512,8 @@ class Pythia
         position: fixed;
         top: 20px;
         right: 20px;
-        width: 400px;
+        left: 20px;
+        width: auto;
         max-height: 600px;
         background: var(--argonaut-deep);
         border: 1px solid var(--argonaut-cosmic);

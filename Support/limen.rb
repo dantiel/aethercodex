@@ -597,12 +597,13 @@ def do_generate_proactive_suggestions(params)
   @suggestion_thread = Thread.new do
     begin
       if defined?(ContinuumWeaver)
-        puts "[PROACTIVE_SUGGESTIONS] Content size: #{params['content'].size}"
+        puts "[PROACTIVE_SUGGESTIONS] Content size: #{params['content'].size}, Event: #{params['event']}"
         suggestion = ContinuumWeaver.generate_proactive_suggestion(
           params['content'],
           params['cursor'],
           params['path'],
-          params['scope']
+          params['scope'],
+          params['event'] || 'change'
         )
           
         # Send directly via WebSocket

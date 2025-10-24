@@ -53,46 +53,42 @@ class ContinuumWeaver
     end
 
 
-    # Generate proactive code suggestions based on current context
-    def generate_proactive_suggestion(content, cursor_line, file_path, scope)
-
-      # Extract context using unified extractor (cursor_line is 1-based)
-      context = ContextExtractor.extract_context_around_cursor(
-        content,
-        cursor_line.to_i,
-        1,  # Default column 1 for proactive suggestions
-        max_chars: 2000,
-        context_lines: 20
+    # Generate proactive suggestions based on document context and event type
+    def generate_proactive_suggestion(content, cursor_line, file_path, scope, event_type = "change")
+      puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for event: #{event_type}"
+      
+      # Extract context around cursor
+      before_context, after_context = ContextExtractor.extract_context_around_cursor(
+        content, cursor_line, 1, max_chars: 2000, context_lines: 20
       )
-      puts "generate_proactive_suggestion1 #{context.inspect}"
       
-      before_context = context[:before]
-      after_context  = context[:after]
+      # Get git diff for document changes (if available and relevant)
+      git_diff = get_git_diff_for_file(file_path) if event_type == "change"
       
-      puts "generate_proactive_suggestion2"
-      
-      # Build proactive context
-      context = build_proactive_context \
+      # Build proactive suggestion context with event awareness
+      context = build_proactive_suggestion_context(
         before_context: before_context,
         after_context: after_context,
-        cursor_line: cursor_line,
         scope: scope,
-        file_path: file_path
+        file_path: file_path,
+        cursor_line: cursor_line,
+        cursor_column: 1,
+        event_type: event_type,
+        git_diff: git_diff
+      )
       
-      puts "generate_proactive_suggestion3"
-      
-      # Use Oracle for proactive suggestions
+      # Use Oracle completion with event-aware proactive suggestion prompt
       result = Oracle.complete(context)
       
-      puts "generate_proactive_suggestion4"
+      puts "[PROACTIVE_SUGGESTIONS] Generated suggestion: #{result&.size || 0} chars"
       
       # Extract and return the suggestion
       extract_response_content result
 
-    rescue e
-      puts "ERROR: #{e.inspect}"
+    rescue => e
+      puts "[PROACTIVE_SUGGESTIONS] ERROR: #{e.message}"
+      "Error generating proactive suggestion: #{e.message}"
     end
-
 
     private
 
@@ -358,7 +354,112 @@ class ContinuumWeaver
         Suggest what code should come next at the cursor position. Keep it brief and actionable.
       PROMPT
     end
-    
+
+    # Build proactive suggestion context with event awareness
+    def build_proactive_suggestion_context(before_context:, after_context:, scope:, file_path:, cursor_line:, cursor_column:, event_type: "change", git_diff: nil)
+      # Get file structure overview
+      file_structure = get_file_structure file_path
+
+      # Get relevant notes for context
+      relevant_notes = get_relevant_notes file_path
+
+      # Build the proactive suggestion prompt
+      {
+        snippet: build_event_aware_proactive_prompt(
+          before_context: before_context,
+          after_context: after_context,
+          file_structure: file_structure,
+          relevant_notes: relevant_notes,
+          file_path: file_path,
+          cursor_line: cursor_line,
+          cursor_column: cursor_column,
+          event_type: event_type,
+          git_diff: git_diff
+        )
+      }
+    end
+
+    # Build event-aware proactive suggestion prompt
+    def build_event_aware_proactive_prompt(before_context:, after_context:, file_structure:, relevant_notes:, file_path:, cursor_line:, cursor_column:, event_type:, git_diff:)
+      event_instructions = case event_type
+      when "DocumentSave"
+        "**EVENT: Document Saved** - Focus on overall code quality, potential improvements, and architectural suggestions. Look for patterns across the entire file."
+      when "DocumentChange"
+        "**EVENT: Document Changed** - Focus on the immediate context and recent changes. Suggest what naturally follows the current edit pattern."
+      when "DocumentOpen"
+        "**EVENT: Document Opened** - Provide orientation and overview suggestions. Help understand the file structure and suggest entry points."
+      else
+        "**EVENT: #{event_type}** - Provide context-aware suggestions based on the current state."
+      end
+
+      git_diff_section = git_diff ? "\n**RECENT CHANGES (Git Diff):**\n```\n#{git_diff}\n```\n" : ""
+
+      <<~PROMPT
+        You are a proactive pair programming assistant. Based on the current code context, cursor position, and document event, suggest what the developer might want to do next.
+
+        #{event_instructions}
+
+        **RULES:**
+        - Suggest 1-2 lines of code or specific actions that would naturally follow
+        - Focus on completing the current thought or pattern
+        - Keep suggestions concise and immediately useful
+        - Match the style and patterns of the surrounding code
+        - Consider the event type when determining the focus of your suggestion
+
+        **CONTEXT:**
+        File: #{file_path}
+        Cursor Position: Line #{cursor_line}, Column #{cursor_column}
+        Scope: #{scope}
+
+        **FILE STRUCTURE:**
+        #{file_structure}
+
+        **RELEVANT NOTES:**
+        #{relevant_notes}
+#{git_diff_section}
+        **BEFORE CURSOR:**
+        ```
+        #{before_context}
+        ```
+
+        **AFTER CURSOR:**
+        ```
+        #{after_context}
+        ```
+
+        **YOUR TASK:**
+        Suggest what code should come next at the cursor position or what action to take. Keep it brief and actionable.
+      PROMPT
+    end
+
+    # Get git diff for the current file to understand recent changes
+    def get_git_diff_for_file(file_path)
+      return nil unless File.exist?(file_path)
+      
+      begin
+        # Get relative path from git root
+        git_root = `git rev-parse --show-toplevel 2>/dev/null`.chomp
+        return nil if git_root.empty?
+        
+        relative_path = file_path.sub(git_root + "/", "")
+        
+        # Get staged changes
+        staged_diff = `git diff --cached -- "#{relative_path}" 2>/dev/null`.chomp
+        
+        # Get unstaged changes
+        unstaged_diff = `git diff -- "#{relative_path}" 2>/dev/null`.chomp
+        
+        # Combine diffs if available
+        diff = ""
+        diff += "STAGED CHANGES:\n#{staged_diff}\n" unless staged_diff.empty?
+        diff += "UNSTAGED CHANGES:\n#{unstaged_diff}" unless unstaged_diff.empty?
+        
+        diff.empty? ? nil : diff
+      rescue => e
+        puts "[GIT_DIFF] Error getting git diff: #{e.message}"
+        nil
+      end
+    end
 
   end
 end
