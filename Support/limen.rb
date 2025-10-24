@@ -580,41 +580,74 @@ end
 
 
 # Generate proactive suggestions
+# Thread management for proactive suggestions
+@suggestion_thread = nil
+
+# Generate proactive suggestions with thread cancellation
 def do_generate_proactive_suggestions(params)
   puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for: #{params['path']} at line #{params['cursor']}"
   
-  if defined?(ContinuumWeaver)
-    puts params['content'].size
-    suggestion = ContinuumWeaver.generate_proactive_suggestion(
-      params['content'],
-      params['cursor'],
-      params['path'],
-      params['scope']
-    )
+  # Cancel any existing suggestion thread
+  if @suggestion_thread && @suggestion_thread.alive?
+    puts "[PROACTIVE_SUGGESTIONS] Cancelling previous suggestion thread"
+    @suggestion_thread.kill
+  end
+  
+  # Start new suggestion thread
+  @suggestion_thread = Thread.new do
+    begin
+      if defined?(ContinuumWeaver)
+        puts "[PROACTIVE_SUGGESTIONS] Content size: #{params['content'].size}"
+        suggestion = ContinuumWeaver.generate_proactive_suggestion(
+          params['content'],
+          params['cursor'],
+          params['path'],
+          params['scope']
+        )
+          
+        # Send directly via WebSocket
+        if defined?(HorologiumAeternum)
+          puts "[PROACTIVE_SUGGESTIONS] Sending suggestion: #{suggestion&.size || 0} chars"
+          
+          HorologiumAeternum.send('proactive_suggestion', 'suggestion', {
+            path: params['path'],
+            cursor: params['cursor'],
+            scope: params['scope'],
+            content: params['content'],
+            suggestion: suggestion,
+            timestamp: Time.now.to_f
+          })
+        end
+      else
+        # Send error via WebSocket
+        if defined?(HorologiumAeternum)
+          HorologiumAeternum.send('proactive_suggestion', 'error', {
+            path: params['path'],
+            cursor: params['cursor'],
+            scope: params['scope'],
+            content: params['content'],
+            suggestion: nil,
+            error: "ContinuumWeaver not available",
+            timestamp: Time.now.to_f
+          })
+        end
+      end
+    rescue => e
+      puts "[PROACTIVE_SUGGESTIONS] Error: #{e.message}"
+      puts e.backtrace.join("\n") if ENV['DEBUG']
       
-    # Send directly via WebSocket
-    if defined?(HorologiumAeternum)
-      puts "test: #{suggestion.inspect}"
-      puts suggestion
-      
-      HorologiumAeternum.send('proactive_suggestion', 'suggestion', {
-        path: params['path'],
-        cursor: params['cursor'],
-        suggestion: suggestion,
-        timestamp: Time.now.to_f
-      })
-    end
-    
-  else
-    # Send error via WebSocket
-    if defined?(HorologiumAeternum)
-      HorologiumAeternum.send('proactive_suggestion', 'error', {
-        path: params['path'],
-        cursor: params['cursor'],
-        suggestion: nil,
-        error: "ContinuumWeaver not available",
-        timestamp: Time.now.to_f
-      })
+      # Send error via WebSocket
+      if defined?(HorologiumAeternum)
+        HorologiumAeternum.send('proactive_suggestion', 'error', {
+          path: params['path'],
+          cursor: params['cursor'],
+          scope: params['scope'],
+          content: params['content'],
+          suggestion: nil,
+          error: "Generation failed: #{e.message}",
+          timestamp: Time.now.to_f
+        })
+      end
     end
   end
 end

@@ -1362,7 +1362,9 @@ class Pythia
 
 
   ensurePairProgrammingPanel: =>
-    return if @pairProgrammingPanel
+    if @pairProgrammingPanel
+      do @showPairProgrammingPanel
+      return
     
     # Create pair programming panel
     @pairProgrammingPanel = document.createElement('div')
@@ -1398,6 +1400,11 @@ class Pythia
   hidePairProgrammingPanel: =>
     return unless @pairProgrammingPanel
     @pairProgrammingPanel.style.display = 'none'
+    
+    
+  showPairProgrammingPanel: =>
+    return unless @pairProgrammingPanel
+    @pairProgrammingPanel.style.display = 'block'
 
 
   updatePairProgrammingPanel: (data) =>
@@ -1406,13 +1413,28 @@ class Pythia
     # Update context preview
     contextPreview = @pairProgrammingPanel.querySelector('.context-preview')
     if contextPreview
-      # Show relevant context around cursor
-      lines = data.content.split('\n')
-      startLine = Math.max(0, data.cursor - 5)
-      endLine = Math.min(lines.length - 1, data.cursor + 5)
+      # Show file info and context around cursor
+      lines = data.content?.split('\n') || []
+      cursorLine = data.cursor || 0
+      startLine = Math.max(0, cursorLine - 3)
+      endLine = Math.min(lines.length - 1, cursorLine + 3)
       
-      contextLines = lines.slice(startLine, endLine + 1)
-      contextPreview.textContent = contextLines.join('\n')
+      contextInfo = []
+      contextInfo.push("📄 File: #{data.path || 'Unknown'}")
+      contextInfo.push("📍 Line: #{cursorLine + 1}")
+      contextInfo.push("🔍 Scope: #{data.scope || 'Unknown'}")
+      contextInfo.push("")
+      
+      if lines.length > 0
+        contextInfo.push("Context around cursor:")
+        for i in [startLine..endLine]
+          lineNumber = i + 1
+          prefix = if i == cursorLine then "→ " else "  "
+          contextInfo.push("#{prefix}#{lineNumber}: #{lines[i]}")
+      else
+        contextInfo.push("No content available")
+      
+      contextPreview.textContent = contextInfo.join('\n')
 
 
   generateProactiveSuggestions: (data) =>
@@ -1441,6 +1463,12 @@ class Pythia
     suggestionsList = @pairProgrammingPanel.querySelector('.suggestions-list')
     return unless suggestionsList
     
+    # Clear previous suggestions
+    suggestionsList.innerHTML = ''
+    
+    # Update context panel with current file info
+    @updatePairProgrammingPanel(data)
+    
     if data.suggestion
       # Create suggestion element
       suggestionElement = document.createElement('div')
@@ -1463,7 +1491,8 @@ class Pythia
       # Add to suggestions list
       suggestionsList.appendChild(suggestionElement)
     else
-      suggestionsList.innerHTML = '<div class="no-suggestions">No proactive suggestions available</div>'
+      errorMsg = if data.error then "Error: #{data.error}" else "No proactive suggestions available"
+      suggestionsList.innerHTML = "<div class='no-suggestions'>#{errorMsg}</div>"
 
   acceptSuggestion: (suggestion) =>
     console.log('Accepting suggestion:', suggestion)
