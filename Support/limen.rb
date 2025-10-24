@@ -579,29 +579,34 @@ def process_hermetic_live_update(payload)
       payload['path']
     )
     
-    # Send suggestion to frontend via WebSocket
-    if websocket
-      websocket.send({
-        method: 'hermetic_suggestion',
-        result: {
-          path: payload['path'],
-          cursor: payload['cursor'],
-          suggestion: suggestion,
-          timestamp: payload['timestamp']
-        }
-      }.to_json)
-    end
-    
-    { ok: true, suggestion_generated: !suggestion.nil? }
+    # Return WebSocket message for frontend
+    {
+      method: 'hermetic_suggestion',
+      result: {
+        path: payload['path'],
+        cursor: payload['cursor'],
+        suggestion: suggestion,
+        timestamp: payload['timestamp']
+      }
+    }
   else
-    { ok: true, suggestion_generated: false, reason: "ContinuumWeaver not available" }
+    {
+      method: 'hermetic_suggestion',
+      result: {
+        path: payload['path'],
+        cursor: payload['cursor'],
+        suggestion: nil,
+        error: "ContinuumWeaver not available",
+        timestamp: payload['timestamp']
+      }
+    }
   end
 end
 
-# WebSocket instance accessor for live updates
-def websocket
-  HorologiumAeternum.instance_variable_get(:@websocket)
-end
+# WebSocket instance accessor for live updates (not needed - handled by limen framework)
+# def websocket
+#   HorologiumAeternum.instance_variable_get(:@websocket)
+# end
 
 # Generate proactive suggestions
 def do_generate_proactive_suggestions(params)
