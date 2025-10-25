@@ -604,8 +604,8 @@ def do_generate_proactive_suggestions(params)
         
         suggestion = ContinuumWeaver.generate_proactive_suggestion(
           params['content'],
-          params['cursor'],
-          params['cursor_column'] || 1,
+          params['cursor'].to_i,
+          (params['cursor_column'] || 1).to_i,
           params['path'],
           params['scope'],
           params['event'] || 'change',
