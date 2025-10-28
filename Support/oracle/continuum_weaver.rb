@@ -92,13 +92,13 @@ class ContinuumWeaver
         before_context: context_content[:before],
         after_context: context_content[:after],
         scope: scope,
-        cursor_line:,
-        cursor_column:,
-        file_path:,
-        event_type:,
-        git_diff:,
-        selection_range:,
-        selected_text:
+        cursor_line: cursor_line,
+        cursor_column: cursor_column,
+        file_path: file_path,
+        event_type: event_type,
+        git_diff: git_diff,
+        selection_range: selection_range,
+        selected_text: selected_text
       )
 
 

@@ -612,8 +612,8 @@ def do_generate_proactive_suggestions(params)
         if event == 'DocumentOpen'
           puts "[PROACTIVE_SUGGESTIONS] DocumentOpen event - closing panel"
           # Send close command to frontend
-          if @ws
-            @ws.send(JSON.generate({
+          if defined?(HorologiumAeternum)
+            HorologiumAeternum.send(JSON.generate({
               type: "close_proactive_suggestions",
               message: "Document opened - panel closed"
             }))
