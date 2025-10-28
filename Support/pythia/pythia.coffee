@@ -597,7 +597,10 @@ class Pythia
       when 'hermetic_live_update'
         @handleHermeticLiveUpdate data.result.data
       when 'proactive_suggestion'
+        console.log data
         @handleProactiveSuggestion data.result.data
+      when 'close_proactive_suggestions'
+        @handleCloseProactiveSuggestions data
       else
         @log 'system', null, "<pre>#{JSON.stringify data, null, 2}</pre>"
 
@@ -1421,7 +1424,7 @@ class Pythia
       
       contextInfo = []
       contextInfo.push("📄 File: #{data.path || 'Unknown'}")
-      contextInfo.push("📍 Line: #{cursorLine + 1}")
+      contextInfo.push("📍 Line: #{cursorLine}")
       contextInfo.push("🔍 Scope: #{data.scope || 'Unknown'}")
       contextInfo.push("")
       
@@ -1429,7 +1432,7 @@ class Pythia
         contextInfo.push("Context around cursor:")
         for i in [startLine..endLine]
           lineNumber = i + 1
-          prefix = if i == cursorLine then "→ " else "  "
+          prefix = if i == cursorLine - 1 then "→ " else "  "
           contextInfo.push("#{prefix}#{lineNumber}: #{lines[i]}")
       else
         contextInfo.push("No content available")
@@ -1451,10 +1454,15 @@ class Pythia
     console.log('Proactive suggestion received:', data.path, data.cursor)
     
     # Ensure the pair programming panel exists
-    @ensurePairProgrammingPanel()
+    do @ensurePairProgrammingPanel
     
     # Update the pair programming panel with the suggestion
     @updateProactiveSuggestion data
+
+
+  handleCloseProactiveSuggestions: (data) =>
+    console.log('Closing proactive suggestions panel:', data.message)
+    @hidePairProgrammingPanel()
     
 
   updateProactiveSuggestion: (data) =>

@@ -60,7 +60,7 @@ begin
   if ENV["TM_SELECTION_START"] && ENV["TM_SELECTION_END"]
     selection_range = "#{ENV["TM_SELECTION_START"]}:#{ENV["TM_SELECTION_END"]}"
   end
-  
+
   payload = {
     path: filepath,
     cursor: cursor_line.to_i,
@@ -89,7 +89,7 @@ rescue => e
 end
 ' &
 ) & disown # This & forks the entire block to background
-
+export CONTENT=''
 exit 0
 # TextMate command exits immediately
 ]]></string>

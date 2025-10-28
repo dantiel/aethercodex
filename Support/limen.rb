@@ -602,13 +602,32 @@ def do_generate_proactive_suggestions(params)
         selection_range = params['selection_range']
         selected_text = params['selected_text']
         
+        event = if 'change' == params['event']
+          'DocumentOpen'
+        else
+          params['event']
+        end
+        
+        # Don't generate suggestions for DocumentOpen events - just close the panel
+        if event == 'DocumentOpen'
+          puts "[PROACTIVE_SUGGESTIONS] DocumentOpen event - closing panel"
+          # Send close command to frontend
+          if @ws
+            @ws.send(JSON.generate({
+              type: "close_proactive_suggestions",
+              message: "Document opened - panel closed"
+            }))
+          end
+          return
+        end
+        
         suggestion = ContinuumWeaver.generate_proactive_suggestion(
           params['content'],
           params['cursor'].to_i,
           (params['cursor_column'] || 1).to_i,
           params['path'],
           params['scope'],
-          params['event'] || 'change',
+          event,
           selection_range,
           selected_text
         )

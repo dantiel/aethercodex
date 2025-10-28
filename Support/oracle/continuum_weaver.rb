@@ -17,13 +17,14 @@ class ContinuumWeaver
     # Generate FIM completion for given context (cursor mode)
     def complete(before_context:, after_context:, scope:, file_path:, cursor_line:, cursor_column:)
       # Build comprehensive context including file structure and notes
-      context = build_completion_context \
-        before_context: before_context,
-        after_context: after_context,
-        scope: scope,
-        file_path: file_path,
-        cursor_line: cursor_line,
-        cursor_column: cursor_column
+      context = build_completion_context(
+        before_context:,
+        after_context:,
+        scope:,
+        file_path:,
+        cursor_line:,
+        cursor_column:
+      )
 
       # Use Oracle completion with specialized FIM prompt
       result = Oracle.complete context
@@ -60,18 +61,25 @@ class ContinuumWeaver
 
 
     # Generate proactive suggestions based on document context and event type
-    def generate_proactive_suggestion(content, cursor_line, cursor_column, file_path, scope, event_type = 'change', selection_range = nil, selected_text = nil)
+    def generate_proactive_suggestion(content,
+                                      cursor_line,
+                                      cursor_column,
+                                      file_path,
+                                      scope,
+                                      event_type = 'change',
+                                      selection_range = nil,
+                                      selected_text = nil)
       puts "[PROACTIVE_SUGGESTIONS] Generating suggestions for event: #{event_type}"
       puts "[PROACTIVE_SUGGESTIONS] Selection range: #{selection_range}, Selected text length: #{selected_text&.size || 0}"
 
       # Extract context based on whether we have a selection
-      if selection_range && selected_text && !selected_text.empty?
+      context_content = if selection_range && selected_text && !selected_text.empty?
         # Use selection-based context extraction
-        before_context, after_context = ContextExtractor.extract_context_around_selection \
+        ContextExtractor.extract_context_around_selection \
           content, selection_range, selected_text, max_chars: 2000, context_lines: 20
       else
         # Use cursor-based context extraction
-        before_context, after_context = ContextExtractor.extract_context_around_cursor \
+        ContextExtractor.extract_context_around_cursor \
           content, cursor_line, cursor_column, max_chars: 2000, context_lines: 20
       end
 
@@ -80,17 +88,18 @@ class ContinuumWeaver
       git_diff = get_git_diff_for_file(file_path) if 'change' == event_type
 
       # Build proactive suggestion context with event awareness
-      context = build_proactive_context \
-        before_context: before_context,
-        after_context: after_context,
+      context = build_proactive_context(
+        before_context: context_content[:before],
+        after_context: context_content[:after],
         scope: scope,
-        cursor_line: cursor_line,
-        cursor_column: cursor_column,
-        file_path: file_path,
-        event_type: event_type,
-        git_diff: git_diff,
-        selection_range: selection_range,
-        selected_text: selected_text
+        cursor_line:,
+        cursor_column:,
+        file_path:,
+        event_type:,
+        git_diff:,
+        selection_range:,
+        selected_text:
+      )
 
 
       # Use Oracle completion with event-aware proactive suggestion prompt
@@ -314,15 +323,22 @@ class ContinuumWeaver
 
 
     # Build context for proactive suggestions
-    def build_proactive_context(before_context:, after_context:, scope:, cursor_line:, cursor_column:, file_path: nil, git_diff: nil, event_type: 'change', selection_range: nil, selected_text: nil)
-      puts 'build_proactive_context1'
+    def build_proactive_context(before_context:,
+                                after_context:,
+                                scope:,
+                                cursor_line:,
+                                cursor_column:,
+                                file_path: nil,
+                                git_diff: nil,
+                                event_type: 'change',
+                                selection_range: nil,
+                                selected_text: nil)
       # Get file structure overview
       file_structure = get_file_structure file_path
 
       # Get relevant notes for context
       relevant_notes = get_relevant_notes file_path
-      puts 'build_proactive_context2'
-
+      
       # Build the proactive suggestion prompt
       {
         snippet: build_event_aware_proactive_prompt(
@@ -332,6 +348,7 @@ class ContinuumWeaver
           relevant_notes: relevant_notes,
           file_path: file_path,
           cursor_line: cursor_line,
+          cursor_column:,
           scope: scope,
           event_type: event_type,
           git_diff: git_diff,
@@ -437,7 +454,7 @@ class ContinuumWeaver
                            when 'DocumentChange'
                              '**EVENT: Document Changed** - Focus on the immediate context and recent changes. Suggest ' \
                              'what naturally follows the current edit pattern.'
-                           when ['DocumentOpen', 'change']
+                           when %w[DocumentOpen change]
                              '**EVENT: Document Opened** - Provide orientation and overview suggestions. Help ' \
                              'understand the file structure and suggest entry points.'
                            else
@@ -447,10 +464,10 @@ class ContinuumWeaver
       git_diff_section = git_diff ? "\n**RECENT CHANGES (Git Diff):**\n```\n#{git_diff}\n```\n" : ''
 
       selection_section = if selection_range && selected_text && !selected_text.empty?
-        "\n**SELECTION:**\nRange: #{selection_range}\nSelected Text: ```#{selected_text}```\n"
-      else
-        ''
-      end
+                            "\n**SELECTION:**\nRange: #{selection_range}\nSelected Text: ```#{selected_text}```\n"
+                          else
+                            ''
+                          end
 
       <<~PROMPT
                 You are a proactive pair programming assistant. Based on the current code context, cursor#{' '}
