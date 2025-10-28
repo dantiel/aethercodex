@@ -618,7 +618,7 @@ def do_generate_proactive_suggestions(params)
               message: "Document opened - panel closed"
             }))
           end
-          return
+          next
         end
         
         suggestion = ContinuumWeaver.generate_proactive_suggestion(
