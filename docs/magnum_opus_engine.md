@@ -8,7 +8,7 @@
 
 ## 🎯 Overview
 
-The **Magnum Opus Engine** represents the pinnacle of hermetic task orchestration within the AetherCodex system. It implements a robust, event-driven state machine for executing multi-step alchemical workflows following hermetic principles, providing user-controlled step progression with proper error handling, graceful degradation, and database persistence.
+The **Magnum Opus Engine** represents the pinnacle of hermetic task orchestration within the ÆtherCodex system. It implements a robust, event-driven state machine for executing multi-step alchemical workflows following hermetic principles, providing user-controlled step progression with proper error handling, graceful degradation, and database persistence.
 
 ### 🏗️ Architecture Philosophy
 

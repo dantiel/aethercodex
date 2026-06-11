@@ -41,7 +41,7 @@ else
 fi
 
 
-# Convert markdown to HTML with AetherCodex styling using the dedicated script
+# Convert markdown to HTML with ÆtherCodex styling using the dedicated script
 # The script outputs HTML to stdout which TextMate displays
 cat "$TMP_MD" | bundle exec ruby -r "$BUNDLE_SUPPORT/markdown_preview.rb" -e "AetherCodexMarkdownPreview.textmate_preview"
 # Clean up the temporary markdown file
@@ -50,7 +50,7 @@ rm "$TMP_MD"
   <key>input</key><string>document</string>
   <key>inputFormat</key><string>text</string>
   <key>keyEquivalent</key><string>^~@p</string>
-  <key>name</key><string>AetherCodex: Markdown Preview</string>
+  <key>name</key><string>ÆtherCodex: Markdown Preview</string>
   <key>outputCaret</key><string>afterOutput</string>
   <key>outputFormat</key><string>html</string>
   <key>outputLocation</key><string>dispose</string>

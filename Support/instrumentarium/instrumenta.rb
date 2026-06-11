@@ -531,10 +531,16 @@ instrument :aegis,
                      temperature: { type:        Number,
                                     required:    false,
                                     description: 'Optional parameter to fine-tune the Aegis ' \
-                                                 'state responsiveness.' } },
+                                                 'state responsiveness.' },
+                     working_dir: { type:        String,
+                                    required:    false,
+                                    description: 'Set the working directory within the project ' \
+                                                 'to scope file listing and memory preferences. ' \
+                                                 'Only show files under this path.' } },
            returns: { aegis_notes:       Array,
                       aegis_orientation: Hash,
-                      error:             String } do |tags: nil, summary: '', temperature: nil|
+                      error:             String } do |tags: nil, summary: '', temperature: nil, working_dir: nil|
+  Mnemosyne.set_working_dir working_dir if working_dir
   notes = Mnemosyne.unveil_aegis(tags:, summary:, temperature:)
 
   HorologiumAeternum.aegis_unveiled tags, summary, temperature, notes

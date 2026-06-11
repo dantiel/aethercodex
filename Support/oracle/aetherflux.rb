@@ -13,7 +13,7 @@ using MetaprogrammingUtils
 # Aetherflux channel for oracle communication with functional purity
 class Aetherflux
   class << self
-    def channel_oracle_divination(params, tools:, context: nil, timeout: nil)
+    def channel_oracle_divination(params, tools:, context: nil, timeout: nil, resume_state: nil)
       start_time = Time.now
       msg_uuid = HorologiumAeternum.divination 'Initializing astral connection...'
 
@@ -26,9 +26,13 @@ class Aetherflux
         # The system prompt will be handled by Oracle.base_messages for proper message construction
         # For task execution, pass empty prompt since messages contain the complete structure
         divination_prompt = params[:messages] || params[:prompt]
-        result = Oracle.divination divination_prompt, ctx, tools:, msg_uuid:, 
-                                   system_prompt: params[:system_prompt] do |name, args, tool_ctx|
-          tools.handle tool: name, args:, context: tool_ctx, timeout: timeout
+        result = Oracle.divination divination_prompt, ctx, tools:, msg_uuid:,
+                                   system_prompt: params[:system_prompt],
+                                   resume_state: resume_state do |name, args, tool_ctx|
+          tool_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          result = tools.handle tool: name, args:, context: tool_ctx, timeout: timeout
+          exec_time = Process.clock_gettime(Process::CLOCK_MONOTONIC) - tool_start
+          result.is_a?(Hash) ? result.merge(execution_time: exec_time.round(3)) : result
         end
 
         puts "CHECK FOR DIVINE INTERRUPT #{result.inspect.truncate 200}"
@@ -52,11 +56,14 @@ class Aetherflux
       raise StandardError, answer unless answer.is_a? String
 
       html = Scriptorium.html_with_syntax_highlight answer.to_s
-      HorologiumAeternum.oracle_revelation answer.to_s unless answer.to_s.strip.empty?
+      #HorologiumAeternum.oracle_revelation answer.to_s unless answer.to_s.strip.empty?
 
       # Calculate execution time and tool call metrics
       execution_time = Time.now - start_time
       tool_call_count = tool_results&.length || 0
+
+      # Thinking time is already sent as 'thinking_complete' status event from oracle.rb
+      # Keep only total execution_time and tool_execution_times for the answer response
 
       HorologiumAeternum.completed Scriptorium.html("🎯 Response ready with **#{tool_call_count}** tools executed in #{execution_time.round 2}s")
 
@@ -66,20 +73,26 @@ class Aetherflux
                          tool_call_count:, answer:, tool_calls: tool_results)
       end
 
+      # Extract per-tool execution times from tool_results
+      tool_execution_times = (tool_results || []).map do |tr|
+        { name: tr[:name], execution_time: tr[:execution_time] || 0 }
+      end
+
       {
         status:   :success,
         response: {
-          reasoning:       arts[:reasoning],
-          answer:          answer,
-          html:            html,
-          patch:           arts[:patch],
-          tasks:           arts[:tasks],
-          tools:           arts[:tools],
-          tool_results:    tool_results,
-          logs:            [],
-          next_step:       arts[:next_step],
-          execution_time:  execution_time,
-          tool_call_count: tool_call_count
+          reasoning:            arts[:reasoning],
+          answer:               answer,
+          html:                 html,
+          patch:                arts[:patch],
+          tasks:                arts[:tasks],
+          tools:                arts[:tools],
+          tool_results:         tool_results,
+          logs:                 [],
+          next_step:            arts[:next_step],
+          execution_time:       execution_time,
+          tool_call_count:      tool_call_count,
+          tool_execution_times: tool_execution_times
         }
       }
     rescue TypeError => e

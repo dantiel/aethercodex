@@ -273,4 +273,4 @@ Errors are classified into:
 
 **The stars whisper; the code transforms; the patterns resonate.** 🌌
 
-*This documentation is part of the AetherCodex Magnum Opus - the complete hermetic transformation system, now enhanced with Lexicon Resonantia for celestial pattern weaving.*
+*This documentation is part of the ÆtherCodex Magnum Opus - the complete hermetic transformation system, now enhanced with Lexicon Resonantia for celestial pattern weaving.*

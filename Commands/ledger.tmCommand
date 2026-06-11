@@ -33,7 +33,7 @@ HTML
   <key>input</key><string>none</string>
   <key>inputFormat</key><string>text</string>
   <key>keyEquivalent</key><string>^~T</string>
-  <key>name</key><string>AetherCodex: Ledger</string>
+  <key>name</key><string>ÆtherCodex: Ledger</string>
   <key>outputFormat</key><string>html</string>
   <key>outputLocation</key><string>showAsHTML</string>
   <key>uuid</key><string>7AB8BB90-5496-401D-B6E2-DB2D38251430</string>

@@ -22,9 +22,16 @@
       <textarea id="chat-input" placeholder="🌟 Commune with the AetherCodex..." autocomplete="off" spellcheck="false" aria-label="Chat input" rows="1" style="resize: none; overflow-y: hidden;"></textarea>
       <div class="input-accent"></div>
     </div>
-    <button id="send-btn">
-      <span class="send-glyph">⚡️</span>
-    </button>
+    <div class="input-controls">
+      <label class="pair-toggle" title="Toggle pair programming mode">
+        <input type="checkbox" id="pair-toggle-checkbox">
+        <span class="pair-toggle-slider"></span>
+        <span class="pair-toggle-label">👥 Pair</span>
+      </label>
+      <button id="send-btn">
+        <span class="send-glyph">⚡️</span>
+      </button>
+    </div>
   </div>
   <script>window.AETHER_PORT=$AETHER_PORT;window.AETHER_PROJECT_ROOT="$AETHER_PROJECT_ROOT";</script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>

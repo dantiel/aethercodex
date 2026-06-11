@@ -1,5 +1,16 @@
 # 🌌 HERMETIC PROJECT TODO
 
+## 🔐 USER REVIEW MODE (Task #377)
+    ◯ User Review Mode — Confirmation Gate for Tool Execution
+    ◯ Create review configuration system (per-category: read/write/patch/run/delete/network/memory/notes)
+    ◯ Implement ReviewGate interceptor in Artificer (before tool execution)
+    ◯ Add WebSocket events: review_required, review_approved, review_rejected
+    ◯ Build frontend review dialog (modal with approve/reject + optional reason textbox)
+    ◯ Add configuration panel in chamber.html with master toggle + per-category checkboxes
+    ◯ Handle rejection feedback loop — inject user's reason as system message, let AI adjust
+    ◯ Handle edge cases: timeout, disconnect, batch review, concurrent reviews
+    ◯ Test with various tool types and rejection scenarios
+
 ## 🏛️ CORE ARCHITECTURAL PILLARS (Language Agnostic)
 
 ### 🔮 AI INTEGRATION & REASONING

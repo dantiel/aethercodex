@@ -20,7 +20,7 @@ using TokenExtensions
 
 def log_json(**kwargs)
   if kwargs.key? :json
-    puts "[ORACLE][INFO]: #{kwargs[:json].transform_values { |v| v.to_s.truncate 500 }.inspect}"
+    # Debug logging — silenced in production
   else
     # Handle error logging format
     message = '[ORACLE][ERROR]: '
@@ -111,23 +111,45 @@ class Oracle
                    context,
                    tools: nil,
                    system_prompt: nil,
+                   stream: nil,
                    max_depth: 180,
                    reasoning: false,
                    msg_uuid: nil,
+                   resume_state: nil,
                    &exec)
       # Create and enter temp file context for this oracle execution
       temp_context_id = Argonaut::TempFileManager.create_context
       Argonaut::TempFileManager.enter_context temp_context_id
 
       set_temperature = set_temperature_from_context context
-      messages = base_messages prompt_or_messages, context, reasoning, system_prompt
-      tool_results = []
-      arts = { prelude: [] }
+      
+      if resume_state
+        # Resume from saved state — use saved messages, tool_results, arts
+        messages = resume_state[:messages] || base_messages(prompt_or_messages, context, reasoning, system_prompt)
+        tool_results = resume_state[:tool_results] || []
+        arts = resume_state[:arts] || { prelude: [] }
+        (stream || HorologiumAeternum).thinking 'Resuming oracle from saved state...'
+      else
+        messages = base_messages prompt_or_messages, context, reasoning, system_prompt
+        tool_results = []
+        arts = { prelude: [] }
+      end
 
-      stream_initial_status msg_uuid
+      # Track divination start time for thinking time calculation
+      arts[:divination_start_time] = Time.now
+
+      # Save initial state before entering loop — enables resume even before first API call
+      Thread.current[:pause_state] = {
+        messages: messages,
+        tool_results: tool_results,
+        arts: arts,
+        answer: nil
+      }
+
+      stream_initial_status msg_uuid, stream
 
       result = execute_divination_loop(messages, tools, reasoning, tool_results, arts, set_temperature,
-                                       context[:prevent_termination_reminder], max_depth, &exec)
+                                       context[:prevent_termination_reminder], max_depth, msg_uuid, stream, &exec)
 
       # Check if we got a divine interruption signal instead of a regular answer
       if result.is_a?(Hash) && result.key?(:__divine_interrupt)
@@ -157,22 +179,43 @@ class Oracle
                                 set_temperature,
                                 prevent_termination_reminder,
                                 max_depth,
+                                msg_uuid,
+                                stream = nil,
                                 attachments: nil,
                                 &exec)
       answer = nil
       reminder = nil
 
       # puts "[ORACLE][DIVINATION_LOOP]: Reasoning mode: #{reasoning}"
-      puts "[ORACLE][DIVINATION_LOOP]: Tools: #{tools.inspect.truncate 200}"
 
       (1..max_depth).each do |_depth|
+        # Always save current state before API call — enables resume even mid-API-call
+        Thread.current[:pause_state] = {
+          messages: messages,
+          tool_results: tool_results,
+          arts: arts,
+          answer: answer
+        }
+
+        # Check for pause signal — cooperative interruption
+        if Thread.current[:paused]
+          return { __divine_interrupt: true, __reason: :paused }
+        end
+
         json = Conduit.generate_ai_response [*messages, reminder].compact, tools, reasoning,
                                             set_temperature
         content, tcalls, arts = Conduit.extract_response_data json, arts
 
-        puts "[ORACLE][DIVINATION_LOOP]: Full Response content: #{content}"
         # puts "[ORACLE][DIVINATION_LOOP]: Response content: #{content.to_s.truncate(100)}"
-        puts "[ORACLE][DIVINATION_LOOP]: Tool calls found: #{tcalls.any?}"
+
+        # Track when first content is received for thinking time calculation
+        if content.present? && !arts[:first_content_time]
+          arts[:first_content_time] = Time.now
+          # Send thinking time immediately to frontend — before tool calls execute
+          thinking_time = (Time.now - arts[:divination_start_time] || Time.now).round(2)
+          (stream || HorologiumAeternum).send_status('thinking_complete', { thinking_time: }, uuid: msg_uuid)
+          msg_uuid = nil
+        end
 
         messages << (add_assistant_message messages, content, tcalls)
         arts = collect_prelude_content arts, content
@@ -180,31 +223,28 @@ class Oracle
 
         # In reasoning mode, we should NOT process tool calls - reasoning models only provide reasoning
         unless reasoning
-          tool_call_result = process_tool_calls tcalls, messages, tool_results, content, exec, arts
+          tool_call_result = process_tool_calls tcalls, messages, tool_results, content, exec, arts, stream
 
-          puts "TOOL CALL RESULT: #{tool_call_result.inspect}"
           # Check if tool call returned a divine interruption signal
           if tool_call_result.is_a?(Hash) && tool_call_result.key?(:__divine_interrupt)
-            puts '[ORACLE][DIVINATION]: detected divine interrupt'
             # Return the divine interruption signal to terminate the current oracle call
             return tool_call_result
           end
 
           next if true == tool_call_result
-
         end
+        
         # Check for prevent_termination_reminder in context - add reminder if present
         if prevent_termination_reminder&.any?
           reminders = prevent_termination_reminder
           reminder = reminders.last
-          puts "[ORACLE][DIVINATION]: reminder set: #{reminder}, remaining reminders: #{reminders - 1}"
 
           if reminder
             prevent_termination_reminder = reminders.drop 1
             next
           end
         end
-
+        
         answer = content
         break
       end
@@ -213,10 +253,10 @@ class Oracle
     end
 
 
-    def process_tool_calls(tcalls, messages, tool_results, content, exec, arts)
+    def process_tool_calls(tcalls, messages, tool_results, content, exec, arts, stream = nil)
       if tcalls.any?
         new_messages, new_tool_results, divine_interrupt = handle_standard_tool_calls tcalls, messages, tool_results,
-                                                                                      content, exec
+                                                                                      content, exec, stream
         if divine_interrupt
           # Return divine interruption signal to terminate current oracle call
           return divine_interrupt
@@ -230,9 +270,8 @@ class Oracle
       # In reasoning mode, skip tool call extraction entirely
       tools_from_content = Artificer.extract_instrumenta_from_content content
       if tools_from_content.any?
-        puts "[ORACLE][DEBUG]: Found #{tools_from_content.size} tools in content (fallback mode)"
         new_messages, new_tool_results, divine_interrupt = handle_fallback_tool_calls tools_from_content, messages,
-                                                                                      tool_results, content, exec, arts
+                                                                                      tool_results, content, exec, arts, stream
         if divine_interrupt
           # Return divine interruption signal to terminate current oracle call
           return divine_interrupt
@@ -247,14 +286,14 @@ class Oracle
     end
 
 
-    def conjuration(prompt, context, msg_uuid:, tools: nil, &block)
+    def conjuration(prompt, context, msg_uuid:, tools: nil, stream: nil, &block)
       set_temperature = set_temperature_from_context context
-      result = divination(prompt, context, tools:, reasoning: true, msg_uuid:, &block)
+      result = divination(prompt, context, tools:, reasoning: true, msg_uuid:, stream:, &block)
       result
     rescue StandardError => e
       error_details = Conduit.extract_deepseek_error_details e
       error_message = error_details[:message] || e.message
-      HorologiumAeternum.system_error "Conjuration failed: #{error_message.truncate 100}"
+      (stream || HorologiumAeternum).system_error "Conjuration failed: #{error_message.truncate 100}"
       { error: "Conjuration failed: #{error_message}", details: error_details }
     end
 
@@ -277,14 +316,21 @@ class Oracle
       hermetic_manifest = context.dig :extra_context, :hermetic_manifest
       hermetic_manifest = hermetic_manifest[:content] if hermetic_manifest.present?
       attachments = context.dig :extra_context, :attachments
-      project_files = context.dig :extra_context, :project_files
-      project_files = if project_files.present?
-        "CURRENT PROJECT FILES: #{project_files.join "\n"}"
+      project_summary = context.dig :extra_context, :project_summary
+      project_summary = if project_summary.present?
+        working_dir = context.dig(:extra_context, :aegis_orientation, :working_dir)
+        label = if working_dir.present?
+          "PROJECT STRUCTURE (scope: #{working_dir}):"
+        else
+          "PROJECT STRUCTURE (top-level):"
+        end
+        "#{label}\n#{project_summary}"
       end
       aegis_orientation = context.dig :extra_context, :aegis_orientation
       aegis_orientation = if aegis_orientation.present?
-        "AEGIS ORIENTATION: #{aegis_orientation.to_s_no_quotes}" 
+        "AEGIS ORIENTATION: #{aegis_orientation.to_s_no_quotes}"
       end
+
       aegis_notes = context.dig :extra_context, :aegis_notes
       aegis_notes = if aegis_notes.present?
         aegis_notes.map!{ |note| note.to_s_no_quotes }
@@ -294,18 +340,18 @@ class Oracle
       system_prompt = [
         (reasoning ? REASONING_PROMPT : SYSTEM_PROMPT),
         system_prompt,
-        project_files,
+        project_summary,
+        aegis_notes,
+        aegis_orientation,
         hermetic_manifest
       ].compact.join "\n\n=======\n\n"
 
-      puts "[ORACLE][DEBUG]: Reasoning mode: #{reasoning}"
       # puts "[ORACLE][DEBUG]: System prompt length: #{system_prompt.length}"
       # puts "[ORACLE][DEBUG]: System prompt preview: #{system_prompt[0..200]}..."
       include_briefing = reasoning && :deepseek == CONFIG::CFG[:api_type]
 
       messages = if custom_messages
                    # For task execution with complete message structure - use it directly
-                   puts '[ORACLE][DEBUG]: Using custom message structure for task execution'
                    [
                      { role: 'system', content: system_prompt },
                      *custom_messages
@@ -328,9 +374,7 @@ class Oracle
                    ]
                  end.compact
 
-      puts '[ORACLE][DEBUG]: Messages being sent:'
       messages.each_with_index do |msg, i|
-        puts "[ORACLE][DEBUG]: Message #{i}: role=#{msg[:role]}, " \
              "byte_length=#{msg[:content].to_s.size}, " \
              "token_length=#{msg[:content].to_s.tok_len}, " \
              "message=#{msg.inspect.truncate 150000}"
@@ -408,7 +452,6 @@ class Oracle
         #{attachments.inspect}
       ATTACHMENT_PROMPT
 
-      puts "[ORACLE][RENDER_ATTACHMENTS]: #{x}"
       x
     end
 
@@ -422,11 +465,12 @@ class Oracle
     end
 
 
-    def stream_initial_status(msg_uuid)
-      return unless defined?(HorologiumAeternum)
+    def stream_initial_status(msg_uuid, stream = nil)
+      sink = stream || HorologiumAeternum
+      return unless sink
 
       sleep 0.1
-      HorologiumAeternum.thinking 'Consulting the hermetic oracle...', uuid: msg_uuid
+      sink.thinking 'Consulting the hermetic oracle...', uuid: msg_uuid
     end
 
 
@@ -467,9 +511,10 @@ class Oracle
 
 
     # Tool Call Handling
-    def handle_standard_tool_calls(tools_from_content, messages, tool_results, content, exec)
-      if defined?(HorologiumAeternum) && content.present?
-        HorologiumAeternum.oracle_revelation content
+    def handle_standard_tool_calls(tools_from_content, messages, tool_results, content, exec, stream = nil)
+      sink = stream || HorologiumAeternum
+      if content.present?
+        sink.oracle_revelation content
       end
 
       results, new_messages, new_tool_results = Artificer.execute_instrumenta_calls(
@@ -503,18 +548,19 @@ class Oracle
     end
 
 
-    def handle_fallback_tool_calls(tools_from_content, messages, tool_results, content, exec, arts)
-      if defined?(HorologiumAeternum) && content.present?
-        HorologiumAeternum.oracle_revelation content
+    def handle_fallback_tool_calls(tools_from_content, messages, tool_results, content, exec, arts, stream = nil)
+      sink = stream || HorologiumAeternum
+      if content.present?
+        sink.oracle_revelation content
       end
 
       arts[:tools] = tools_from_content
-      if defined?(HorologiumAeternum) && arts[:plan].present?
-        HorologiumAeternum.thinking "Plan: #{arts[:plan].join ' → '}"
+      if arts[:plan].present?
+        sink.thinking "Plan: #{arts[:plan].join ' → '}"
       end
 
-      results, new_messages, new_tool_results = Artificer.execute_fallback_instrumenta_calls(
-        tools_from_content, messages, tool_results, &exec
+      results, new_messages, new_tool_results = Artificer.execute_instrumenta_calls(
+        tools_from_content, messages, tool_results, content, &exec
       )
 
       # Check for divine interruption in results - return signal directly
@@ -526,13 +572,14 @@ class Oracle
       [new_messages, new_tool_results, nil]
     rescue StandardError => e
       error_msg = "Failed to handle fallback tool calls: #{e.message.truncate 100}"
-      HorologiumAeternum.system_error error_msg
+      sink.system_error error_msg
       [messages, tool_results]
     end
 
 
-    def handle_step_termination_exception(exception, answer, arts, tool_results)
-      HorologiumAeternum.system_error "Step termination: #{exception.message.truncate 100}"
+    def handle_step_termination_exception(exception, answer, arts, tool_results, stream = nil)
+      sink = stream || HorologiumAeternum
+      sink.system_error "Step termination: #{exception.message.truncate 100}"
       [answer || '<<step terminated>>', arts, tool_results]
     end
 

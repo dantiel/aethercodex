@@ -107,6 +107,28 @@ class Conduit
       # For DeepSeek reasoning models, we must NOT include tools to enable advanced reasoning
       # Reasoning models cannot use tools, so we omit the tools field entirely
       # Also detect reasoning models by name pattern for future compatibility
+      # Sanitize messages: DeepSeek API requires content to be string or list, never nil
+      messages = messages.map.with_index do |msg, idx|
+        m = msg.dup
+        content = m[:content]
+        if content.nil?
+          if m[:role] == 'assistant' && m[:tool_calls]
+            m.delete(:content)
+          else
+            puts "[CONDUIT][SANITIZE] Message #{idx}: content is nil for role=#{m[:role]}, setting to ''"
+            m[:content] = ''
+          end
+        elsif !content.is_a?(String) && !content.is_a?(Array)
+          puts "[CONDUIT][SANITIZE] Message #{idx}: content is #{content.class} for role=#{m[:role]}, converting to string"
+          m[:content] = content.to_s
+        end
+        # Also ensure tool_call_id is a string
+        if m[:tool_call_id] && !m[:tool_call_id].is_a?(String)
+          puts "[CONDUIT][SANITIZE] Message #{idx}: tool_call_id is #{m[:tool_call_id].class}, converting to string"
+          m[:tool_call_id] = m[:tool_call_id].to_s
+        end
+        m
+      end
       base_body = { model:, messages:, max_tokens:, temperature: }
 
       if reasoning || is_deepseek_reasoning_model?(model)
@@ -134,6 +156,22 @@ class Conduit
       temperature = set_temperature || (Mnemosyne.aegis[:temperature] || 1.0).to_f
 
       puts "[CONDUIT]: temperature=#{temperature}"
+
+      # Sanitize messages: DeepSeek API requires content to be string or list, never nil
+      messages = messages.map do |msg|
+        m = msg.dup
+        content = m[:content]
+        if content.nil?
+          if m[:role] == 'assistant' && m[:tool_calls]
+            m.delete(:content)
+          else
+            m[:content] = ''
+          end
+        elsif !content.is_a?(String) && !content.is_a?(Array)
+          m[:content] = content.to_s
+        end
+        m
+      end if messages
 
       # Apply Gemini-specific formatting if using Gemini API
       base_body = if :gemini == CONFIG::CFG[:api_type]&.to_sym

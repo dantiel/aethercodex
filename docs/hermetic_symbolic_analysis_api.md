@@ -411,4 +411,4 @@ Common error types:
 
 ---
 
-*This API reference is part of the AetherCodex Hermetic Symbolic Analysis Engine documentation.*
+*This API reference is part of the ÆtherCodex Hermetic Symbolic Analysis Engine documentation.*

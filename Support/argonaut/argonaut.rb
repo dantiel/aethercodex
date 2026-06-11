@@ -35,7 +35,10 @@ class Argonaut
   # Reads a file relative to base of project folder.
   def self.read(path, range = nil)
     base = project_root
-    src = File.read File.join base, path
+    full_path = File.join base, path
+    return { content: nil, error: "File not found: #{full_path}" } unless File.exist? full_path
+
+    src = File.read full_path
 
     result = if range && 2 == range.size
                l0, l1 = range
@@ -133,7 +136,7 @@ class Argonaut
       puts "TM_FILEPATH: #{ENV['TM_FILEPATH'].inspect}"
       puts "TM_SELECTED_FILE: #{ENV['TM_SELECTED_FILE'].inspect}"
       puts "Current directory: #{Dir.pwd}"
-      puts "TM_QUERY: #{`#{ENV.fetch 'TM_QUERY', nil}`}"
+      puts "TM_QUERY: #{`#{ENV['TM_QUERY']}`}" if ENV['TM_QUERY']
     end
 
     root = ENV['TM_PROJECT_DIRECTORY'] || ENV['TM_DIRECTORY'] || Dir.pwd
@@ -145,8 +148,11 @@ class Argonaut
 
 
   def self.include_files
+    tm_query = ENV['TM_QUERY']
+    return ['*', '.tm_properties', '.htaccess'] unless tm_query
+
     ['*', '.tm_properties', '.htaccess'] +
-      `#{ENV.fetch 'TM_QUERY', nil}`
+      `#{tm_query}`
       .scan(/includeInArgonaut=\{([^\n]*)\}/).flatten.first.to_s.gsub(/\{|\}/,'').split(',')
       .reject do |f|
         f.empty? || '{}' == f
@@ -155,8 +161,11 @@ class Argonaut
   "excludeInArgonaut={{,*.orig,*.rej,*.js},*/target/debug,debug}"
 
   def self.exclude_files
+    tm_query = ENV['TM_QUERY']
+    return ['*.{o}', 'pyc'] unless tm_query
+
     ['*.{o}', 'pyc'] +
-      `#{ENV.fetch 'TM_QUERY', nil}`
+      `#{tm_query}`
       .scan(/excludeInArgonaut=\{([^\n]*)\}/).flatten.first.to_s.gsub(/\{|\}/,'').split(',')
       .reject do |f|
         f.empty? || '{}' == f
@@ -176,7 +185,7 @@ class Argonaut
 
     if ENV['TM_DEBUG_PATHS']
       puts 'list_project_files'
-      puts `#{ENV.fetch 'TM_QUERY', nil}`
+      puts `#{ENV['TM_QUERY']}` if ENV['TM_QUERY']
       puts root
       puts includes
       puts excludes
@@ -280,5 +289,49 @@ class Argonaut
     }
   rescue StandardError => e
     { error: e.inspect }
+  end
+
+
+  # Generate a compact project structure summary showing main dirs + file counts.
+  # When working_dir is set, scopes to that subtree.
+  # Returns a string like:
+  #   Commands/ (3 files)
+  #   Support/argonaut/ (5 files)
+  #   Support/oracle/ (8 files)
+  def self.project_summary(working_dir: nil)
+    root = project_root
+    base_dir = working_dir ? File.join(root, working_dir) : root
+
+    unless Dir.exist? base_dir
+      return "Directory not found: #{base_dir}"
+    end
+
+    excludes = exclude_files
+    prefix = working_dir ? "#{working_dir}/" : ''
+
+    # Get top-level dirs and files
+    entries = Dir.chdir(base_dir) do
+      Dir.glob('*')
+        .reject { |e| excludes.any? { |ex| argonaut_match? ex, e } }
+        .sort
+    end
+
+    lines = []
+    dirs = entries.select { |e| File.directory? File.join(base_dir, e) }
+    files = entries.select { |e| File.file? File.join(base_dir, e) }
+
+    dirs.each do |dir|
+      full_dir = File.join base_dir, dir
+      count = Dir.chdir(full_dir) { Dir.glob('*').count { |f| File.file? f } }
+      rel = "#{prefix}#{dir}/"
+      lines << "#{rel} (#{count} files)"
+    end
+
+    files.each do |file|
+      rel = "#{prefix}#{file}"
+      lines << rel
+    end
+
+    lines.empty? ? '(empty directory)' : lines.join("\n")
   end
 end

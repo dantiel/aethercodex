@@ -30,7 +30,7 @@ printf "%s" "$SNIPPET"
   <key>input</key><string>none</string>
   <key>inputFormat</key><string>text</string>
   <key>keyEquivalent</key><string>^~C</string>
-  <key>name</key><string>AetherCodex: Whisper</string>
+  <key>name</key><string>ÆtherCodex: Whisper</string>
   <key>outputFormat</key><string>snippet</string>
   <key>outputLocation</key><string>insertAsSnippet</string>
   <key>uuid</key><string>49364422-2614-4A4A-AD90-1DD78375172F</string>

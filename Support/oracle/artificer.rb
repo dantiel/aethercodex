@@ -33,9 +33,11 @@ class Artificer
 
       log_instrumenta_call 'INSTRUMENTA_CALL', name, args
       safe_context = create_safe_context instrumenta_results
+      start_time = Time.now
 
       HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
         result = execution_block.call name, args, safe_context
+        exec_time = Time.now - start_time
 
         # Check for divine interruption signal - terminate current oracle call if detected
         if result.is_a?(Hash) && result.key?(:__divine_interrupt)
@@ -43,7 +45,7 @@ class Artificer
           return [result, messages, instrumenta_results]
         end
 
-        updated_instrumenta_results = instrumenta_results + [{ id:, name:, result:, args: }]
+        updated_instrumenta_results = instrumenta_results + [{ id:, name:, result:, args:, execution_time: exec_time.round(3) }]
         updated_messages = messages + [{ role:         'tool',
                                          tool_call_id: id,
                                          content:      result.to_json }]
@@ -60,9 +62,11 @@ class Artificer
       log_instrumenta_call 'FALLBACK_INSTRUMENTA_CALL', instrumenta_call[:name],
                            instrumenta_call[:args]
       safe_context = create_safe_context instrumenta_results
+      start_time = Time.now
 
       HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
         result = execution_block.call instrumenta_call[:name], instrumenta_call[:args], safe_context
+        exec_time = Time.now - start_time
 
         # Check for divine interruption signal - terminate current oracle call if detected
         if result.is_a?(Hash) && result.key?(:__divine_interrupt)
@@ -74,7 +78,8 @@ class Artificer
         updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call_id,
                                                                name:   instrumenta_call[:name],
                                                                result: result,
-                                                               args:   instrumenta_call[:args] }]
+                                                               args:   instrumenta_call[:args],
+                                                               execution_time: exec_time.round(3) }]
         updated_messages = messages + [{ role:         'tool',
                                          tool_call_id: instrumenta_call_id,
                                          content:      result.to_json }]

@@ -55,10 +55,9 @@ module Coniunctio
         }]
       end
 
-      puts "[CONIUNCTIO] ATTACHMENTS=#{attachments}"
-
-      project_files = Argonaut.list_project_files
-      puts "[CONIUNCTIO] PROJECT_FILES=#{project_files}"
+      # Use compact project summary instead of flat file list
+      working_dir = Mnemosyne.working_dir
+      project_summary = Argonaut.project_summary working_dir: working_dir
 
       # Handle history parameter: nil/true = fetch general history, false/[] = no history, array = use provided history
       history = case params[:history]
@@ -77,7 +76,7 @@ module Coniunctio
       aegis_notes = Mnemosyne.recall_aegis_notes max_tokens: MAX_AEGIS_TOKENS
 
       ctx = { history:       prepend_summaries(history),
-              extra_context: build_extra_context(attachments, project_files, aegis_notes,
+              extra_context: build_extra_context(attachments, project_summary, aegis_notes,
                                                  params[:context]) }
 
       # Update aegis orientation with first attachment if available
@@ -104,7 +103,6 @@ module Coniunctio
 
 
     def format_history_entry(entry, index)
-      puts "format_history_entry index=#{index}; entry=#{entry.to_s.truncate 50}"
       user_message = { role: 'user', content: entry[:prompt], ts: entry[:created_at] }
       assistant_message = { role: 'assistant', content: entry[:answer], ts: entry[:created_at] }
 
@@ -142,18 +140,18 @@ module Coniunctio
     end
 
 
-    def build_extra_context(attachments, project_files, aegis_notes, context = nil)
+    def build_extra_context(attachments, project_summary, aegis_notes, context = nil)
       hermetic_manifest = read_hermetic_manifest
 
       # For backward compatibility, include first attachment as primary file/selection
       first_attachment = attachments.first || {}
 
-      { project_files:,
+      { project_summary:,
         attachments:,
         aegis_orientation: { **Mnemosyne.aegis },
         aegis_notes:,
-        messages:          context&.dig(:messages),
-        tool_context:      context,
+        messages:     context&.dig(:messages),
+        tool_context: context,
         hermetic_manifest: }
     end
 
@@ -193,14 +191,13 @@ module Coniunctio
 
     def read_hermetic_manifest
       hermetic_manifest = Argonaut.read 'hermetic.manifest.md'
-      message = hermetic_manifest[:content] || 'Hermetic manifest file not found'
-
-      puts "[ORACLE][CONIUNCTIO]: #{'NO ' unless hermetic_manifest} Manifest file found."
+      message = if hermetic_manifest[:content]
+                  hermetic_manifest[:content]
+                else
+                  'Hermetic manifest file not found'
+                end
 
       { role: :system, content: hermetic_manifest_message(message) }
-    rescue StandardError => e
-      { role:    :system,
-        content: hermetic_manifest_message("Error reading hermetic manifest: #{e.message}") }
     end
   end
 end

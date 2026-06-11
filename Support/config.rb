@@ -186,8 +186,8 @@ class CONFIG
       port: port,
       api_key: api_key ? "#{api_key[0..8]}..." : nil,
       api_url: api_url,
-      model: self[:model],
-      reasoning_model: self[:reasoning-model],
+      model: self[:model] || self['model'],
+      reasoning_model: self[:'reasoning-model'] || self['reasoning-model'],
       config_sources: CFG.select { |k, _| k.to_s.start_with?('__loaded_from') }
     }
   end

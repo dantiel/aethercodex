@@ -381,7 +381,7 @@ The engine will execute the 10-step alchemical workflow, pausing at each step fo
 
 ## SUPPORT CONTACTS
 
-- **Primary**: AetherCodex Oracle System
+- **Primary**: ÆtherCodex Oracle System
 - **Backup**: TextMate Bundle Maintenance Team
 - **Emergency**: Direct database access via Mnemosyne
 

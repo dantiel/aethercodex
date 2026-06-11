@@ -136,6 +136,8 @@ get '/ws' do
           startThinkingThread ws, req
         when :stopThinking
           stopThinkingThread true
+        when :resumeThinking
+          resumeThinkingThread ws, req
         when :showStepResult
           task_id = req[:params][:task_id]
           step_number = req[:params][:step_number]
@@ -169,18 +171,31 @@ end
 def startThinkingThread(ws, req)
   stopThinkingThread if @ask_thread
 
+  @ask_ws = ws  # Store for stop/resume access
   @ask_thread = Thread.new do
     params = req[:params]
     warn "[LIMEN][WS]: message: #{params.inspect}"
     
+    # Clear any previous pause state
+    Thread.current[:paused] = false
+    Thread.current[:pause_state] = nil
+    
     res = Aetherflux.channel_oracle_divination(params, tools: Instrumenta)
-    raise res[:error] if 'error' == res[:result]
-
-    # warn "[WS][DEBUG] #{res.inspect}"
-    ws.send res.to_json
+    
+    # Don't send result if paused — the resume will handle it
+    unless Thread.current[:paused]
+      raise res[:error] if 'error' == res[:result]
+      # Wrap in 'answer' method so the frontend renders tool times, thinking time, etc.
+      ws.send({ method: 'answer', result: res[:response] }.to_json)
+    end
   rescue StandardError => e
     warn "[LIMEN][WS][THREAD][ERROR]: #{e.inspect}"
     ws.send({ method: 'error', result: { error: e.message, backtrace: e.backtrace } }.to_json)
+  ensure
+    # Clear thread reference on normal completion — prevents stale
+    # @ask_thread from triggering a phantom pause on next message
+    @ask_thread = nil
+    @ask_ws = nil
   end
 end
 
@@ -188,10 +203,133 @@ end
 def stopThinkingThread(send_msg = false)
   return if @ask_thread.nil?
 
-  warn '[LIMEN]: Thinking cancelled.'
-  HorologiumAeternum.system_message 'Thinking cancelled.' if send_msg
-  @ask_thread.kill
+  warn '[LIMEN]: Thinking paused.'
+  
+  # Set pause flag on the thread — the divination loop checks this
+  @ask_thread[:paused] = true
+  
+  # Give it a brief moment to notice the flag
+  sleep 0.1
+  
+  state_id = nil
+  if @ask_thread[:pause_state]
+    # Send paused event with saved state to frontend
+    state = @ask_thread[:pause_state]
+    state_id = save_pause_state(state)
+    HorologiumAeternum.system_message "Thinking paused. Resume state saved as ##{state_id}."
+  else
+    # Thread didn't save state in time — still send paused event (resume will re-send last msg)
+    HorologiumAeternum.system_message 'Thinking paused (no saved state — resume will re-send query).'
+  end
+  
+  # Always send paused event so frontend shows resume button
+  if @ask_ws
+    warn "[LIMEN]: Sending paused event (state_id=#{state_id.inspect})"
+    @ask_ws.send({ method: 'paused', result: { state_id: state_id, message: 'Thinking paused. Click Resume to continue.' } }.to_json)
+  else
+    warn '[LIMEN]: @ask_ws is nil — cannot send paused event!'
+  end
+  
   @ask_thread = nil
+  @ask_ws = nil
+end
+
+
+def resumeThinkingThread(ws, req)
+  params = req[:params]
+  state_id = params[:state_id]
+  
+  if state_id
+    state = get_pause_state(state_id)
+    
+    unless state
+      ws.send({ method: 'error', result: { error: "Pause state ##{state_id} not found or expired." } }.to_json)
+      return
+    end
+    
+    warn "[LIMEN][WS]: Resuming thinking from state ##{state_id}"
+  else
+    warn "[LIMEN][WS]: Resuming thinking without saved state — re-sending original query"
+    state = nil
+  end
+  
+  @ask_thread = Thread.new do
+    Thread.current[:paused] = false
+    Thread.current[:pause_state] = nil
+    
+    # Continue divination with saved state (or fresh if none)
+    res = Aetherflux.channel_oracle_divination(
+      state&.dig(:params) || params,
+      tools: Instrumenta,
+      resume_state: state
+    )
+    
+    unless Thread.current[:paused]
+      raise res[:error] if 'error' == res[:result]
+      ws.send({ method: 'answer', result: res[:response] }.to_json)
+    end
+  rescue StandardError => e
+    warn "[LIMEN][WS][THREAD][ERROR]: #{e.inspect}"
+    ws.send({ method: 'error', result: { error: e.message, backtrace: e.backtrace } }.to_json)
+  end
+end
+
+
+# Store pause state for resume
+$pause_states = {}
+$pause_state_counter = 0
+$pause_state_mutex = Mutex.new
+
+def sanitize_messages_for_api(messages)
+  messages.map do |msg|
+    m = msg.dup
+    content = m[:content]
+
+    # DeepSeek API: content must be a string or list (array), never nil
+    if content.nil?
+      # Assistant messages with only tool_calls should omit content entirely
+      if m[:role] == 'assistant' && m[:tool_calls]
+        m.delete(:content)
+      else
+        m[:content] = ''
+      end
+    elsif content.is_a?(Array)
+      # Array content is valid for the API (e.g. multimodal) — keep as-is
+      m[:content] = content.map do |part|
+        if part.is_a?(Hash)
+          part[:text] = part[:text].to_s if part[:text].nil?
+          part
+        else
+          part.to_s
+        end
+      end
+    elsif content.is_a?(Hash)
+      m[:content] = content[:text].to_s if content[:text]
+      m[:content] ||= content.to_json
+    elsif !content.is_a?(String)
+      m[:content] = content.to_s
+    end
+
+    m[:tool_call_id] = m[:tool_call_id].to_s if m[:tool_call_id]
+    m
+  end
+end
+
+def save_pause_state(state)
+  $pause_state_mutex.synchronize do
+    $pause_state_counter += 1
+    id = $pause_state_counter
+    state[:messages] = sanitize_messages_for_api(state[:messages]) if state[:messages]
+    $pause_states[id] = state
+    $pause_states.delete($pause_state_counter - 10) if $pause_state_counter > 10
+    id
+  end
+end
+
+def get_pause_state(id)
+  $pause_state_mutex.synchronize do
+    $pause_states[id]
+  end
 end
 
 
@@ -243,16 +381,9 @@ def do_ask(p)
   
   ctx = Coniunctio.build p.merge(attachments: attachments)
 
-  # Enhanced streaming callback for real-time tool feedback
   answer, arts, tool_results =
     Oracle.divination p['prompt'], ctx do |name, args|
-    # HorologiumAeternum.tool_starting(name, args)
-    # HorologiumAeternum.processing("Executing #{name}...")
     result = PrimaMateria.handle(tool: name, args:)
-    # HorologiumAeternum.tool_completed(name, result)
-
-    # Brief pause to ensure UI updates are processed
-    sleep 0.05
     result
   end
 

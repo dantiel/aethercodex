@@ -45,7 +45,7 @@ echo "$FORMATTED"
   <key>keyEquivalent</key>
   <string>^~O</string>
   <key>name</key>
-  <string>AetherCodex: File Overview</string>
+  <string>ÆtherCodex: File Overview</string>
   <key>outputCaret</key>
   <string>afterOutput</string>
   <key>outputFormat</key>
@@ -58,5 +58,3 @@ echo "$FORMATTED"
   <integer>2</integer>
 </dict>
 </plist>
-
-

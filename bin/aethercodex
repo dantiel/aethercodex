@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# = æthercodex — Console-first CLI for the Hermetic Programming Oracle
+#
+# Usage:
+#   aethercodex ask "your question"       # Direct AI query
+#   aethercodex ask < file.txt             # Query with stdin pipe
+#   aethercodex ask --file path.rb "..."   # Query with file context
+#   aethercodex server                     # Start web server (TextMate-compatible)
+#   aethercodex config                     # Show configuration info
+#   aethercodex                            # REPL mode
+#
+# Environment:
+#   AETHER_API_KEY         DeepSeek API key (or in .aethercodex)
+#   AETHER_MODEL           Model name (default: deepseek-chat)
+#   AETHER_PORT            Server port (default: 4567)
+
+set -e
+SCRIPT="$(realpath "$0")"
+BUNDLE_DIR="$(cd "$(dirname "$SCRIPT")/../Support" && pwd)"
+export BUNDLE_GEMFILE="$BUNDLE_DIR/Gemfile"
+
+exec bundle exec ruby "$BUNDLE_DIR/cli.rb" "$@"

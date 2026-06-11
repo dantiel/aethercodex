@@ -1,3 +1,70 @@
+/* Pair Programming Toggle */
+.input-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.pair-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.pair-toggle:hover {
+  background: rgba(129, 93, 179, 0.1);
+}
+
+.pair-toggle input {
+  display: none;
+}
+
+.pair-toggle-slider {
+  position: relative;
+  width: 2rem;
+  height: 1.1rem;
+  background: var(--argonaut-shadow);
+  border-radius: 0.55rem;
+  transition: all 0.3s ease;
+}
+
+.pair-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 0.8rem;
+  height: 0.8rem;
+  left: 0.15rem;
+  top: 0.15rem;
+  background: var(--argonaut-steel);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.pair-toggle input:checked + .pair-toggle-slider {
+  background: var(--argonaut-hermetic);
+  box-shadow: 0 0 0.4rem rgba(160, 163, 249, 0.4);
+}
+
+.pair-toggle input:checked + .pair-toggle-slider::before {
+  transform: translateX(0.9rem);
+  background: var(--ethereal-white);
+}
+
+.pair-toggle-label {
+  font-size: 0.8rem;
+  color: var(--argonaut-shadow);
+  transition: color 0.3s ease;
+  font-family: var(--sans);
+}
+
+.pair-toggle input:checked ~ .pair-toggle-label {
+  color: var(--argonaut-hermetic);
+}
 
 /*@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 */

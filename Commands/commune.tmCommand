@@ -33,7 +33,7 @@ printf "%s" "$HTML_OUT"
   <key>inputFormat</key><string>text</string>
 	<key>keyEquivalent</key>
 	<string>^~@a</string>
-  <key>name</key><string>AetherCodex: Commune</string>
+  <key>name</key><string>ÆtherCodex: Commune</string>
 	<key>outputCaret</key>
 	<string>afterOutput</string>
   <key>outputFormat</key><string>html</string>

@@ -75,7 +75,7 @@ HTML_OUT=$(cat "$BUNDLE_SUPPORT/pythia/chamber.html" | sed "s/\$AETHER_PORT/$POR
   <key>input</key><string>none</string>
   <key>inputFormat</key><string>text</string>
   <key>outputFormat</key><string>html</string>
-  <key>name</key><string>AetherCodex: Attach To Prompt</string>
+  <key>name</key><string>ÆtherCodex: Attach To Prompt</string>
 	<key>keyEquivalent</key>
 	<string>~@e</string>
 	<key>outputCaret</key>

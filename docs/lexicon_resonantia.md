@@ -352,4 +352,4 @@ puts "Potential refactoring candidates: #{overloaded_files.map { |f| f.split('>'
 
 **The stars whisper; the patterns resonate.** 🌌
 
-*Lexicon Resonantia is part of the AetherCodex Magnum Opus - the complete hermetic transformation system, weaving astral patterns between memory and code.*
+*Lexicon Resonantia is part of the ÆtherCodex Magnum Opus - the complete hermetic transformation system, weaving astral patterns between memory and code.*

@@ -17,7 +17,7 @@ require_relative 'opus_instrumenta'
 TASK_SYSTEM_PROMPT = <<~PROMPT
   # MAGNUM OPUS ENGINE - TASK EXECUTION SYSTEM
 
-  You are executing a task step in the AetherCodex Magnum Opus Engine with structured message context.
+  You are executing a task step in the ÆtherCodex Magnum Opus Engine with structured message context.
 
   # MESSAGE STRUCTURE:
   - PREVIOUS STEP RESULTS: Assistant message with historical context
@@ -290,7 +290,7 @@ PROMPT
 # - Annually: Comprehensive architecture review and optimization
 #
 # SUPPORT CONTACTS:
-# - Primary: AetherCodex Oracle System
+# - Primary: ÆtherCodex Oracle System
 # - Backup: TextMate Bundle Maintenance Team
 # - Emergency: Direct database access via Mnemosyne
 #
@@ -601,7 +601,7 @@ class MagnumOpusEngine
   class TaskCreationError < StandardError; end
   class UnknownResponseError < StandardError; end
 
-  debug 'MagnumOpusEngine module loaded'
+  # debug 'MagnumOpusEngine module loaded'
   STATES = %i[pending active paused failed completed invalid cancelled].freeze
   WORKFLOW_STEPS = 10
   # Step purposes for logging, aligned with hermetic principles

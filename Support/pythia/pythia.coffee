@@ -7,6 +7,7 @@ class Pythia
   constructor: ->
     @DEFAULT_PORT = 4567
     @isThinking = false
+    @pairProgramming = false
     @port = window.AETHER_PORT ? @DEFAULT_PORT
     @project_root = window.AETHER_PROJECT_ROOT ? null
     @ws = null
@@ -162,21 +163,28 @@ class Pythia
     console.log "logging #{cls}", uuid, html
     
     add_message = =>
-      existing = document.getElementById uuid unless null is uuid 
       m = document.getElementById 'messages'
+      existing = document.getElementById uuid unless null is uuid
     
       if existing
-        is_near = (existing.offsetTop - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
+        is_near_bottom = (existing.offsetTop - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
         existing.className = cls
-        existing.innerHTML = html
+        if typeof html is 'string'
+          existing.innerHTML = html
+        else
+          existing.innerHTML = ''
+          existing.appendChild html
         if is_near_bottom
           m.scrollTop = 100 + existing.offsetTop - m.offsetHeight + existing.offsetHeight
       else
         is_near_bottom = (m.scrollHeight - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
         el = document.createElement 'div'
         el.className = cls
-        el.innerHTML = html
         el.id = uuid
+        if typeof html is 'string'
+          el.innerHTML = html
+        else
+          el.appendChild html
         m.appendChild el
         m.scrollTop = 100 + m.scrollHeight if is_near_bottom
         
@@ -199,6 +207,7 @@ class Pythia
     
     switch type
       when 'hermetic_live_update'
+        return if @pairProgramming
         @handleHermeticLiveUpdate(data)
       when 'thinking'
         if data.content
@@ -210,7 +219,7 @@ class Pythia
         else
           @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} #{timestamp_html}"
       when 'file_reading'
-        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"    
+        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
       when 'divination'
         @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} #{timestamp_html}"
       when 'file_read_complete'
@@ -240,10 +249,6 @@ class Pythia
             #{data.content}
           </details>"""
 
-      when 'tool_starting'
-        @log 'status', uuid, "⚡️ Invoking <code>#{data.tool}</code>... #{timestamp_html}"
-        if data.args and Object.keys(data.args).length > 0 and JSON.stringify(data.args).length < 200
-          @log 'status', uuid, "&nbsp;&nbsp;↳ Args: <code>#{JSON.stringify(data.args)}</code>"
       when 'file_patching'
         @log 'status', uuid, """
           <details>
@@ -284,8 +289,9 @@ class Pythia
             <summary>#{data.message} #{timestamp_html}</summary>
             <pre>#{data.content}</pre>
           </details>"""
-      when 'file_renaming'
-        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
+      when 'oracle_revelation'
+        # Don't close tool group — let the answer handler do that
+        @log 'system', uuid, "#{@replaceFileTags data.content} #{timestamp_html}"
       when 'file_renamed'
         @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"      
       when 'memory_storing'
@@ -302,24 +308,6 @@ class Pythia
           </details>"""
       when 'info'
         @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"    
-      when 'tool_completed'
-        if data.result?.error
-          @log 'status', uuid, "❌ Tool <code>#{data.tool}</code> failed: #{data.result.error} #{timestamp_html}"
-          if data.result.error
-            @log 'system', uuid, "<details><summary>❌ Error details</summary><pre>#{data.result.error}</pre></details>"
-        else
-          @log 'status', uuid, "✅ Tool <code>#{data.tool}</code> completed #{timestamp_html}"
-        if data.result and Object.keys(data.result).length > 0 and not data.result?.error
-          resultJson = JSON.stringify data.result, null, 2
-          if resultJson.length > 200
-            @log 'system', uuid, "<details><summary>📋 #{data.tool} result (#{resultJson.length} chars)</summary><pre>#{resultJson}</pre></details>"
-          else
-            @log 'system', uuid, "&nbsp;&nbsp;↳ Result: <pre style='display:inline; background:none;'>#{resultJson}</pre>"
-      when 'oracle_revelation'
-        if data.content
-          @log 'ai', uuid, @replaceFileTags data.content
-        else
-          @log 'status', uuid, "💭 AI responding... #{timestamp_html}"
       when 'oracle_conjuration_revelation'
         @log 'system', uuid, """
           <details>
@@ -337,11 +325,15 @@ class Pythia
       when 'processing'
         @log 'status', uuid, "#{data.message} #{timestamp_html}"
       when 'completed'
-        @log 'status', uuid, "#{data.summary || 'Completed'} #{timestamp_html}"
+        @log 'system', uuid, "#{data.summary || 'Completed'} #{timestamp_html}"
       when 'server_error'
         @log 'error', uuid, "#{data.error} #{timestamp_html}"
       when 'system_error'
         @log 'error', uuid, "#{data.error} #{timestamp_html}"
+      when 'thinking_complete'
+        thinkingTime = data.thinking_time
+        if thinkingTime
+          @log 'system', uuid, "🧠 Thinking complete: #{thinkingTime}s #{timestamp_html}"
       when 'system_message'
         @log 'system', uuid, "#{data.message} #{timestamp_html}"
       when 'note_added'
@@ -558,19 +550,24 @@ class Pythia
     
     if 'success' is data.status
       @setThinking false
-      return do @updateSendButton  
+      return do @updateSendButton
     
     switch data.method
       when 'status'
         @showStatus data.result.type, data.result.data, data.result.uuid
       when 'answer'
-        @setThinking false
+        #@log 'answer', data.uuid, @replaceFileTags(data.content || data.result.answer)
         do @updateSendButton
-        if data.result.logs?
-          data.result.logs.forEach (l) =>
+        result = data.result
+        if result.logs?
+          result.logs.forEach (l) =>
             switch l.type
               when 'prelude' then @log 'ai', null, l.data
               when 'say'     then @log 'ai', null, l.data.message
+        if result.html
+          @log 'ai', null, result.html
+        else if result.answer
+          @log 'ai', null, result.answer
       when 'task'
         @handleTaskResponse data.result
       when 'step_result'
@@ -595,6 +592,7 @@ class Pythia
       when 'error'
         @log 'error', null, "<pre>#{data.result.error}\\n#{(data.result.backtrace or []).join '\\n'}</pre>"
       when 'hermetic_live_update'
+        return if @pairProgramming
         @handleHermeticLiveUpdate data.result.data
       when 'proactive_suggestion'
         console.log data
@@ -1145,6 +1143,14 @@ class Pythia
         do e.preventDefault
         do @askAI
         do @adjustInputHeight
+
+    # Live observe toggle
+    pairToggle = document.getElementById 'pair-toggle-checkbox'
+    if pairToggle
+      pairToggle.checked = @pairProgramming
+      pairToggle.addEventListener 'change', (e) =>
+        @pairProgramming = e.target.checked
+        @log 'system', null, if @pairProgramming then "👁️ Live observe disabled" else "👁️ Live observe enabled"
 
     # Initialize Mermaid.js
     @initializeMermaid()

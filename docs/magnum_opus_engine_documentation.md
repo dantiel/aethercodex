@@ -347,7 +347,7 @@ Retrieve results from previous steps for context.
 ## SUPPORT AND CONTACTS
 
 ### Primary Support
-- **AetherCodex Oracle System**: Main support channel
+- **ÆtherCodex Oracle System**: Main support channel
 - **TextMate Bundle Maintenance Team**: Technical support
 
 ### Emergency Contacts
@@ -393,4 +393,4 @@ Retrieve results from previous steps for context.
 
 **Documentation Version**: 1.0  
 **Last Updated**: #{Time.now.strftime('%Y-%m-%d %H:%M:%S %Z')}  
-**Maintained By**: AetherCodex Oracle System
+**Maintained By**: ÆtherCodex Oracle System

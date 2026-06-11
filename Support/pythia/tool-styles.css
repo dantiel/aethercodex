@@ -309,4 +309,62 @@ details summary p {
   margin: 0 0.5em;
 }
 
+/* Tool execution group - collapsible with total time */
+.tool-execution-group {
+  margin: 0.5rem 0;
+  background: rgba(129, 93, 179, 0.06);
+  border: 0.1rem solid rgba(129, 93, 179, 0.2);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
 
+.tool-execution-group summary {
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.12), rgba(129, 93, 179, 0.06));
+  font-weight: 500;
+  color: var(--argonaut-mystic);
+  user-select: none;
+}
+
+.tool-execution-group summary:hover {
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.18), rgba(129, 93, 179, 0.1));
+}
+
+.tool-execution-item {
+  padding: 0.3rem 1rem;
+  font-size: 0.85em;
+  color: var(--argonaut-steel);
+  border-bottom: 0.05rem solid rgba(129, 93, 179, 0.08);
+}
+
+.tool-execution-item:last-child {
+  border-bottom: none;
+}
+
+.tool-execution-item code {
+  color: var(--argonaut-amber);
+  font-weight: 500;
+}
+
+/* Resume button styling */
+.resume-btn {
+  display: block;
+  margin: 0.5rem auto;
+  padding: 0.4rem 1.2rem;
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.2), rgba(79, 70, 229, 0.2));
+  border: 0.1rem solid rgba(129, 93, 179, 0.4);
+  border-radius: 0.5rem;
+  color: var(--argonaut-mystic);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-family: var(--hermetic);
+  transition: all 0.2s ease;
+}
+
+.resume-btn:hover {
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.35), rgba(79, 70, 229, 0.35));
+  border-color: rgba(129, 93, 179, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 0.2rem 0.5rem rgba(129, 93, 179, 0.2);
+}

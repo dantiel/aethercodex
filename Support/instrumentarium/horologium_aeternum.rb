@@ -870,21 +870,20 @@ module HorologiumAeternum
       #{notes_metadata.map { |n| "- **ID:** #{n[:id]}, **Tags:** #{n[:tags]&.join ', '}, **Excerpt:** #{n[:excerpt]}" }.join("\n")}
     MARKDOWN
 
-    send_status 'file_overview', {
+    send_status('file_overview', {
       message:        Scriptorium.html("🔍 Overview: #{create_file_link path}"),
       content:        Scriptorium.html_with_syntax_highlight(content),
       symbolic_data:  symbolic_data,
       notes_metadata: notes_metadata,
       data:           result,
-      uuid:
-    }
+    }, uuid:)
   end
 
 
   def self.thinking(message = '🔮 Consulting the astral codex...', content = '', uuid: nil)
     send_status('thinking', {
                   message: Scriptorium.html_with_syntax_highlight("🧠 #{message}"),
-                  content: Scriptorium.html_with_syntax_highlight(content.to_s)
+                  content: Scriptorium.html_with_syntax_highlight(content.to_s),
                 }, uuid:)
   end
 

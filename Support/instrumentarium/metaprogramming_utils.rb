@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Metaprogramming Utilities for AetherCodex
+# Metaprogramming Utilities for ÆtherCodex
 # Higher-order hermetic constructs for symbolic transmutation and pattern resonance
 
 # Atlantean-Hermetic metaprogramming constructs

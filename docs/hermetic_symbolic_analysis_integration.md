@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This guide explains how to integrate the Hermetic Symbolic Analysis Engine with existing AetherCodex components and workflows. The engine provides AST-GREP powered semantic analysis that can enhance various parts of the system.
+This guide explains how to integrate the Hermetic Symbolic Analysis Engine with existing ÆtherCodex components and workflows. The engine provides AST-GREP powered semantic analysis that can enhance various parts of the system.
 
 ## 🏗️ Architecture Integration
 
@@ -259,7 +259,7 @@ end
 
 ```ruby
 # In configuration setup
-AetherCodex.configure do |config|
+ÆtherCodex.configure do |config|
   # Hermetic Symbolic Analysis settings
   config.hermetic_symbolic_analysis.enabled = true
   config.hermetic_symbolic_analysis.ast_grep_path = `which ast-grep`.chomp
@@ -502,4 +502,4 @@ end
 
 ---
 
-*This integration guide provides comprehensive instructions for incorporating the Hermetic Symbolic Analysis Engine into the AetherCodex ecosystem, enabling powerful semantic code transformations across the system.*
+*This integration guide provides comprehensive instructions for incorporating the Hermetic Symbolic Analysis Engine into the ÆtherCodex ecosystem, enabling powerful semantic code transformations across the system.*

@@ -5,18 +5,18 @@ require 'tempfile'
 require 'open3'
 require_relative 'instrumentarium/scriptorium'
 
-# AetherCodex Markdown Preview System
+# ÆtherCodex Markdown Preview System
 # Converts markdown files to beautifully styled HTML with hermetic cosmic styling
-module AetherCodexMarkdownPreview
+module ÆtherCodexMarkdownPreview
   extend self
   
   UIDIR = "file://#{ENV['TM_BUNDLE_SUPPORT']}/pythia"
 
-  # Convert markdown content to HTML with AetherCodex styling
+  # Convert markdown content to HTML with ÆtherCodex styling
   # @param markdown_content [String] The markdown content to convert
   # @param title [String] Optional title for the document
-  # @return [String] Complete HTML document with AetherCodex styling
-  def convert_to_html(markdown_content, title: "AetherCodex Markdown Preview")
+  # @return [String] Complete HTML document with ÆtherCodex styling
+  def convert_to_html(markdown_content, title: "ÆtherCodex Markdown Preview")
     # Convert markdown to HTML
     html_content = Scriptorium.html_with_syntax_highlight markdown_content
     puts "UIDIR #{UIDIR} #{ENV.inspect}"
@@ -151,9 +151,9 @@ end
 if __FILE__ == $0
   if ENV['TM_SELECTED_TEXT'] || ENV['TM_FULLNAME']
     # Running from TextMate - output HTML to stdout
-    AetherCodexMarkdownPreview.textmate_preview
+    ÆtherCodexMarkdownPreview.textmate_preview
   else
     # Running as CLI - open in Preview app
-    AetherCodexMarkdownPreview.run_cli
+    ÆtherCodexMarkdownPreview.run_cli
   end
 end

@@ -2,12 +2,12 @@
 
 ## Overview
 
-The ÆtherCodex Markdown Preview system provides beautiful, hermetic-styled previews of markdown files with cosmic mystic styling. It converts markdown to HTML with AetherCodex's signature color scheme and typography, then opens the result in macOS Preview for professional-looking documentation.
+The ÆtherCodex Markdown Preview system provides beautiful, hermetic-styled previews of markdown files with cosmic mystic styling. It converts markdown to HTML with ÆtherCodex's signature color scheme and typography, then opens the result in macOS Preview for professional-looking documentation.
 
 ## Features
 
 ### 🎨 **Hermetic Cosmic Styling**
-- **AetherCodex Color Scheme**: Uses the official AetherCodex cosmic colors
+- **ÆtherCodex Color Scheme**: Uses the official ÆtherCodex cosmic colors
 - **Custom Typography**: Syne, Marcellus SC, and Iosevka fonts
 - **Mystical Effects**: Glows, gradients, and animations
 - **Responsive Design**: Works on desktop and mobile
@@ -28,7 +28,7 @@ The ÆtherCodex Markdown Preview system provides beautiful, hermetic-styled prev
 
 ### TextMate Command
 
-Use the keyboard shortcut `⌃⌥⌘P` (Control+Option+Command+P) or select **AetherCodex: Markdown Preview** from the bundle menu.
+Use the keyboard shortcut `⌃⌥⌘P` (Control+Option+Command+P) or select **ÆtherCodex: Markdown Preview** from the bundle menu.
 
 **Options:**
 - **Current Selection**: Preview only selected text
@@ -50,14 +50,14 @@ cd Support && bundle exec ruby markdown_preview.rb --content "# Hello World"
 require_relative 'markdown_preview'
 
 # Preview a file
-AetherCodexMarkdownPreview.preview_file('documentation.md')
+ÆtherCodexMarkdownPreview.preview_file('documentation.md')
 
 # Preview content from string
 content = "# Hello World\n\nThis is **markdown** content."
-AetherCodexMarkdownPreview.preview_content(content)
+ÆtherCodexMarkdownPreview.preview_content(content)
 
 # Convert to HTML without preview
-html = AetherCodexMarkdownPreview.convert_to_html(markdown_content)
+html = ÆtherCodexMarkdownPreview.convert_to_html(markdown_content)
 ```
 
 ## Styling Features
@@ -180,7 +180,7 @@ Preview markdown documentation for symbolic patch operations:
 
 ```ruby
 # Preview transformation documentation
-AetherCodexMarkdownPreview.preview_content(<<~MD)
+ÆtherCodexMarkdownPreview.preview_content(<<~MD)
 # Symbolic Patch: #{patch_name}
 
 ## Transformation
