@@ -126,8 +126,8 @@ module HorologiumAeternum
   end
 
 
-  def self.tool_completed(tool_name, result, uuid: nil)
-    send_status('tool_completed', { tool: tool_name, result: result }, uuid:)
+  def self.tool_completed(tool_name, result, uuid: nil, execution_time: nil)
+    send_status('tool_completed', { tool: tool_name, result: result, execution_time: execution_time }, uuid:)
   end
 
 
@@ -155,7 +155,7 @@ module HorologiumAeternum
   end
 
 
-  def self.file_read_complete(path, bytes_read, range = nil, content = '', uuid: nil)
+  def self.file_read_complete(path, bytes_read, range = nil, content = '', uuid: nil, execution_time: nil)
     type = Scriptorium.language_tag_from_path path
     line_numbers = content.lines.each_with_index.map { |line, i| "#{i + 1}: #{line}" }.join if range
     if range
@@ -166,7 +166,8 @@ module HorologiumAeternum
                     path:    path,
                     bytes:   bytes_read,
                     range:   range,
-                    content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
+                    content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```"),
+                    execution_time: execution_time
                   }, uuid:)
     else
       send_status('file_read_complete', {
@@ -174,7 +175,8 @@ module HorologiumAeternum
                                               "#{create_file_link path}"),
                     path:    path,
                     bytes:   bytes_read,
-                    content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```")
+                    content: Scriptorium.html_with_syntax_highlight("```#{type}\n#{content}\n```"),
+                    execution_time: execution_time
                   }, uuid:)
     end
   end
@@ -476,7 +478,7 @@ module HorologiumAeternum
 
 
   # Command output containing HTML is properly escaped to prevent rendering issues
-  def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil)
+  def self.command_completed(cmd, output_length, content = '', exit_status = nil, uuid: nil, execution_time: nil)
     symbol = if exit_status.respond_to?(:zero?) && exit_status.zero? then '✅ ⚡️' else '❌ ⚡️' end
     cmd_str = if cmd.include? "\n" then "\n\n```\n#{cmd}\n```\n" else "`#{cmd}`" end
 
@@ -484,10 +486,11 @@ module HorologiumAeternum
     escaped_content = Scriptorium.escape_html content
 
     send_status('command_completed', {
-                  message:       Scriptorium.html("#{symbol} Command complete: #{cmd_str} (#{output_length} chars output)"),
-                  command:       cmd,
-                  output_length: output_length,
-                  content:       escaped_content
+                  message:        Scriptorium.html("#{symbol} Command complete: #{cmd_str} (#{output_length} chars output)"),
+                  command:        cmd,
+                  output_length:  output_length,
+                  content:        escaped_content,
+                  execution_time: execution_time
                 }, uuid:)
   end
 
@@ -962,5 +965,33 @@ module HorologiumAeternum
       column:,
       selection_range:
     }, uuid:
+  end
+
+
+  # --- User Response Mechanism (for ask_user tool) ---
+
+  @user_responses = {}
+  @user_response_mutex = Mutex.new
+
+  def self.await_user_response(uuid, timeout: 300)
+    queue = Queue.new
+    @user_response_mutex.synchronize { @user_responses[uuid] = queue }
+
+    begin
+      # Block until frontend sends response or timeout
+      Timeout.timeout(timeout) { queue.pop }
+    rescue Timeout::Error
+      HorologiumAeternum.system_error 'User response timed out'
+      { error: 'User response timed out', timed_out: true }
+    ensure
+      @user_response_mutex.synchronize { @user_responses.delete(uuid) }
+    end
+  end
+
+  def self.receive_user_response(uuid, response)
+    @user_response_mutex.synchronize do
+      queue = @user_responses[uuid]
+      queue&.push(response)
+    end
   end
 end

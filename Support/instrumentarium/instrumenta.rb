@@ -74,12 +74,14 @@ instrument :read_file,
            returns: { content: String, error: String } do |path:, range: nil|
   raise 'Denied path' if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
 
+  start_time = Time.now
   uuid = HorologiumAeternum.file_reading path, range
   result = Argonaut.read path, range
   raise result[:error] unless result[:error].nil?
 
   bytes_read = result[:content]&.bytesize || 0
-  HorologiumAeternum.file_read_complete(path, bytes_read, range, result[:content], uuid:)
+  exec_time = (Time.now - start_time).round(3)
+  HorologiumAeternum.file_read_complete(path, bytes_read, range, result[:content], uuid:, execution_time: exec_time)
   result
 rescue StandardError => e
   # TODO: when a file path could not be found make some suggestions about similar paths...
@@ -191,6 +193,7 @@ instrument :run_command,
   end
 
   uuid = HorologiumAeternum.command_executing cmd
+  cmd_start = Time.now
 
   begin
     project_root = Argonaut.project_root
@@ -203,7 +206,8 @@ instrument :run_command,
     # Open3.capture3 env_vars, cmd, chdir: project_root
     exitstatus = if status.respond_to? :exitstatus then status.exitstatus else 'undefined' end
     out = (stdout + stderr + "\n(exit #{exitstatus})").strip
-    HorologiumAeternum.command_completed(cmd, out.length, out, exitstatus, uuid:)
+    exec_time = (Time.now - cmd_start).round(3)
+    HorologiumAeternum.command_completed(cmd, out.length, out, exitstatus, uuid:, execution_time: exec_time)
 
     # Use Scriptorium HTML utils for proper escaping
     escaped_out = Scriptorium.escape_html out
@@ -825,4 +829,52 @@ instrument :symbolic_patch_file,
     HorologiumAeternum.symbolic_patch_fail(path, operation, e.message, uuid:)
     { error: "Symbolic patch failed: #{e.message}" }
   end
+end
+
+
+# Interactive user consultation — pauses divination for user input
+instrument :ask_user,
+           description: <<~DESC,
+             Ask the user a question when uncertain how to proceed. Use this sparingly —
+             only when genuinely needing user guidance. The tool presents options or a
+             text prompt, pauses execution, and returns the user's choice.
+
+             **Types:**
+             - `confirm`: Yes/No confirmation with customizable button labels
+             - `select`: Dropdown selection with optional custom input
+             - `prompt`: Free-form text input
+
+             **Options format (for select):** Array of strings, e.g. ["Option A", "Option B"]
+
+             The user can modify any option or add a new one before responding.
+           DESC
+           params: { type:    { type: String, required: true,
+                                enum: %w[confirm select prompt] },
+                     message: { type: String, required: true,
+                                description: 'Question or prompt to show the user' },
+                     options: { type: Array, required: false,
+                                items: { type: String },
+                                description: 'Options for confirm/select types (defaults to Yes/No for confirm)' } },
+           returns: { response: String, error: String } do |type:, message:, options: nil|
+  uuid = SecureRandom.uuid
+
+  # Normalize options
+  normalized_options = case type
+                       when 'confirm'
+                         options&.first(2) || %w[Yes No]
+                       when 'select'
+                         options || []
+                       else
+                         nil
+                       end
+
+  # Send to frontend
+  HorologiumAeternum.send_status('ask_user', {
+                                   type:,
+                                   message:,
+                                   options: normalized_options
+                                 }, uuid:)
+
+  # Block until user responds
+  HorologiumAeternum.await_user_response(uuid)
 end

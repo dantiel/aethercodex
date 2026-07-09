@@ -146,6 +146,10 @@ get '/ws' do
         when :manageTask
           result = do_tasks(req[:params])
           ws.send(result.to_json)
+        when :userResponse
+          uuid = req[:params][:uuid]
+          response = req[:params][:response]
+          HorologiumAeternum.receive_user_response(uuid, response)
         end
       end
     rescue StandardError => e

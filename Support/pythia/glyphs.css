@@ -769,3 +769,122 @@ details[open] summary::before {
   max-width: 100%;
   height: auto;
 }
+
+/* ── Ask User Modal ── */
+.ask-user-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 30, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: ask-user-fade-in 0.2s ease;
+}
+@keyframes ask-user-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ask-user-modal {
+  background: linear-gradient(135deg, #1a1a3e 0%, #0d0d2b 100%);
+  border: 1px solid rgba(180, 160, 255, 0.25);
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  min-width: 360px;
+  max-width: 560px;
+  box-shadow: 0 0 40px rgba(100, 80, 220, 0.2);
+  animation: ask-user-slide-in 0.25s ease;
+}
+@keyframes ask-user-slide-in {
+  from { transform: translateY(-20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.ask-user-message {
+  color: #e0d8ff;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.ask-user-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.ask-user-btn {
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 160, 255, 0.3);
+  background: rgba(100, 70, 200, 0.2);
+  color: #cdc0ff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ask-user-btn:hover {
+  background: rgba(120, 90, 220, 0.35);
+  border-color: rgba(200, 180, 255, 0.5);
+  box-shadow: 0 0 12px rgba(130, 100, 240, 0.25);
+}
+.ask-user-btn.confirm-yes {
+  background: rgba(80, 140, 100, 0.25);
+  border-color: rgba(100, 200, 130, 0.35);
+  color: #b8f0c8;
+}
+.ask-user-btn.confirm-yes:hover {
+  background: rgba(100, 180, 130, 0.35);
+  border-color: rgba(130, 230, 160, 0.5);
+}
+.ask-user-btn.confirm-no {
+  background: rgba(180, 80, 80, 0.2);
+  border-color: rgba(200, 100, 100, 0.3);
+  color: #f0b8b8;
+}
+.ask-user-btn.confirm-no:hover {
+  background: rgba(200, 100, 100, 0.3);
+  border-color: rgba(230, 130, 130, 0.45);
+}
+
+.ask-user-select-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ask-user-select,
+.ask-user-custom,
+.ask-user-input {
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 160, 255, 0.25);
+  background: rgba(20, 20, 50, 0.7);
+  color: #e0d8ff;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.ask-user-select:focus,
+.ask-user-custom:focus,
+.ask-user-input:focus {
+  border-color: rgba(160, 140, 240, 0.6);
+  box-shadow: 0 0 8px rgba(120, 100, 220, 0.2);
+}
+
+.ask-user-custom::placeholder,
+.ask-user-input::placeholder {
+  color: rgba(200, 190, 240, 0.35);
+}
+
+.ask-user-select {
+  cursor: pointer;
+}
+.ask-user-select option {
+  background: #1a1a3e;
+  color: #e0d8ff;
+}

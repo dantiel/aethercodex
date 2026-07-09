@@ -1,0 +1,1 @@
+./forge.sh && sudo killAll -9 ruby

@@ -1,3 +1,155 @@
+/* Tool group - collapsible container for consecutive tool calls */
+.status.tool-group {
+  margin: 0.5rem 0;
+  position: relative;
+}
+
+.status.tool-group > details.tool-group {
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+
+.status.tool-group > details.tool-group > summary {
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  font-weight: 500;
+  color: var(--argonaut-mystic);
+  user-select: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  position: relative;
+  overflow: hidden;
+  /* Hide default marker - we use custom badge on right */
+  list-style: none;
+}
+
+.status.tool-group > details.tool-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.status.tool-group > details.tool-group > summary::marker {
+  display: none;
+  content: '';
+}
+
+.status.tool-group > details.tool-group > summary:hover {
+  opacity: 1;
+}
+
+.status.tool-group > details.tool-group[open] > summary {
+  margin-bottom: 0.3rem;
+}
+
+/* Summary text - takes remaining space, gradient fade on right when collapsed */
+.status.tool-group > details.tool-group > summary .summary-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+  position: relative;
+  min-width: 0;
+}
+
+
+.status.tool-group > details.tool-group:not([open]) > summary, .status.tool-group > details.tool-group:not([open]) {
+    margin-right: -0.4rem;
+    margin-top: -0.5rem;
+    margin-bottom: -0.8rem;
+}
+
+/* Gradient fade on right side of summary (collapsed only) - covers entire summary */
+.status.tool-group > details.tool-group:not([open]) > summary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5rem;
+  height: 100%;
+  background: linear-gradient(to right, transparent, var(--argonaut-deep));
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Tool count badge - always on the right side, above gradient */
+.status.tool-group > details.tool-group > summary .tool-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  background: rgba(129, 93, 179, 0.2);
+  border: 0.1rem solid rgba(129, 93, 179, 0.3);
+  border-radius: 0.4rem;
+  font-size: 0.8em;
+  color: var(--argonaut-mystic);
+  white-space: nowrap;
+  flex-shrink: 0;
+  z-index: 1;
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Collapsed: show badge with arrow */
+.status.tool-group > details.tool-group:not([open]) > summary .tool-count-badge {
+  display: inline-flex;
+}
+
+/* Expanded: show badge without arrow (just count) */
+.status.tool-group > details.tool-group[open] > summary .tool-count-badge {
+  display: inline-flex;
+}
+
+.status.tool-group > details.tool-group[open] > summary .tool-count-badge .arrow {
+  display: none;
+}
+
+.status.tool-group > .tool-group-content {
+  /* No extra styling — tools appear seamless */
+}
+
+.status.tool-group > .tool-group-content > .tool-item {
+  /* No extra styling — tools appear as normal status messages */
+}
+
+.status.tool-group > .tool-group-content > .tool-item.running {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.status.tool-group > .tool-group-footer {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8em;
+  color: var(--argonaut-shadow);
+  display: block;
+}
+
+/* Resume button styling */
+.resume-btn {
+  display: block;
+  margin: 0.5rem auto;
+  padding: 0.4rem 1.2rem;
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.2), rgba(79, 70, 229, 0.2));
+  border: 0.1rem solid rgba(129, 93, 179, 0.4);
+  border-radius: 0.5rem;
+  color: var(--argonaut-mystic);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-family: var(--hermetic);
+  transition: all 0.2s ease;
+}
+
+.resume-btn:hover {
+  background: linear-gradient(135deg, rgba(129, 93, 179, 0.35), rgba(79, 70, 229, 0.35));
+  border-color: rgba(129, 93, 179, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 0.2rem 0.5rem rgba(129, 93, 179, 0.2);
+}
+
 /* Thinking State Styling */
 .thinking {
   background: rgba(255, 0, 0, 0.1);
@@ -162,8 +314,10 @@ details {
 
 
 
-/* collapsible statuses */
-details summary {
+/* collapsible statuses - scoped to direct children of #messages to avoid nested conflicts */
+#messages > details > summary,
+#messages > .status > details > summary,
+#messages > .status.tool-group > .tool-group-content > details > summary {
   cursor: pointer;
   padding: 0.0rem 0;
   font-weight: 500;
@@ -172,15 +326,21 @@ details summary {
   flex-wrap: wrap;
 }
 
-details summary:hover {
+#messages > details > summary:hover,
+#messages > .status > details > summary:hover,
+#messages > .status.tool-group > .tool-group-content > details > summary:hover {
   color: var(--argonaut-azure);
 }
 
-details[open] summary {
+#messages > details[open] > summary,
+#messages > .status > details[open] > summary,
+#messages > .status.tool-group > .tool-group-content > details[open] > summary {
   margin-bottom: 0.2rem;
 }
 
-details summary p {
+#messages > details > summary p,
+#messages > .status > details > summary p,
+#messages > .status.tool-group > .tool-group-content > details > summary p {
   flex-shrink: 0;
   max-width: calc(100%-5em);
   max-width: -webkit-calc(100% - 3em);
@@ -307,64 +467,4 @@ details summary p {
 .task-list > ul ul li,
 .task-list > ul ol li{
   margin: 0 0.5em;
-}
-
-/* Tool execution group - collapsible with total time */
-.tool-execution-group {
-  margin: 0.5rem 0;
-  background: rgba(129, 93, 179, 0.06);
-  border: 0.1rem solid rgba(129, 93, 179, 0.2);
-  border-radius: 0.6rem;
-  overflow: hidden;
-}
-
-.tool-execution-group summary {
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, rgba(129, 93, 179, 0.12), rgba(129, 93, 179, 0.06));
-  font-weight: 500;
-  color: var(--argonaut-mystic);
-  user-select: none;
-}
-
-.tool-execution-group summary:hover {
-  background: linear-gradient(135deg, rgba(129, 93, 179, 0.18), rgba(129, 93, 179, 0.1));
-}
-
-.tool-execution-item {
-  padding: 0.3rem 1rem;
-  font-size: 0.85em;
-  color: var(--argonaut-steel);
-  border-bottom: 0.05rem solid rgba(129, 93, 179, 0.08);
-}
-
-.tool-execution-item:last-child {
-  border-bottom: none;
-}
-
-.tool-execution-item code {
-  color: var(--argonaut-amber);
-  font-weight: 500;
-}
-
-/* Resume button styling */
-.resume-btn {
-  display: block;
-  margin: 0.5rem auto;
-  padding: 0.4rem 1.2rem;
-  background: linear-gradient(135deg, rgba(129, 93, 179, 0.2), rgba(79, 70, 229, 0.2));
-  border: 0.1rem solid rgba(129, 93, 179, 0.4);
-  border-radius: 0.5rem;
-  color: var(--argonaut-mystic);
-  cursor: pointer;
-  font-size: 0.9em;
-  font-family: var(--hermetic);
-  transition: all 0.2s ease;
-}
-
-.resume-btn:hover {
-  background: linear-gradient(135deg, rgba(129, 93, 179, 0.35), rgba(79, 70, 229, 0.35));
-  border-color: rgba(129, 93, 179, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 0.2rem 0.5rem rgba(129, 93, 179, 0.2);
 }

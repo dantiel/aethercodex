@@ -339,6 +339,36 @@ class PrimaMateria
 
 
   # Generate complete INSTRUMENTA schema matching the static format
+  # Recursively convert Ruby types to JSON Schema types in a parameter spec
+  # Handles nested structures like items: { type: String }
+  def convert_param_spec_to_json_schema(spec)
+    return { type: spec.to_s.downcase } unless spec.is_a?(Hash)
+
+    spec.each_with_object({}) do |(key, value), hash|
+      hash[key] = case key
+                  when :type
+                    case value.to_s
+                    when 'TrueClass' then 'boolean'
+                    when 'Numeric' then 'number'
+                    else value.to_s.downcase
+                    end
+                  when :items
+                    # Recursively convert items schema
+                    convert_param_spec_to_json_schema(value)
+                  when :properties
+                    # Recursively convert nested properties
+                    value.transform_values { |v| convert_param_spec_to_json_schema(v) }
+                  when :additionalProperties
+                    # Recursively convert additionalProperties
+                    convert_param_spec_to_json_schema(value)
+                  else
+                    # Copy other values as-is (enum, description, etc.)
+                    value
+                  end
+    end
+  end
+
+
   def instrumenta_schema
     schema = []
 
@@ -358,25 +388,10 @@ class PrimaMateria
         }
       }
 
-      # Build properties from tool params
+      # Build properties from tool params using recursive conversion
       properties = {}
       tool.params.each do |param_name, param_spec|
-        properties[param_name.to_s] = if param_spec.is_a? Hash
-                                        param_spec.to_h.except(:required).each_with_object({}) do |(key, value), hash|
-                                          hash[key] = case key
-                                                      when :type
-                                                        case value.to_s
-                                                        when 'TrueClass' then 'boolean'
-                                                        when 'Numeric' then 'number'
-                                                        else value.to_s.downcase
-                                                        end
-                                                      else
-                                                        value
-                                                      end
-                                        end
-                                      else
-                                        { type: param_spec.to_s }
-                                      end
+        properties[param_name.to_s] = convert_param_spec_to_json_schema(param_spec.to_h.except(:required))
       end
 
       schema_entry[:function][:parameters][:properties] = properties

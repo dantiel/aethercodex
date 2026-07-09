@@ -137,6 +137,14 @@ module Scriptorium
     end
 
     'text'
+  rescue Rouge::Guesser::Ambiguous => e
+    # Fallback to extension-based lookup when Rouge can't disambiguate
+    # (e.g., .h files that could be C, C++, Objective-C, etc.)
+    extension = File.extname(filename).delete '.'
+    lexer_by_extension = Rouge::Lexer.find extension
+    return lexer_by_extension.tag if lexer_by_extension
+
+    'text'
   end
 
 

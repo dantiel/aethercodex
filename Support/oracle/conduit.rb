@@ -9,6 +9,7 @@ require_relative '../instrumentarium/metaprogramming_utils'
 require_relative '../instrumentarium/scriptorium'
 require_relative '../mnemosyne/mnemosyne'
 require_relative 'error_handler'
+require_relative 'conduit_anthropic_helper'
 using TokenExtensions
 
 
@@ -77,6 +78,20 @@ class Conduit
       JSON.parse raw
     rescue JSON::ParserError
       { 'error' => raw.to_s }
+    end
+
+
+    # Sanitize string for JSON serialization
+    # Strips control characters that break JSON and ensures valid UTF-8
+    def sanitize_json_string(str)
+      return '' unless str.is_a?(String)
+
+      # Remove control characters (0x00-0x1F except \t, \n, \r)
+      # These are the only valid control chars in JSON strings
+      str.gsub(/[\x00-\x08\x0B\x0C\x0E-\x1F]/, '')
+         .encode('UTF-8', invalid: :replace, undef: :replace, replace: '')
+    rescue StandardError => e
+      str.to_s
     end
 
 
@@ -157,7 +172,10 @@ class Conduit
 
       puts "[CONDUIT]: temperature=#{temperature}"
 
+      base_body = { model:, messages:, max_tokens:, temperature: }
+
       # Sanitize messages: DeepSeek API requires content to be string or list, never nil
+      # Also strip control characters that break JSON serialization
       messages = messages.map do |msg|
         m = msg.dup
         content = m[:content]
@@ -168,28 +186,21 @@ class Conduit
             m[:content] = ''
           end
         elsif !content.is_a?(String) && !content.is_a?(Array)
-          m[:content] = content.to_s
+          m[:content] = sanitize_json_string(content.to_s)
+        elsif content.is_a?(String)
+          m[:content] = sanitize_json_string(content)
         end
         m
       end if messages
 
-      # Apply Gemini-specific formatting if using Gemini API
-      base_body = if :gemini == CONFIG::CFG[:api_type]&.to_sym
-                    # Use the existing rewrite_to_gemini_format method from Oracle
-                    gemini_format = rewrite_to_gemini_format messages
-                    # Gemini uses different structure with system_instruction and contents
-                    gemini_format.merge({
-                                          generationConfig: { temperature:,
-                                                              maxOutputTokens: max_tokens }
-                                        })
-                  else
-                    { model:, max_tokens:, temperature:, messages: messages }
-                  end
+      base_body = { model:, messages:, max_tokens:, temperature: }
 
       base_body.merge(if reasoning || is_deepseek_reasoning_model?(model)
                         { tools: nil }
                       elsif :gemini == CONFIG::CFG[:api_type]&.to_sym
                         rewrite_tools_to_gemini_format tools
+                      elsif :anthropic == CONFIG::CFG[:api_type]&.to_sym
+                        rewrite_tools_to_anthropic_format tools
                       else
                         { tools: tools }
                       end)
@@ -203,10 +214,16 @@ class Conduit
     def post(body, timeout = 120)
       key = extract_api_key CONFIG::CFG
       endpoint = extract_api_endpoint CONFIG::CFG
+      openai_project = CONFIG::CFG[:'openai-project'] || CONFIG::CFG['openai-project']
+      headers = openai_project ? { 'OpenAI-Project' => openai_project.to_s } : {}
+      puts "[CONDUIT] POST #{endpoint}"
+      puts "[CONDUIT] HEADERS: #{headers.inspect.truncate(120)}" unless headers.empty?
       validate_api_key key
 
       connection = create_faraday_connection
-      response = execute_api_request connection, endpoint, key, body, timeout
+      response = execute_api_request connection, endpoint, key, body, timeout, headers
+
+      return response if response.is_a?(String) # synthetic error from 400/500 handler
 
       response.body
     rescue Faraday::TimeoutError => e
@@ -439,25 +456,57 @@ class Conduit
     end
 
 
-    def execute_api_request(connection, endpoint, api_key, body, timeout)
-      # puts "BLA #{CONFIG::CFG.inspect}"
+    def execute_api_request(connection, endpoint, api_key, body, timeout, headers = {})
+      # Debug: attempt JSON conversion and catch errors
+      json_body = nil
+      begin
+        json_body = body.to_json
+        # Validate it's parseable
+        JSON.parse(json_body)
+      rescue JSON::GeneratorError, JSON::ParserError => e
+        puts "[CONDUIT][JSON_ERROR]: Failed to generate/parse JSON: #{e.message}"
+        puts "[CONDUIT][JSON_ERROR_BODY_DUMP]: #{body.inspect.truncate(500)}"
+        raise
+      end
+
       response = connection.post endpoint do |request|
         if :gemini == CONFIG::CFG[:api_type].to_sym
           request.headers['X-goog-api-key'] = api_key.to_s
+        elsif :anthropic == CONFIG::CFG[:api_type].to_sym
+          request.headers['x-api-key'] = api_key.to_s
+          request.headers['anthropic-version'] = '2023-06-01'
         else
           request.headers['Authorization'] = "Bearer #{api_key}"
         end
         request.headers['Content-Type'] = 'application/json'
-        request.body = body.to_json
+
+        # Apply custom headers from .aethercodex config (e.g., OpenAI-Project)
+        headers.each { |k, v| request.headers[k.to_s] = v.to_s }
+
+        request.body = json_body
         request.options.timeout = timeout
         request.options.open_timeout = timeout / 2
       end
 
-      ErrorHandler.handle_http_status_codes response unless 200 == response.status
+      unless 200 == response.status
+        error_message = ErrorHandler.handle_http_status_codes response
+        # 400/500: return synthetic error so model can self-correct
+        if error_message.is_a?(String)
+          HorologiumAeternum.system_error('API request malformed — sending error back to model',
+                                          message: error_message.truncate(300))
+          return { 'choices' => [{ 'message' => { 'content' => "❌ API Error: #{error_message}" } }] }.to_json
+        end
+      end
 
       response
-    rescue Faraday::ClientError => e
-      ErrorHandler.handle_faraday_client_error e
+    rescue Faraday::ClientError, Faraday::ServerError => e
+      error_message = ErrorHandler.handle_faraday_client_error e
+      # 400/500: return synthetic error response so model can self-correct
+      if error_message.is_a?(String)
+        HorologiumAeternum.system_error('API request error — sending back to model for self-correction',
+                                        message: error_message.truncate(300))
+        return { 'choices' => [{ 'message' => { 'content' => "❌ API Error: #{error_message}" } }] }.to_json
+      end
     rescue Faraday::ConnectionFailed, EOFError => e
       if :retry == handle_connection_error(e)
         puts 'RETRY'

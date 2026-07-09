@@ -64,6 +64,9 @@ class ErrorHandler
       detailed_message = add_error_details base_message, error_info
       full_message = add_solution_guidance detailed_message, status
 
+      # 400 and all 5xx: return message so model can self-correct instead of crashing
+      return full_message if 400 == status || (500..599).include?(status)
+
       raise full_message
     end
 
@@ -75,6 +78,10 @@ class ErrorHandler
       base_message = status_code_base_message(status) || "API Request Failed: #{error.message}"
       detailed_message = add_error_details base_message, error_info
       full_message = add_solution_guidance detailed_message, status
+
+      # 400 and all 5xx: return error message so caller can
+      # feed it back to model for self-correction instead of crashing
+      return full_message if 400 == status || (500..599).include?(status)
 
       raise full_message
     end

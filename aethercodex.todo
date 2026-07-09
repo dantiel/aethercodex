@@ -1,5 +1,13 @@
 # 🌌 HERMETIC PROJECT TODO
 
+## 💬 ASK USER TOOL (Task #378)
+    ✅ Interactive user input tool for AI — confirm/select/prompt
+    ✅ Register `ask_user` tool in instrumenta.rb (type, message, options)
+    ✅ Add blocking response mechanism in HorologiumAeternum
+    ✅ Handle `userResponse` WebSocket message in limen.rb
+    ✅ Build frontend modal: confirm (buttons), select (dropdown+custom), prompt (text input)
+    ◯ Handle edge cases: timeout, disconnect, concurrent requests
+
 ## 🔐 USER REVIEW MODE (Task #377)
     ◯ User Review Mode — Confirmation Gate for Tool Execution
     ◯ Create review configuration system (per-category: read/write/patch/run/delete/network/memory/notes)

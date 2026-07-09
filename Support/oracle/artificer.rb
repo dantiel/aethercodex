@@ -35,24 +35,31 @@ class Artificer
       safe_context = create_safe_context instrumenta_results
       start_time = Time.now
 
-      HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
-        result = execution_block.call name, args, safe_context
+      result = HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
+        exec_result = execution_block.call name, args, safe_context
         exec_time = Time.now - start_time
 
         # Check for divine interruption signal - terminate current oracle call if detected
-        if result.is_a?(Hash) && result.key?(:__divine_interrupt)
-          # Return the divine interruption signal directly without adding to messages
-          return [result, messages, instrumenta_results]
+        if exec_result.is_a?(Hash) && exec_result.key?(:__divine_interrupt)
+          break [:__divine_interrupt, exec_result, messages, instrumenta_results]
         end
 
-        updated_instrumenta_results = instrumenta_results + [{ id:, name:, result:, args:, execution_time: exec_time.round(3) }]
+        safe_result = safe_encode exec_result
+        updated_instrumenta_results = instrumenta_results + [{ id:, name:, result: safe_result, args:, execution_time: exec_time.round(3) }]
         updated_messages = messages + [{ role:         'tool',
                                          tool_call_id: id,
-                                         content:      result.to_json }]
-        [result, updated_messages, updated_instrumenta_results]
-      rescue HermeticExecutionDomain::Error => e
-        handle_hermetic_execution_error e, 'Hermetic execution failed'
+                                         content:      safe_result.to_json }]
+        [exec_result, updated_messages, updated_instrumenta_results]
       end
+
+      # Handle divine interruption signal
+      if result.is_a?(Array) && result.first == :__divine_interrupt
+        return [result[1], result[2], result[3]]
+      end
+
+      result
+    rescue HermeticExecutionDomain::Error => e
+      handle_hermetic_execution_error e, 'Hermetic execution failed'
     end
 
 
@@ -64,27 +71,34 @@ class Artificer
       safe_context = create_safe_context instrumenta_results
       start_time = Time.now
 
-      HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
-        result = execution_block.call instrumenta_call[:name], instrumenta_call[:args], safe_context
+      result = HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
+        exec_result = execution_block.call instrumenta_call[:name], instrumenta_call[:args], safe_context
         exec_time = Time.now - start_time
 
         # Check for divine interruption signal - terminate current oracle call if detected
-        if result.is_a?(Hash) && result.key?(:__divine_interrupt)
-          # Return the divine interruption signal directly without adding to messages
-          return [result, messages, instrumenta_results]
+        if exec_result.is_a?(Hash) && exec_result.key?(:__divine_interrupt)
+          break [:__divine_interrupt, exec_result, messages, instrumenta_results]
         end
 
+        safe_result = safe_encode exec_result
         instrumenta_call_id = instrumenta_call[:id] || SecureRandom.uuid
         updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call_id,
                                                                name:   instrumenta_call[:name],
-                                                               result: result,
+                                                               result: safe_result,
                                                                args:   instrumenta_call[:args],
                                                                execution_time: exec_time.round(3) }]
         updated_messages = messages + [{ role:         'tool',
                                          tool_call_id: instrumenta_call_id,
-                                         content:      result.to_json }]
-        [result, updated_messages, updated_instrumenta_results]
+                                         content:      safe_result.to_json }]
+        [exec_result, updated_messages, updated_instrumenta_results]
       end
+
+      # Handle divine interruption signal
+      if result.is_a?(Array) && result.first == :__divine_interrupt
+        return [result[1], result[2], result[3]]
+      end
+
+      result
     rescue HermeticExecutionDomain::Error => e
       handle_hermetic_execution_error e, 'Hermetic execution failed'
     end
@@ -185,9 +199,17 @@ class Artificer
     def ensure_json(raw)
       return raw if raw.is_a? Hash
 
-      JSON.parse raw
-    rescue JSON::ParserError
-      { 'error' => raw.to_s }
+      # Handle encoding issues — API responses may have ASCII-8BIT encoded strings
+      # that cause JSON.parse to fail on non-ASCII bytes
+      clean = (raw.respond_to?(:dup) ? raw.dup : raw.to_s)
+      clean.force_encoding('UTF-8') if clean.encoding == Encoding::ASCII_8BIT
+      clean = clean.scrub unless clean.valid_encoding?
+      JSON.parse clean
+    rescue JSON::ParserError => e
+      preview = (defined?(clean) ? clean : raw).to_s.truncate(500)
+      HorologiumAeternum.system_error("Failed to parse tool arguments JSON",
+                                      message: "#{e.message.truncate(200)} | raw: #{preview}")
+      {}
     end
 
 
@@ -204,6 +226,17 @@ class Artificer
     def handle_hermetic_execution_error(error, _message)
       # Don't log here - the error will be caught and handled by the calling context
       raise error
+    end
+
+
+    # Recursively encode strings to UTF-8, replacing invalid bytes
+    def safe_encode(value)
+      case value
+      when String then value.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
+      when Hash   then value.transform_values { |v| safe_encode v }
+      when Array  then value.map { |v| safe_encode v }
+      else value
+      end
     end
   end
 end

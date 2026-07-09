@@ -18,7 +18,7 @@ class Pythia
     @attachment_context = null
     @lastLogTime = 0
     @messageBuffer = []
-    @MESSAGE_THROTTLE_TIME = 1300
+    @MESSAGE_THROTTLE_TIME = 500
     @stored = null
     @connectWebSocketTimeout = null
     @STORAGE_KEY = "aether_messages_#{@port}"
@@ -29,6 +29,8 @@ class Pythia
     @magnumOpus = new MagnumOpus(this)
     @createScrollToBottomButton()
     @loadMermaid()
+    @toolGroupOpen = false
+    @toolGroupUuid = null
     
 
   # Mermaid.js Loading
@@ -63,6 +65,7 @@ class Pythia
       @ws = new WebSocket "ws://127.0.0.1:#{@port}/ws"
       @setupWebSocketHandlers uuid
     catch e
+      console.log "ROFL", this
       @log 'error', uuid, "🔮 Connection ritual failed: #{e.message}"
       setTimeout (=> @scheduleReconnect uuid), 1500
 
@@ -154,9 +157,121 @@ class Pythia
     setInterval =>
       now = do Date.now
       if @messageBuffer.length > 0 and now - @lastLogTime >= @MESSAGE_THROTTLE_TIME
-        do @messageBuffer.shift()
+        func = @messageBuffer.shift()
+        func()
         @lastLogTime = now
-    , 100 # Check every 100ms
+    , 100
+
+
+  # Tool Group Management
+  openToolGroup: (uuid) =>
+    return if @toolGroupOpen
+    @toolGroupOpen = true
+    @toolGroupUuid = uuid
+    @toolCount = 0
+    @toolTotalTime = 0
+    @lastToolHtml = null
+    m = document.getElementById 'messages'
+    is_near_bottom = (m.scrollHeight - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
+    el = document.createElement 'div'
+    el.className = 'status tool-group'
+    el.id = uuid
+    el.innerHTML = '<details class="tool-group"><summary><span class="tool-count-badge">🔧 0 <span class="arrow">▸</span></span><span class="summary-text">🔧</span></summary><div class="tool-group-content"></div></details><div class="tool-group-footer"></div>'
+    detailsEl = el.querySelector 'details'
+    detailsEl.addEventListener 'toggle', =>
+      toolCount = detailsEl.querySelectorAll('.tool-item, .tool-group-content > details').length
+      totalTime = parseFloat(detailsEl.dataset.totalTime or '0')
+      lastToolHtml = detailsEl.dataset.lastToolHtml or ''
+      summary = detailsEl.querySelector 'summary'
+      if summary
+        textSpan = summary.querySelector '.summary-text'
+        badgeSpan = summary.querySelector '.tool-count-badge'
+        if detailsEl.hasAttribute 'open'
+          # Expanded: show "🔧 N tools", badge shows count without arrow
+          if textSpan
+            textSpan.innerHTML = "#{toolCount} tools"
+          if badgeSpan
+            badgeSpan.innerHTML = "🔧 #{toolCount}"
+        else
+          # Collapsed: show last tool message with gradient + badge with arrow
+          if textSpan
+            textSpan.innerHTML = "#{lastToolHtml}"
+          if badgeSpan
+            badgeSpan.innerHTML = "🔧 #{toolCount}" # <span class=\"arrow\">▸</span>
+    m.appendChild el
+    m.scrollTop = 100 + m.scrollHeight if is_near_bottom
+    do @saveMessages
+
+
+  updateToolGroupSummary: =>
+    el = document.getElementById @toolGroupUuid
+    return unless el
+    summary = el.querySelector 'summary'
+    return unless summary
+    detailsEl = el.querySelector 'details'
+    # Store current state on DOM for toggle handler
+    if detailsEl
+      detailsEl.dataset.totalTime = @toolTotalTime.toString()
+      detailsEl.dataset.lastToolHtml = @lastToolHtml or ''
+    # Update summary: collapsed shows last tool message, expanded shows tool count
+    toolCount = detailsEl?.querySelectorAll('.tool-item, .tool-group-content > details').length or @toolCount
+    textSpan = summary.querySelector '.summary-text'
+    badgeSpan = summary.querySelector '.tool-count-badge'
+    if detailsEl?.hasAttribute 'open'
+      if textSpan
+        textSpan.innerHTML = "🔧 #{toolCount} tools"
+      if badgeSpan
+        badgeSpan.innerHTML = "🔧 #{toolCount}"
+    else
+      if textSpan
+        textSpan.innerHTML = "🔧 #{@lastToolHtml or ''}"
+      if badgeSpan
+        badgeSpan.innerHTML = "🔧 #{toolCount} <span class=\"arrow\">▸</span>"
+    # Update footer with execution time (always visible)
+    footer = el.querySelector '.tool-group-footer'
+    if footer and @toolTotalTime > 0
+      footer.innerHTML = "<small>⏱ #{@toolTotalTime.toFixed 2}s</small>"
+
+
+  closeToolGroup: =>
+    return unless @toolGroupOpen
+    # If only 1 tool, unwrap the group — move content out and remove wrapper
+    if @toolCount <= 1
+      el = document.getElementById @toolGroupUuid
+      if el
+        contentDiv = el.querySelector '.tool-group-content'
+        if contentDiv and contentDiv.children.length > 0
+          m = document.getElementById 'messages'
+          # Move each child before the group wrapper, adding .status class for styling
+          while contentDiv.firstChild
+            child = contentDiv.firstChild
+            child.classList.add 'status'
+            m.insertBefore child, el
+          # Also move footer before the group wrapper
+          footer = el.querySelector '.tool-group-footer'
+          if footer
+            m.insertBefore footer, el
+          # Remove the group wrapper
+          el.remove()
+    @toolGroupOpen = false
+    @toolGroupUuid = null
+    @toolCount = 0
+    @toolTotalTime = 0
+    @lastToolHtml = null
+
+
+  toolGroupAppend: (html) =>
+    return unless @toolGroupOpen
+    el = document.getElementById @toolGroupUuid
+    return unless el
+    contentDiv = el.querySelector '.tool-group-content'
+    return unless contentDiv
+    contentDiv.insertAdjacentHTML 'beforeend', html.trim()
+    # Scroll to bottom if near bottom
+    m = document.getElementById 'messages'
+    is_near_bottom = (m.scrollHeight - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
+    m.scrollTop = 100 + m.scrollHeight if is_near_bottom
+
 
 
   log: (cls, uuid, html) =>
@@ -211,7 +326,7 @@ class Pythia
         @handleHermeticLiveUpdate(data)
       when 'thinking'
         if data.content
-          @log 'system', uuid, """
+          @log 'ai', uuid, """
             <details>
               <summary>#{data.message} #{timestamp_html}</summary>
               #{data.content}
@@ -219,129 +334,212 @@ class Pythia
         else
           @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} #{timestamp_html}"
       when 'file_reading'
-        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
-      when 'divination'
-        @log 'status', uuid, "#{data.message || 'Consulting the astral codex...'} #{timestamp_html}"
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "#{data.message} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item running\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{data.message} #{timestamp_html}</span></div>"
       when 'file_read_complete'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{data.content}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"file_read\"><summary>#{data.message} #{timestamp_html}</summary>#{data.content}</details>"
+        else
+          @toolGroupAppend "<details class=\"file_read\"><summary>#{data.message} #{timestamp_html}</summary>#{data.content}</details>"
       when 'file_read_fail'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{data.error}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"file_read_fail\"><summary>#{data.message} #{timestamp_html}</summary>#{data.error}</details>"
+        else
+          @toolGroupAppend "<details class=\"file_read_fail\"><summary>#{data.message} #{timestamp_html}</summary>#{data.error}</details>"
       when 'file_creating'
-        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "#{@replaceFileTags data.message} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item running\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{@replaceFileTags data.message} #{timestamp_html}</span></div>"
       when 'file_created'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{data.content}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"file_created\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.content}</details>"
+        else
+          @toolGroupAppend "<details class=\"file_created\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.content}</details>"
       when 'temp_file_created'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{data.content}
-          </details>"""
-
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"temp_file_created\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.content}</details>"
+        else
+          @toolGroupAppend "<details class=\"temp_file_created\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.content}</details>"
       when 'file_patching'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{data.diff}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "#{@replaceFileTags data.message} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item running\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{@replaceFileTags data.message} #{timestamp_html}</span></div>"
       when 'file_patched'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{@replaceFileTags data.diff}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"file_patched\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{@replaceFileTags data.diff}</details>"
+        else
+          @toolGroupAppend "<details class=\"file_patched\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{@replaceFileTags data.diff}</details>"
       when 'file_patched_fail'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{data.diff}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"file_patched_fail\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.diff}</details>"
+        else
+          @toolGroupAppend "<details class=\"file_patched_fail\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.diff}</details>"
       when 'symbolic_patch_start'
-        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "#{@replaceFileTags data.message} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item running\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{@replaceFileTags data.message} #{timestamp_html}</span></div>"
       when 'symbolic_patch_complete'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{@replaceFileTags data.result_display}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"symbolic_patch_complete\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{@replaceFileTags data.result_display}</details>"
+        else
+          @toolGroupAppend "<details class=\"symbolic_patch_complete\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{@replaceFileTags data.result_display}</details>"
       when 'symbolic_patch_fail'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>
-            #{data.error}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"symbolic_patch_fail\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.error}</details>"
+        else
+          @toolGroupAppend "<details class=\"symbolic_patch_fail\"><summary>#{@replaceFileTags data.message} #{timestamp_html}</summary>#{data.error}</details>"
       when 'command_executing'
-        @log 'status', uuid, "#{data.message} #{timestamp_html}"
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "#{data.message} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item running\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{data.message} #{timestamp_html}</span></div>"
       when 'command_completed'
-        @log 'status', uuid, """
-          <details class="run_command">
-            <summary>#{data.message} #{timestamp_html}</summary>
-            <pre>#{data.content}</pre>
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"run_command\"><summary>#{data.message} #{timestamp_html}</summary><pre>#{data.content}</pre></details>"
+        else
+          @toolGroupAppend "<details class=\"run_command\"><summary>#{data.message} #{timestamp_html}</summary><pre>#{data.content}</pre></details>"
       when 'oracle_revelation'
-        # Don't close tool group — let the answer handler do that
-        @log 'system', uuid, "#{@replaceFileTags data.content} #{timestamp_html}"
+        @closeToolGroup()
+        @log 'ai', null, "#{@replaceFileTags data.content} #{timestamp_html}"
       when 'file_renamed'
-        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"      
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "#{@replaceFileTags data.message} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{@replaceFileTags data.message} #{timestamp_html}</span></div>"
       when 'memory_storing'
-        @log 'status', uuid, "#{data.message} #{timestamp_html}"
+        @log 'system', uuid, "#{data.message} #{timestamp_html}"
       when 'memory_stored'
-        @log 'status', uuid, "#{data.message} #{timestamp_html}"
+        @log 'system', uuid, "<details class=\"memory_stored\"><summary>#{data.message} #{timestamp_html}</summary>#{data.content}</details>"
       when 'memory_searching'
-        @log 'status', uuid, "#{data.message} #{timestamp_html}"
+        @log 'system', uuid, "#{data.message} #{timestamp_html}"
       when 'memory_found'
-        @log 'status', uuid, """
-          <details>
-            <summary>#{data.message} #{timestamp_html}</summary>
-            <pre>#{data.content}</pre>
-          </details>"""
+        @log 'system', uuid, "<details class=\"memory_found\"><summary>#{data.message} #{timestamp_html}</summary>#{data.content}</details>"
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"memory_found\"><summary>#{data.message} #{timestamp_html}</summary><pre>#{data.content}</pre></details>"
+        else
+          @toolGroupAppend "<details class=\"memory_found\"><summary>#{data.message} #{timestamp_html}</summary><pre>#{data.content}</pre></details>"
       when 'info'
-        @log 'status', uuid, "#{@replaceFileTags data.message} #{timestamp_html}"    
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "#{@replaceFileTags data.message} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{@replaceFileTags data.message} #{timestamp_html}</span></div>"
       when 'oracle_conjuration_revelation'
-        @log 'system', uuid, """
+        @log 'ai', uuid, """
           <details>
             <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'oracle_conjuration'
-        @log 'status', uuid, """
-          <details>
+        @closeToolGroup()
+        @log 'ai', uuid, """
+          <details class="oracle-conjuration">
             <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'plan_announced'
+        @closeToolGroup()
         @log 'status', uuid, "📋Plan: #{data.steps?.join ' → '} #{timestamp_html}"
       when 'processing'
         @log 'status', uuid, "#{data.message} #{timestamp_html}"
       when 'completed'
+        @closeToolGroup()
         @log 'system', uuid, "#{data.summary || 'Completed'} #{timestamp_html}"
       when 'server_error'
+        @setThinking false
+        @closeToolGroup()
         @log 'error', uuid, "#{data.error} #{timestamp_html}"
+        do @updateSendButton
       when 'system_error'
+        @setThinking false
+        @closeToolGroup()
         @log 'error', uuid, "#{data.error} #{timestamp_html}"
+        do @updateSendButton
       when 'thinking_complete'
+        @closeToolGroup()
         thinkingTime = data.thinking_time
         if thinkingTime
           @log 'system', uuid, "🧠 Thinking complete: #{thinkingTime}s #{timestamp_html}"
       when 'system_message'
         @log 'system', uuid, "#{data.message} #{timestamp_html}"
       when 'note_added'
-        @log 'system', uuid, """
-          <details>
-            <summary>#{data.message} #{timestamp_html}</summary>
-            #{@replaceFileTags data.content}
-          </details>"""
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"note_added\"><summary>#{data.message} #{timestamp_html}</summary>#{@replaceFileTags data.content}</details>"
+        else
+          @toolGroupAppend "<details class=\"note_added\"><summary>#{data.message} #{timestamp_html}</summary>#{@replaceFileTags data.content}</details>"
       when 'note_removed'
         @log 'system', uuid, """
           <details>
@@ -477,6 +675,8 @@ class Pythia
               <p><strong>Step Results:</strong> #{data.step_results_count} available</p>
             </div>
           </details>"""
+      when 'ask_user'
+        @showAskUserModal(data, uuid)
           
 
   # Task Management
@@ -556,7 +756,7 @@ class Pythia
       when 'status'
         @showStatus data.result.type, data.result.data, data.result.uuid
       when 'answer'
-        #@log 'answer', data.uuid, @replaceFileTags(data.content || data.result.answer)
+        @closeToolGroup()
         do @updateSendButton
         result = data.result
         if result.logs?
@@ -834,6 +1034,138 @@ class Pythia
   setThinking: (is_thinking)=>
     TextMate.isBusy = @isThinking = is_thinking
     do @updateSendButton
+
+
+  # Ask User Modal — interactive user input during AI execution
+  showAskUserModal: (data, uuid) =>
+    # Remove existing modal if any
+    @closeAskUserModal()
+
+    overlay = document.createElement 'div'
+    overlay.id = 'ask-user-overlay'
+    overlay.className = 'ask-user-overlay'
+
+    modal = document.createElement 'div'
+    modal.className = 'ask-user-modal'
+
+    messageHtml = @escapeHtml(data.message).replace /\n/g, '<br>'
+
+    contentHtml = """
+      <div class="ask-user-message">#{messageHtml}</div>
+    """
+
+    switch data.type
+      when 'confirm'
+        opts = data.options or ['Yes', 'No']
+        contentHtml += """
+          <div class="ask-user-actions">
+            <button class="ask-user-btn confirm-yes" data-response="#{@escapeHtml(opts[0])}">#{@escapeHtml(opts[0])}</button>
+            <button class="ask-user-btn confirm-no" data-response="#{@escapeHtml(opts[1])}">#{@escapeHtml(opts[1])}</button>
+          </div>
+        """
+      when 'select'
+        optionsHtml = (data.options or []).map((opt) =>
+          "<option value=\"#{@escapeHtml(opt)}\">#{@escapeHtml(opt)}</option>"
+        ).join ''
+        contentHtml += """
+          <div class="ask-user-select-wrapper">
+            <select class="ask-user-select" id="ask-user-select">
+              #{optionsHtml}
+            </select>
+            <input type="text" class="ask-user-custom" id="ask-user-custom"
+                   placeholder="Or type a custom option..." />
+          </div>
+          <div class="ask-user-actions">
+            <button class="ask-user-btn confirm-yes" id="ask-user-submit-select">Submit</button>
+          </div>
+        """
+      when 'prompt'
+        contentHtml += """
+          <div class="ask-user-prompt-wrapper">
+            <input type="text" class="ask-user-input" id="ask-user-input"
+                   placeholder="Type your response..." autofocus />
+          </div>
+          <div class="ask-user-actions">
+            <button class="ask-user-btn confirm-yes" id="ask-user-submit-prompt">Submit</button>
+          </div>
+        """
+
+    modal.innerHTML = contentHtml
+    overlay.appendChild modal
+    document.body.appendChild overlay
+
+    # Store uuid for response
+    @askUserUuid = uuid
+
+    # Bind events
+    @bindAskUserEvents(data.type, uuid)
+
+    # Focus appropriate element
+    setTimeout =>
+      switch data.type
+        when 'confirm'
+          overlay.querySelector('.confirm-yes')?.focus()
+        when 'select'
+          overlay.querySelector('#ask-user-select')?.focus()
+        when 'prompt'
+          overlay.querySelector('#ask-user-input')?.focus()
+    , 100
+
+
+  closeAskUserModal: =>
+    overlay = document.getElementById 'ask-user-overlay'
+    overlay?.remove()
+    @askUserUuid = null
+
+
+  bindAskUserEvents: (type, uuid) =>
+    overlay = document.getElementById 'ask-user-overlay'
+    return unless overlay
+
+    sendResponse = (response) =>
+      @ws.send JSON.stringify
+        method: 'userResponse'
+        params: { uuid: uuid, response: response }
+      @closeAskUserModal()
+
+    switch type
+      when 'confirm'
+        overlay.querySelectorAll('.ask-user-btn').forEach (btn) =>
+          btn.addEventListener 'click', => sendResponse(btn.dataset.response)
+
+      when 'select'
+        submitBtn = overlay.querySelector '#ask-user-submit-select'
+        selectEl = overlay.querySelector '#ask-user-select'
+        customEl = overlay.querySelector '#ask-user-custom'
+
+        doSubmit = =>
+          val = customEl.value.trim()
+          val = selectEl.value unless val
+          sendResponse(val) if val
+
+        submitBtn?.addEventListener 'click', doSubmit
+        customEl?.addEventListener 'keydown', (e) =>
+          doSubmit() if e.key == 'Enter'
+        selectEl?.addEventListener 'keydown', (e) =>
+          doSubmit() if e.key == 'Enter'
+
+      when 'prompt'
+        inputEl = overlay.querySelector '#ask-user-input'
+        submitBtn = overlay.querySelector '#ask-user-submit-prompt'
+
+        doSubmit = =>
+          val = inputEl.value.trim()
+          sendResponse(val) if val
+
+        submitBtn?.addEventListener 'click', doSubmit
+        inputEl?.addEventListener 'keydown', (e) =>
+          doSubmit() if e.key == 'Enter'
+
+    # Close on Escape
+    document.addEventListener 'keydown', @askUserEscHandler = (e) =>
+      if e.key == 'Escape'
+        @closeAskUserModal()
+        sendResponse(null)
 
 
   # Utility Functions

@@ -37,6 +37,7 @@ class ÆtherCodexCLI
     when 'server'  then server_mode
     when 'config'  then config_mode
     when 'task'    then task_mode
+    when 'logs'    then logs_mode
     when 'repl'    then repl_mode
     when 'help', '-h', '--help' then print_help
     when nil       then repl_mode
@@ -137,6 +138,32 @@ class ÆtherCodexCLI
     end
   end
 
+  def logs_mode
+    # Search for the log file in multiple locations
+    # Order: current Dir.pwd project root, TM_PROJECT_DIRECTORY, home dir, fallback
+    log_path = nil
+    candidates = [
+      CONFIG.log_file_path,
+      ENV['TM_PROJECT_DIRECTORY'] && File.join(ENV['TM_PROJECT_DIRECTORY'], '.tm-ai', 'limen.log'),
+      File.join(Dir.home, '.tm-ai', 'limen.log'),
+    ].compact
+
+    log_path = candidates.find { |p| File.exist?(p) }
+
+    unless log_path
+      puts "No log file found. Searched:"
+      candidates.each { |p| puts "  #{p}" }
+      puts "Start the server first with: aethercodex server"
+      exit 1
+    end
+
+    puts "Tailing logs from: #{log_path}"
+    puts "────────────────────────────────────────"
+    require 'shellwords'
+    log_sh = File.join(__dir__, 'log.sh')
+    exec '/bin/bash', '-c', "tail -n 100 -f #{Shellwords.escape(log_path)} | #{Shellwords.escape(log_sh)} #{Shellwords.escape(log_path)}"
+  end
+
   def print_help
     puts "ÆtherCodex — Console-first Hermetic Programming Oracle"
     puts
@@ -145,6 +172,7 @@ class ÆtherCodexCLI
     puts "Commands:"
     puts "  ask \"prompt\"     Ask the oracle a question"
     puts "  server           Start web server (TextMate UI)"
+    puts "  logs             Tail live server logs with colorized output"
     puts "  config           Show configuration"
     puts "  task list        List tasks"
     puts "  task show <id>   Show task details"
@@ -155,6 +183,7 @@ class ÆtherCodexCLI
     puts "Examples:"
     puts "  ÆtherCodex ask \"What is the meaning of life?\""
     puts "  echo \"explain this code\" | ÆtherCodex ask"
+    puts "  ÆtherCodex logs"
     puts "  ÆtherCodex ask --file app.rb \"Refactor this\""
   end
 
