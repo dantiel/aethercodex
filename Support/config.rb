@@ -16,6 +16,7 @@ class CONFIG
     
     def load_hierarchical_config(start_dir = Dir.pwd)
       configs = []
+      source_dirs = {}
       
       # 1. Bundle Support directory (lowest priority)
       bundle_config_path = File.expand_path('.aethercodex', __dir__)
@@ -23,6 +24,7 @@ class CONFIG
         bundle_config = load_config_file(bundle_config_path)
         bundle_config[:__source] = :bundle
         configs << bundle_config
+        source_dirs[:bundle] = File.dirname(bundle_config_path)
       end
       
       # 2. User home directory
@@ -31,6 +33,7 @@ class CONFIG
         home_config = load_config_file(home_config_path)
         home_config[:__source] = :home
         configs << home_config
+        source_dirs[:home] = File.dirname(home_config_path)
       end
       
       # 3. Current project directory and parent directories (highest priority)
@@ -44,6 +47,7 @@ class CONFIG
           project_config = load_config_file(project_config_path.to_s)
           project_config[:__source] = :project
           configs << project_config
+          source_dirs[:project] = File.dirname(project_config_path.to_s)
           break # Stop at first project config found
         end
         current_dir = current_dir.parent
@@ -58,6 +62,10 @@ class CONFIG
       # Track the actual source for debugging
       merged_config[:__loaded_from] = merged_config[:__source]
       merged_config.delete(:__source)
+      
+      # Store base directory of highest-priority config for resolving relative paths
+      highest_source = merged_config[:__loaded_from]
+      merged_config[:__base_dir] = source_dirs[highest_source] if highest_source
       
       # puts "[CONFIG][LOAD_HIERARCHICAL_CONFIG]: merged_config: #{merged_config.inspect}"
       
@@ -193,13 +201,14 @@ class CONFIG
   end
   
   
-  # Resolve a path relative to project root, handling absolute paths
+  # Resolve a path relative to the config base directory, handling absolute paths.
+  # Precedence: TM_PROJECT_DIRECTORY env var > config file directory > Dir.pwd.
   def self.resolve_path(relative_path)
     # Handle absolute paths (starting with "/")
     return relative_path if relative_path.start_with?('/')
     
-    # For relative paths, resolve relative to project root
-    project_root = ENV['TM_PROJECT_DIRECTORY'] || Dir.pwd
+    # For relative paths, resolve relative to the highest-priority config's directory
+    project_root = ENV['TM_PROJECT_DIRECTORY'] || CFG[:__base_dir] || Dir.pwd
     File.join(project_root, relative_path)
   end
   
@@ -232,8 +241,17 @@ class CONFIG
   def self.allowed_commands
     custom_commands = CFG[:allowed_commands] || CFG['allowed-commands'] || []
     
-    # Handle wildcard - allow all commands
-    return [//] if custom_commands == '*' || custom_commands == ['*']
+    # Handle wildcard - allow all commands (check for string with quotes too)
+    return [//] if custom_commands == '*' || custom_commands == ['*'] ||
+                   custom_commands == '"*"' || custom_commands.to_s.strip == '*'
+    
+    # Handle comma-separated string (e.g., "git,ls,cat")
+    if custom_commands.is_a?(String) && custom_commands.include?(',')
+      custom_commands = custom_commands.split(',').map(&:strip)
+    end
+    
+    # Ensure array
+    custom_commands = Array(custom_commands)
     
     # Convert string commands to regex patterns
     custom_commands.map do |cmd|
@@ -242,6 +260,14 @@ class CONFIG
       else
         /^#{Regexp.escape(cmd.to_s)}\b/
       end
+    end
+    
+    # Get custom blocked commands from configuration
+    def self.blocked_commands
+      custom_commands = CFG[:blocked_commands] || CFG['blocked-commands'] || []
+      return [] if custom_commands == '*' || custom_commands == ['*']
+      custom_commands = custom_commands.split(',').map(&:strip) if custom_commands.is_a?(String) && custom_commands.include?(',')
+      Array(custom_commands).map { |cmd| cmd.is_a?(Regexp) ? cmd : /^#{Regexp.escape(cmd.to_s)}\b/ }
     end
   end
 end

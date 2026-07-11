@@ -128,6 +128,46 @@ module SymbolicPatchFile
     end
   end
 
+  # Read-only semantic search using AST-GREP — no modifications.
+  # @param path [String] File path or glob pattern (e.g. "Support/**/*.rb")
+  # @param pattern [String] AST-GREP pattern to search for
+  # @param lang [String, nil] Language hint (auto-detected if nil)
+  # @return [Hash] { success:, matches: [{file:, line:, column:, text:}] }
+  def search(path, pattern, lang: nil)
+    matches = []
+
+    files = Dir.glob(File.join(Argonaut.project_root, path))
+              .reject { |f| File.directory?(f) || f.include?('.git/') }
+              .map { |f| Pathname.new(f).relative_path_from(Argonaut.project_root).to_s }
+
+    return { success: false, error: "No files matched: #{path}" } if files.empty?
+
+    files.each do |file|
+      full = File.join(Argonaut.project_root, file)
+      lang ||= HermeticSymbolicAnalysis.detect_language(file)
+
+      cmd = ['ast-grep', '--pattern', pattern, '--lang', lang, '--format', 'json', full].compact
+      stdout, stderr, status = Open3.capture3(*cmd)
+
+      next unless status.success? && !stdout.strip.empty?
+
+      JSON.parse(stdout).each do |match|
+        matches << {
+          file: file,
+          line: match['range']&.dig('start', 'line') || match['line'],
+          column: match['range']&.dig('start', 'column'),
+          text: match['text']&.strip
+        }.compact
+      end
+    rescue JSON::ParserError
+      next
+    end
+
+    { success: true, matches: matches }
+  rescue StandardError => e
+    { success: false, error: e.message }
+  end
+
   # Apply advanced AST-GREP features with YAML rule support
   def apply_advanced_semantic_patch(file_path, search_pattern, replace_pattern,
                                    lang: nil, operation_mode: :pattern_match,

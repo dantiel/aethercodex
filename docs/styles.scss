@@ -1,0 +1,746 @@
+/* ÆtherCodex - Cosmic Mystic Styling */
+
+/*@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+*/
+@import url('https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne+Tactile&family=Syne:wght@400..800&display=swap');
+/*@import url('https://fonts.googleapis.com/css2?family=Marcellus SC&family=Syne+Mono&family=Syne+Tactile&family=Syne:wght@400..800&display=swap');*/
+
+/*@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond');*/
+@import url('https://iosevka-webfonts.github.io/iosevka-curly/iosevka-curly.css');
+/*@import url('https://iosevka-webfonts.github.io/iosevka-etoile/iosevka-etoile.css');*/
+
+
+:root {
+  --mono: "Syne Mono","Iosevka Curly", "Fira Code", monospace;
+  --sans: "Syne","General Sans","Plus Jakarta Sans","Inter",sans-serif;
+  --sigil:"Fraunces Soft","Syne",serif;
+}
+
+
+:root {
+    --argonaut-cosmic: #4a90e2;
+    --argonaut-mystic: #8e44ad;
+    --void-black: #0a0a0a;
+    --astral-gray: #1a1a1a;
+    --ethereal-white: #f8f9fa;
+    --hermetic-gold: #f39c12;
+    --dimensional-purple: #6c5ce7;
+    --arcane-teal: #17a2b8;
+    --mystic-rose: #e74c3c;
+    --ethereal-green: #27ae60;
+    --divine-crimson: #dc2626;
+    --astral-amber: #f59e0b;
+    --void-violet: #7c3aed;
+}
+
+em {
+    font-style: normal;
+    font-family: "Iosevka Curly Web Oblique";
+    margin: 0 0.3em;
+}
+
+strong {
+    color: color-mix(in srgb, inherit 20%, white);
+    font-weight: 700;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+body {
+    font-family: var(--sans);
+    background: linear-gradient(135deg, var(--void-black) 0%, var(--astral-gray) 100%);
+    color: var(--ethereal-white);
+    min-height: 100vh;
+    line-height: 1.6;
+    position: relative;
+}
+
+
+/* General link styling */
+.cosmic-link {
+    color: var(--argonaut-cosmic);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 2px;
+}
+
+.cosmic-link:hover {
+    color: var(--argonaut-mystic);
+    text-shadow: 0 0 10px var(--argonaut-mystic);
+    border-bottom-color: var(--argonaut-mystic);
+}
+
+
+#eyes-container {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  height: 100%;
+/*  z-index: -1;*/
+  bottom: 0;
+  pointer-events: none;
+}
+
+.cosmic-void {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
+/*    background: rgba(0,0,0,0.5);*/
+}
+
+.oracle-header {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: radial-gradient(circle at center, rgba(74, 144, 226, 0.1) 0%, transparent 70%);
+}
+
+.logo-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.logo {
+    font-size: 4.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 20px rgba(74, 144, 226, 0.5);
+}
+
+.aether,
+.codex {
+  font-weight: 700;
+}
+.aether {
+    color: var(--argonaut-cosmic);
+    text-shadow: 0 0 30px var(--argonaut-cosmic);
+}
+
+.codex {
+    color: var(--argonaut-mystic);
+    text-shadow: 0 0 30px var(--argonaut-mystic);
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--hermetic-gold);
+    font-style: italic;
+    opacity: 0.9;
+}
+
+.content {
+    flex: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.enhanced-description {
+  color: var(--ethereal-white);
+  font-size: 1.2em;
+}
+
+.enhanced-description strong,
+.hero-description strong {
+  color: color-mix(in srgb, var(--hermetic-gold) 40%, var(--ethereal-white));
+}
+
+.enhanced-description em,
+.hero-description em {
+  color: color-mix(in srgb, var(--argonaut-mystic) 50%, var(--ethereal-white));
+}
+
+.description {
+    text-align: center;
+    margin-bottom: 4rem;
+    padding: 2rem;
+    background: rgba(26, 26, 26, 0.7);
+    border-radius: 10px;
+    border: 1px solid rgba(74, 144, 226, 0.3);
+    -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
+}
+
+.description h2 {
+    color: var(--dimensional-purple);
+    margin-bottom: 1rem;
+    font-size: 2rem;
+    text-shadow: 0 0 15px rgba(108, 92, 231, 0.4);
+}
+
+/* Header Color Variations */
+.installation h2 {
+    color: var(--arcane-teal);
+    text-shadow: 0 0 15px rgba(23, 162, 184, 0.4);
+}
+
+.usage h2 {
+    color: var(--mystic-rose);
+    text-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+}
+
+.features {
+    margin-bottom: 4rem;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.feature-card {
+    background: rgba(26, 26, 26, 0.8);
+    padding: 2rem;
+    border-radius: 10px;
+    border: 1px solid rgba(142, 68, 173, 0.3);
+    transition: all 0.3s ease;
+    -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
+    
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--argonaut-mystic);
+    box-shadow: 0 10px 30px rgba(142, 68, 173, 0.2);
+    -webkit-backdrop-filter: blur(0.3rem);
+    backdrop-filter: blur(0.3rem);
+}
+
+
+
+.feature-card h3 {
+    color: var(--ethereal-white);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-shadow: 0 0 10px currentColor;
+}
+
+.feature-card {
+    border-left: 4px solid var(--hermetic-gold);
+    border-radius: 15px;
+}
+
+.feature-card:hover {
+    box-shadow: 0 15px 40px rgba(74, 144, 226, 0.4);
+}
+
+
+.future-features h2 {
+    color: var(--argonaut-cosmic);
+    text-shadow: 0 0 15px currentColor;
+}
+
+.future-features li span {
+  display: none;
+}
+
+.future-features {
+    margin-bottom: 4rem;
+}
+
+.future-features .feature-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.future-features li strong {
+  color: var(--ethereal-white);
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-shadow: 0 0 10px currentColor;
+  display: block;
+  color: color-mix(in srgb, var(--argonaut-cosmic) 70%, var(--ethereal-white));
+}
+
+.future-features li {
+    padding: 2rem;
+    border-radius: 10px;
+    border: 1px solid rgba(142, 68, 173, 0.3);
+    transition: all 0.3s ease;
+    display: block;
+    -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
+    border-left: 4px solid var(--argonaut-cosmic);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--argonaut-mystic) 10%, transparent), color-mix(in srgb, var(--argonaut-cosmic) 10%, transparent));
+    color: color-mix(in srgb, var(--argonaut-cosmic) 90%, var(--ethereal-white));
+    
+/*    background: color-mix(in srgb, var(--argonaut-mystic) 10%, transparent);*/
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin: 1rem 0;
+}
+
+.future-features li:hover {
+    transform: translateY(-5px);
+    border-color: var(--ethereal-white);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--ethereal-white) 15%, transparent);
+    -webkit-backdrop-filter: blur(0.3rem);
+    backdrop-filter: blur(0.3rem);
+}
+
+
+.future-features .feature-list strong {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 70%, var(--ethereal-white));
+}
+
+.future-features .feature-list em {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 50%, var(--ethereal-white));
+}
+
+.card-transformations {
+  border-left-color: var(--argonaut-cosmic);
+  color: color-mix(in srgb, var(--argonaut-cosmic) 50%, var(--ethereal-white));
+  font-size: 1.15em;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--argonaut-cosmic) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-transformations strong {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 70%, var(--ethereal-white));
+}
+
+.card-transformations em {
+  color: color-mix(in srgb, var(--argonaut-cosmic) 20%, var(--ethereal-white));
+}
+
+.card-transformations h3 {
+  color: var(--argonaut-cosmic);
+}
+
+.card-divination {
+  border-left-color: var(--mystic-rose);
+  color: color-mix(in srgb, var(--mystic-rose) 50%, var(--ethereal-white));
+  font-size: 1.15em;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--mystic-rose) 10%, transparent), color-mix(in srgb, var(--dimensional-purple) 10%, transparent));
+}
+
+.card-divination strong {
+  color: color-mix(in srgb, var(--mystic-rose) 70%, var(--ethereal-white));
+}
+
+.card-divination em {
+  color: color-mix(in srgb, var(--mystic-rose) 20%, var(--ethereal-white));
+}
+
+.card-divination h3 {
+  color: var(--mystic-rose);
+}
+
+.card-textmate {
+    border-left-color: var(--divine-crimson);
+    color: color-mix(in srgb, var(--divine-crimson) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--divine-crimson) 10%, transparent), color-mix(in srgb, var(--astral-amber) 10%, transparent));
+    
+/*    background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(245, 158, 11, 0.1));*/
+}
+
+.card-textmate strong {
+  color: color-mix(in srgb, var(--divine-crimson) 70%, var(--ethereal-white));
+}
+
+.card-textmate em {
+  color: color-mix(in srgb, var(--divine-crimson) 20%, var(--ethereal-white));
+}
+
+
+.card-textmate h3 {
+    color: var(--divine-crimson);
+}
+
+.card-mnemosyne {
+    border-left-color: var(--void-violet);
+    color: color-mix(in srgb, var(--void-violet) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(139, 69, 19, 0.1));
+}
+
+.card-mnemosyne strong {
+  color: color-mix(in srgb, var(--void-violet) 70%, var(--ethereal-white));
+}
+
+.card-mnemosyne em {
+  color: color-mix(in srgb, var(--void-violet) 20%, var(--ethereal-white));
+}
+
+.card-mnemosyne h3 {
+    color: var(--void-violet);
+}
+
+.card-memory {
+    border-left-color: var(--ethereal-green);
+    color: color-mix(in srgb, var(--ethereal-green) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--ethereal-green) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-memory strong {
+  color: color-mix(in srgb, var(--ethereal-green) 70%, var(--ethereal-white));
+}
+
+.card-memory em {
+  color: color-mix(in srgb, var(--ethereal-green) 20%, var(--ethereal-white));
+}
+
+.card-memory h3 {
+    color: var(--ethereal-green);
+}
+
+
+.card-hermetic h3 {
+    color: var(--arcane-teal);
+}
+
+.card-pythia {
+    border-left-color: var(--dimensional-purple);
+    color: color-mix(in srgb, var(--dimensional-purple) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--dimensional-purple) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-pythia strong {
+  color: color-mix(in srgb, var(--dimensional-purple) 70%, var(--ethereal-white));
+}
+
+.card-pythia em {
+  color: color-mix(in srgb, var(--dimensional-purple) 20%, var(--ethereal-white));
+}
+
+.card-pythia h3 {
+    color: var(--dimensional-purple);
+}
+
+.card-shell {
+    border-left-color: var(--divine-crimson);
+    color: color-mix(in srgb, var(--divine-crimson) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--divine-crimson) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-shell h3 {
+    color: var(--divine-crimson);
+}
+
+.card-task-engine {
+    border-left-color: var(--hermetic-gold);
+    color: color-mix(in srgb, var(--hermetic-gold) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--hermetic-gold) 10%, transparent), color-mix(in srgb, var(--dimensional-purple) 10%, transparent));
+}
+
+.card-task-engine strong {
+  color: color-mix(in srgb, var(--hermetic-gold) 70%, var(--ethereal-white));
+}
+
+.card-task-engine em {
+  color: color-mix(in srgb, var(--hermetic-gold) 20%, var(--ethereal-white));
+}
+
+.card-task-engine h3 {
+    color: var(--hermetic-gold);
+}
+
+.card-coniunctio {
+    border-left-color: var(--dimensional-purple);
+    color: color-mix(in srgb, var(--dimensional-purple) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--dimensional-purple) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-coniunctio strong {
+  color: color-mix(in srgb, var(--dimensional-purple) 70%, var(--ethereal-white));
+}
+
+.card-coniunctio em {
+  color: color-mix(in srgb, var(--dimensional-purple) 20%, var(--ethereal-white));
+}
+
+.card-coniunctio h3 {
+    color: var(--dimensional-purple);
+}
+
+.card-hermetic {
+    border-left-color: var(--arcane-teal);
+    color: color-mix(in srgb, var(--arcane-teal) 50%, var(--ethereal-white));
+    font-size: 1.15em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--arcane-teal) 10%, transparent), color-mix(in srgb, var(--void-violet) 10%, transparent));
+}
+
+.card-hermetic strong {
+  color: color-mix(in srgb, var(--arcane-teal) 70%, var(--ethereal-white));
+}
+
+.card-hermetic em {
+  color: color-mix(in srgb, var(--arcane-teal) 20%, var(--ethereal-white));
+}
+
+.card-hermetic h3 {
+    color: var(--arcane-teal);
+}
+
+.content h2 {
+    font-size: 2.2rem;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.installation h2 {
+    color: var(--arcane-teal);
+    text-shadow: 0 0 15px var(--arcane-teal);
+}
+
+.installation,
+.usage, 
+.future-features {
+    background: rgba(26, 26, 26, 0.6);
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(74, 144, 226, 0.2);
+}
+
+.divine {
+  background: linear-gradient(45deg, 
+    var(--astral-amber), 
+    var(--hermetic-gold));
+}
+
+.code {
+  background: linear-gradient(45deg, 
+    var(--arcane-teal), 
+    var(--ethereal-green));
+}
+
+.transmutation {
+  background: linear-gradient(45deg,
+    var(--argonaut-cosmic), 
+    var(--divine-crimson));
+}
+
+.divine, .transmutation, .code  {
+  -webkit-background-clip: text;
+  background-size: 300% 300%;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: argonautShift 4s ease-in-out infinite;
+  font-weight: bold;
+}
+
+@keyframes argonautShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+pre {
+    background: color-mix(in srgb, var(--void-black) 50%, transparent);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--dimensional-purple);
+    margin: 1rem 0;
+    overflow-x: auto;
+    -webkit-backdrop-filter: blur(0.2rem);
+    backdrop-filter: blur(0.2rem);
+
+}
+
+code {
+    color: var(--argonaut-cosmic);
+    font-family: var(--mono);
+}
+
+ul {
+    padding-left: 2rem;
+}
+
+li {
+    margin: 0.5rem 0;
+}
+
+li strong {
+    color: var(--argonaut-mystic);
+}
+
+.oracle-footer {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: rgba(10, 10, 10, 0.8);
+    border-top: 1px solid rgba(74, 144, 226, 0.3);
+}
+
+.usage h2 {
+    color: var(--mystic-rose);
+    text-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    animation: astral-pulse 3s ease-in-out infinite;
+}
+
+.runes {
+    color: var(--dimensional-purple);
+    font-size: 1.5rem;
+    letter-spacing: 2rem;
+    opacity: 0.7;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .logo {
+        font-size: 3rem;
+    }
+    
+    .oracle-header {
+        padding: 2rem 1rem;
+    }
+    
+    .content {
+        padding: 1rem;
+    }
+    
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Mystical Animations */
+@keyframes astral-pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+.logo {
+    animation: astral-pulse 3s ease-in-out infinite;
+}
+
+/* Hermetic Glow Effects */
+.aether:hover {
+    animation: none;
+    text-shadow: 0 0 40px var(--argonaut-cosmic);
+}
+
+.codex:hover {
+    animation: none;
+    text-shadow: 0 0 40px var(--argonaut-mystic);
+}
+
+/* Tool Grid Styles */
+.tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.tool-card {
+    background: rgba(26, 26, 26, 0.8);
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    transition: all 0.3s ease;
+    -webkit-backdrop-filter: blur(0.1rem);
+    backdrop-filter: blur(0.1rem);
+    border-left: 4px solid var(--mystic-rose);
+}
+
+.tool-card strong {
+  color: color-mix(in srgb, var(--mystic-rose) 70%, var(--ethereal-white));
+}
+
+.tool-card em {
+  color: color-mix(in srgb, var(--mystic-rose) 20%, var(--ethereal-white));
+}
+
+.tool-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--mystic-rose);
+    box-shadow: 0 10px 30px rgba(231, 76, 60, 0.2);
+    -webkit-backdrop-filter: blur(0.3rem);
+    backdrop-filter: blur(0.3rem);
+}
+
+.tool-card h4 {
+    color: var(--mystic-rose);
+    margin-bottom: 0.8rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    font-family: var(--mono);
+    text-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+
+}
+
+.tool-card p {
+    color: color-mix(in srgb, var(--mystic-rose) 50%, var(--ethereal-white));
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.cosmic-glow {
+    color: var(--ethereal-white);
+    font-size: 1.2em;
+    text-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+    margin-bottom: 2rem;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+html {
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+/*  overflow: hidden;*/
+}
+
+
+
+body {
+  /* Hermetic Eye Styles */
+/*    margin: 0;*/
+/*    background-color: #000;*/
+/*    background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);*/
+    
+}
+
+.eye {
+  pointer-events: none;
+  user-select: none;
+  z-index: -1;
+  transition: opacity 1s ease, transform 1s ease, text-shadow 1s ease;
+  line-height: 1em;
+  position: absolute;
+  font-size: 4rem;
+  opacity: 0.1;
+  transform-origin: 50% 50%;
+}

@@ -63,7 +63,7 @@ module HermeticSymbolicAnalysis
           arg
         elsif arg.end_with?('.rb') || arg.end_with?('.js') || arg.end_with?('.py') ||
            arg.end_with?('.java') || arg.end_with?('.go') || arg.end_with?('.rs') ||
-           arg.end_with?('.php') || arg.end_with?('.html') || arg.end_with?('.css') ||
+           arg.end_with?('.php') || arg.end_with?('.html') || arg.end_with?('.css') || arg.end_with?('.scss') || arg.end_with?('.sass') ||
            arg.end_with?('.xml') || arg.end_with?('.json') || arg.end_with?('.yml') ||
            arg.end_with?('.yaml') || arg.end_with?('.md')
           File.join(Argonaut.project_root, arg)
@@ -244,7 +244,7 @@ module HermeticSymbolicAnalysis
     when '.rs' then 'rust'
     when '.php' then 'php'
     when '.html', '.htm' then 'html'
-    when '.css' then 'css'
+    when '.css', '.scss', '.sass' then 'css'
     when '.xml' then 'xml'
     when '.json' then 'json'
     when '.yml', '.yaml' then 'yaml'

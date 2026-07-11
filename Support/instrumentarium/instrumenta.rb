@@ -84,10 +84,34 @@ instrument :read_file,
   HorologiumAeternum.file_read_complete(path, bytes_read, range, result[:content], uuid:, execution_time: exec_time)
   result
 rescue StandardError => e
-  # TODO: when a file path could not be found make some suggestions about similar paths...
-  # TODO likewise when a directory is tried to read then output its contents.
+  suggestions = if File.directory?(File.join(Argonaut.project_root, path))
+                  contents = Dir.children(File.join(Argonaut.project_root, path))
+                               .map { |n| File.directory?(File.join(Argonaut.project_root, path, n)) ? "#{n}/" : n }
+                               .sort_by { |n| n.start_with?('.') ? 1 : 0 }
+                  "Directory '#{path}' — contents:\n  #{contents.take(50).join("\n  ")}" \
+                  "#{'  …' if contents.size > 50}"
+                else
+                  all_files = Argonaut.list_project_files
+                  similar = all_files.select { |f| similarity(path, f) > 0.4 }
+                              .sort_by { |f| -similarity(path, f) }
+                              .take(5)
+                  if similar.any?
+                    "File not found: #{path}\nDid you mean?\n  #{similar.join("\n  ")}"
+                  end
+                end
   HorologiumAeternum.file_read_fail(path, e.message, range, uuid:)
-  { error: e.message.to_s }
+  { error: [e.message, suggestions].compact.join("\n\n") }
+end
+
+private
+
+def similarity(a, b)
+  a, b = a.downcase, b.downcase
+  pairs_a = a.chars.each_cons(2).to_set
+  pairs_b = b.chars.each_cons(2).to_set
+  intersection = (pairs_a & pairs_b).size
+  union = (pairs_a | pairs_b).size
+  union.zero? ? 1.0 : intersection.to_f / union
 end
 
 # When reasoning is invoked, tools are excluded to enable advanced reasoning capabilities
@@ -183,13 +207,21 @@ instrument :run_command,
                       exit_status: Integer,
                       result:      String,
                       error:       String } do |cmd:, timeout:|
-  # TODO: instead of blocked command, make a button to accept or decline execution...
-  # Get merged allowed commands (default + custom from .aethercodex)
   allowed_commands = PrimaMateria.allowed_commands
 
-  # Allow all commands if wildcard is present
-  unless allowed_commands.any? { |re| // == re } || allowed_commands.any? { |re| cmd =~ re }
-    raise "🚫 Blocked command: `#{cmd}`"
+  blocked_commands = PrimaMateria.blocked_commands
+  command_allowed  = allowed_commands.any? { |re| // == re } || allowed_commands.any? { |re| cmd =~ re }
+  command_blocked  = blocked_commands.any? { |re| cmd =~ re }
+
+  if !command_allowed || command_blocked
+    ask_uuid = SecureRandom.uuid
+    HorologiumAeternum.send_status('ask_user', {
+                                     type: 'confirm',
+                                     message: "Blocked command: #{cmd}\nAllow execution?",
+                                     options: %w[Allow Block]
+                                   }, uuid: ask_uuid)
+    result = HorologiumAeternum.await_user_response(ask_uuid)
+    raise "🚫 Blocked command: `#{cmd}`" unless result[:response]&.downcase == 'allow'
   end
 
   uuid = HorologiumAeternum.command_executing cmd
@@ -232,7 +264,15 @@ instrument :create_file,
 
   full = File.join Argonaut.project_root, path
 
-  next { error: "File exists: #{path} (set overwrite:true)" } if File.exist?(full) && !overwrite
+  if File.exist?(full) && !overwrite
+    HorologiumAeternum.send_status('ask_user', {
+                                     type: 'confirm',
+                                     message: "File already exists: #{path}\nOverwrite?",
+                                     options: %w[Overwrite Cancel]
+                                   }, uuid:)
+    result = HorologiumAeternum.await_user_response(uuid)
+    next { error: "File exists: #{path} (user cancelled)" } unless result[:response]&.downcase == 'overwrite'
+  end
 
   Argonaut.write path, content
   HorologiumAeternum.file_created(path, bytes, content, uuid:)
@@ -323,19 +363,27 @@ instrument :tell_user,
 end
 
 
-# TODO: match by ID, so it can be easily accessed from file_overview tool
-# TODO: match by task ID
 instrument :recall_notes,
            description: 'Recall notes from Mnemosyne by tags, content or context. ' \
                         'Uses fuzzy matching with enhanced scoring: content (4x), ' \
                         'tags (3x), links (2x), path matches (+5). Current-state only. ' \
-                        'Max. content length will be reduced by higher limit.',
+                        'Pass `id` for direct lookup by note ID (useful from file_overview ' \
+                        'which returns note counts). Max. content length reduced by higher limit.',
            params: { query: { type: String, required: false },
+                     id:    { type: Integer, required: false, description: 'Direct note ID lookup' },
                      limit: { type: Integer, required: false, default: 3 } },
-           returns: { notes: Array, error: String } do |query: '', limit: 2|
-  # Use optimized parameters to prevent context bloat
-  result = { notes: Mnemosyne.recall_notes(query, limit: limit, max_content_length: 1111 / limit) }
-  HorologiumAeternum.notes_recalled query, limit, result[:notes]
+           returns: { notes: Array, error: String } do |query: '', id: nil, limit: 2|
+  result = if id
+             note = Mnemosyne.get_note(id)
+             if note
+               { notes: [note] }
+             else
+               { error: "Note ##{id} not found" }
+             end
+           else
+             { notes: Mnemosyne.recall_notes(query, limit: limit, max_content_length: 1111 / limit) }
+           end
+  HorologiumAeternum.notes_recalled query, limit, result[:notes] if result[:notes]
   result
 rescue StandardError => e
   { error: e.message }
@@ -721,7 +769,6 @@ end
 # end
 
 
-# TODO interface for using ast-grep for only searching inside the codebase as well.
 instrument :symbolic_patch_file,
            description: <<~DESC,
              Apply semantic patches using AST-GREP for pattern-based transformations.
@@ -732,18 +779,20 @@ instrument :symbolic_patch_file,
              - Method/class renaming across files
              - Documentation addition
              - Pattern-based search and replace
+             - Read-only semantic search across codebase
              - Multi-language support (Ruby, JavaScript, Python, etc.)
 
              Use for semantic transformations where line-based patching is impractical.
+             Use `operation: search` for read-only AST pattern search.
            DESC
            params: { path:            { type:        String,
                                         required:    true,
-                                        description: 'File path or pattern to patch' },
+                                        description: 'File path or glob pattern to search/patch' },
                      operation:       { type:        String,
                                         required:    true,
-                                        enum:        %w[transform_method transform_class
+                                        enum:        %w[search transform_method transform_class
                                                         document_method find_and_replace apply],
-                                        description: 'Type of semantic operation to perform' },
+                                        description: 'search=read-only AST search; rest=patch ops' },
                      search_pattern:  { type:        String,
                                         required:    false,
                                         description: 'Search pattern for AST-GREP' },
@@ -777,6 +826,8 @@ instrument :symbolic_patch_file,
 
   begin
     result = case operation
+             when 'search'
+               SymbolicPatchFile.search path, search_pattern, lang: lang
              when 'transform_method'
                SymbolicPatchFile.transform_method path, method_name,
                                                   new_method_name: new_method_name
@@ -876,5 +927,13 @@ instrument :ask_user,
                                  }, uuid:)
 
   # Block until user responds
-  HorologiumAeternum.await_user_response(uuid)
+  result = HorologiumAeternum.await_user_response(uuid)
+  
+  # Ensure consistent return format
+  case result
+  when Hash
+    result[:response] ? result : { response: result.to_s }
+  else
+    { response: result.to_s }
+  end
 end

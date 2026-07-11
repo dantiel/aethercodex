@@ -512,7 +512,11 @@ class PrimaMateria
     puts "[PRIMA_MATERIA][ERROR]: #{e.class}: #{e.message.truncate 200}"
     out = {}
   ensure
-    truncated_result = out&.transform_values { |v| v.to_s.truncate 300 }
+    truncated_result = case out
+                       when Hash then out.transform_values { |v| v.to_s.truncate 300 }
+                       when String then out.truncate 300
+                       else out.inspect
+                       end
     puts "[PRIMA_MATERIA][HANDLE][#{tool.upcase.gsub '_', '_'}][RESULT]: "\
          "#{truncated_result.inspect}"
   end
@@ -538,6 +542,10 @@ class PrimaMateria
     default_commands + custom_commands
   end
   
+
+  def self.blocked_commands
+    CONFIG::blocked_commands
+  end
 
   ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/,
                   /^\$TM_QUERY\b/, /^echo\b/, /^grep\b/, /^bundle exec ruby\b/,

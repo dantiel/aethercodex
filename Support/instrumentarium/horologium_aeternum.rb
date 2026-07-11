@@ -61,7 +61,7 @@ module HorologiumAeternum
   end
 
 
-  def self.send_status(type, data = {}, uuid: nil)
+  def self.send_status(type, data = {}, uuid: nil, **_)
     send 'status', type, data, uuid:
   end
 
@@ -979,7 +979,9 @@ module HorologiumAeternum
 
     begin
       # Block until frontend sends response or timeout
-      Timeout.timeout(timeout) { queue.pop }
+      result = Timeout.timeout(timeout) { queue.pop }
+      # Normalize to hash format
+      result.is_a?(Hash) ? result : { response: result.to_s }
     rescue Timeout::Error
       HorologiumAeternum.system_error 'User response timed out'
       { error: 'User response timed out', timed_out: true }

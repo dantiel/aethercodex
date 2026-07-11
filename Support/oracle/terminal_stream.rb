@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../instrumentarium/horologium_aeternum'
+
 # TerminalStream — Hermetic output adapter for the terminal.
 # Implements the same event interface as HorologiumAeternum but writes to STDOUT
 # with ANSI colors and structured formatting.
@@ -13,8 +15,10 @@ class TerminalStream
     puts "\e[2m  ◇ #{message}\e[0m"
   end
 
-  def send_status(type, data = {}, uuid: nil)
+  def send_status(type, data = {}, uuid: nil, **_)
     case type
+    when 'ask_user'
+      handle_ask_user(data, uuid)
     when 'thinking_complete'
       thinking_time = data[:thinking_time]
       puts "\e[2m  ◇ Thought for #{thinking_time}s\e[0m"
@@ -50,6 +54,12 @@ class TerminalStream
       puts "  \e[32m  📝 stored\e[0m"
     when 'note_removed'
       puts "  \e[33m  🗑 removed\e[0m"
+    when 'tool_starting'
+      puts "  \e[33m⚒️  #{data[:name] || data['name']}\e[0m \e[2m(#{data[:args]&.to_s&.truncate(80)})\e[0m"
+    when 'tool_completed'
+      time_str = data[:execution_time] ? "#{data[:execution_time].to_s[0..4]}s" : ''
+      result = data[:result].to_s.truncate(100)
+      puts "  \e[32m  ✓ #{time_str}\e[0m \e[2m#{result}\e[0m" unless result.empty?
     when 'aegis_unveiled'
       puts "  \e[32m  🔮 aegis\e[0m"
     when 'task_created'
@@ -94,6 +104,20 @@ class TerminalStream
   end
 
   private
+
+  def handle_ask_user(data, uuid)
+    msg = data[:message] || data['message'] || 'Proceed?'
+    opts = data[:options] || data['options'] || %w[Yes No]
+    prompt = "\e[35m☿ #{msg}\e[0m [\e[1m#{opts.first&.downcase}\e[0m/#{opts.last&.downcase}]: "
+
+    STDOUT.print prompt
+    answer = $stdin.gets&.strip || ''
+    STDOUT.puts
+
+    # Match: full string, case-insensitive, or first letter
+    response = opts.find { |o| o.casecmp?(answer) || o[0]&.casecmp?(answer[0]) } || answer
+    HorologiumAeternum.receive_user_response(uuid, { response: response })
+  end
 
   def puts(*args)
     STDOUT.puts(*args)

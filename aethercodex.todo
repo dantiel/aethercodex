@@ -186,5 +186,26 @@
 ◯ Typography & Visual Harmony Research
 ◯ Testimonials & Community Feedback
 
+## ⌘ ÆTHEROS — The Hermetic Operating System
+◯ The endgame — a hermetic desktop environment where AI is the substrate, not a chat window.
+   Files, windows, and processes all flow through the oracle. As above (the OS), so below (the code).
+   The planned Mac app (AetherCodex.app) is the prima materia — a stepping stone toward an OS where
+   correspondence and mentalism are the UX, not just metaphors.
+     ◯ Mac app: native AI editor replacing TextMate (Swift + AppKit)
+     ◯ File system as alchemical vessel: every file operation is a ritual
+     ◯ Hermetic window manager: windows correspond to planes of consciousness
+     ◯ Process daemon: background conjurations, continuous divination
+     ◯ Unified tool plane: CLI tools and OS share the same instrumenta
+
+## ⌘ ÆTHERTERMINAL — The Divinatory Terminal
+◯ The CLI's evolution into a terminal emulator where tool calls render inline with ANSI art,
+   commands are divined as you type, and the shell-oracle boundary dissolves.
+   The `TerminalStream` work (colored tool events in CLI) is the first cell dividing.
+     ◯ Inline tool rendering: read_file results appear as syntax-highlighted panels
+     ◯ Predictive command divination: shell completion via oracle
+     ◯ ÆST (Hermetic Shell): a shell where `ls` consults Mnemosyne for file notes
+     ◯ Terminal multiplexing: multiple oracle sessions in split panes
+     ◯ Scrollback is memory: terminal history feeds into context window
+
 ## Bugs
 ✔︎ double quotes at line endings get removed in patches. @done(04-09-2025 04:34)

@@ -26,7 +26,7 @@ class Artificer
   class << self
     # Execute a standard instrumenta call with hermetic principles
     # Returns [result, updated_messages, updated_tool_results]
-    def execute_standard(instrumenta_call, messages, instrumenta_results, &execution_block)
+    def execute_standard(instrumenta_call, messages, instrumenta_results, sink: nil, &execution_block)
       id = instrumenta_call['id']
       name = extract_instrumenta_name instrumenta_call
       args = extract_instrumenta_arguments instrumenta_call
@@ -34,6 +34,7 @@ class Artificer
       log_instrumenta_call 'INSTRUMENTA_CALL', name, args
       safe_context = create_safe_context instrumenta_results
       start_time = Time.now
+      sink&.send_status 'tool_starting', { name:, args: args.to_s.truncate(120) }#, tool_name: name
 
       result = HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
         exec_result = execution_block.call name, args, safe_context
@@ -45,6 +46,7 @@ class Artificer
         end
 
         safe_result = safe_encode exec_result
+        sink&.send_status 'tool_completed', { name:, execution_time: exec_time, result: safe_result.to_s.truncate(80) }#, tool_name: name
         updated_instrumenta_results = instrumenta_results + [{ id:, name:, result: safe_result, args:, execution_time: exec_time.round(3) }]
         updated_messages = messages + [{ role:         'tool',
                                          tool_call_id: id,
@@ -65,14 +67,16 @@ class Artificer
 
     # Execute a fallback instrumenta call with hermetic principles
     # Returns [result, updated_messages, updated_tool_results]
-    def execute_fallback(instrumenta_call, messages, instrumenta_results, &execution_block)
-      log_instrumenta_call 'FALLBACK_INSTRUMENTA_CALL', instrumenta_call[:name],
+    def execute_fallback(instrumenta_call, messages, instrumenta_results, sink: nil, &execution_block)
+      name = instrumenta_call[:name]
+      log_instrumenta_call 'FALLBACK_INSTRUMENTA_CALL', name,
                            instrumenta_call[:args]
       safe_context = create_safe_context instrumenta_results
       start_time = Time.now
+      sink&.send_status 'tool_starting', { name:, args: instrumenta_call[:args].to_s.truncate(120) }#, tool_name: name
 
       result = HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
-        exec_result = execution_block.call instrumenta_call[:name], instrumenta_call[:args], safe_context
+        exec_result = execution_block.call name, instrumenta_call[:args], safe_context
         exec_time = Time.now - start_time
 
         # Check for divine interruption signal - terminate current oracle call if detected
@@ -81,9 +85,10 @@ class Artificer
         end
 
         safe_result = safe_encode exec_result
+        sink&.send_status 'tool_completed', { name:, execution_time: exec_time, result: safe_result.to_s.truncate(80) }#, tool_name: name
         instrumenta_call_id = instrumenta_call[:id] || SecureRandom.uuid
         updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call_id,
-                                                               name:   instrumenta_call[:name],
+                                                               name:,
                                                                result: safe_result,
                                                                args:   instrumenta_call[:args],
                                                                execution_time: exec_time.round(3) }]
@@ -110,12 +115,13 @@ class Artificer
                                   messages,
                                   instrumenta_results,
                                   content,
+                                  sink: nil,
                                   &exec_call)
       instrumenta_results << { content: }
       instrumenta_calls.reduce [[], messages, instrumenta_results] do
       |(results, current_messages, prev_instrumenta_results), instrumenta_call|
         result, new_messages, new_instrumenta_results =
-          execute_standard(instrumenta_call, current_messages, prev_instrumenta_results, &exec_call)
+          execute_standard(instrumenta_call, current_messages, prev_instrumenta_results, sink:, &exec_call)
         [results + [result], new_messages, new_instrumenta_results]
       end
     end
@@ -126,11 +132,12 @@ class Artificer
     def execute_fallback_instrumenta_calls(instrumenta_calls,
                                            messages,
                                            instrumenta_results,
+                                           sink: nil,
                                            &execution_block)
       instrumenta_calls.reduce [[], messages,
                                 instrumenta_results] do |(results, current_messages, prev_instrumenta_results), instrumenta_call|
         result, new_messages, new_instrumenta_results = execute_fallback(instrumenta_call,
-                                                                         current_messages, prev_instrumenta_results, &execution_block)
+                                                                         current_messages, prev_instrumenta_results, sink:, &execution_block)
         [results + [result], new_messages, new_instrumenta_results]
       end
     end
@@ -199,17 +206,39 @@ class Artificer
     def ensure_json(raw)
       return raw if raw.is_a? Hash
 
-      # Handle encoding issues — API responses may have ASCII-8BIT encoded strings
-      # that cause JSON.parse to fail on non-ASCII bytes
-      clean = (raw.respond_to?(:dup) ? raw.dup : raw.to_s)
-      clean.force_encoding('UTF-8') if clean.encoding == Encoding::ASCII_8BIT
-      clean = clean.scrub unless clean.valid_encoding?
+      clean = clean_json_raw raw
       JSON.parse clean
     rescue JSON::ParserError => e
-      preview = (defined?(clean) ? clean : raw).to_s.truncate(500)
-      HorologiumAeternum.system_error("Failed to parse tool arguments JSON",
-                                      message: "#{e.message.truncate(200)} | raw: #{preview}")
+      repaired = repair_json_quotes(clean) || {}
+      return repaired unless repaired.empty?
+
+      log_json_parse_error e, clean
       {}
+    end
+
+    def clean_json_raw(raw)
+      clean = (raw.respond_to?(:dup) ? raw.dup : raw.to_s)
+      clean.force_encoding('UTF-8') if clean.encoding == Encoding::ASCII_8BIT
+      clean.valid_encoding? ? clean : clean.scrub
+    end
+
+    def log_json_parse_error(error, clean)
+      col = error.message[/column (\d+)/, 1]&.to_i
+      snippet = col ? clean.to_s[[col - 40, 0].max..col + 40] : clean.to_s.truncate(200)
+      HorologiumAeternum.system_error 'Failed to parse tool arguments JSON',
+                                      message: "#{error.message.truncate(190)} | near: …#{snippet}…"
+    end
+
+    # Repair JSON with unescaped quotes inside string values.
+    def repair_json_quotes(json_str)
+      return nil unless json_str.is_a?(String) && json_str.start_with?('{')
+
+      fixed = json_str.gsub(/(?<=[^\\])"(?=[^,}\]:\s])/) { '\\"' }
+      return nil if fixed == json_str
+
+      JSON.parse fixed
+    rescue JSON::ParserError
+      nil
     end
 
 

@@ -1,0 +1,403 @@
+/* Enhanced real-time status styling with subtle animations */
+
+.status {
+  background: linear-gradient(135deg, rgba(100, 151, 197, 0.1), rgba(79, 70, 229, 0.1));
+  border-left: 3px solid var(--argonaut-mystic);
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 0 8px 8px 0;
+  font-family: var(--mono);
+  font-size: 0.9em;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.status p {
+  margin: 0.5rem 0;
+}
+
+body.fancy-animations .status::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(100, 151, 197, 0.3), transparent);
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+.status small {
+  opacity: 0.6;
+  font-size: 0.8em;
+  float: right;
+}
+
+.status code {
+  transition: all 0.2s ease;
+  background: rgba(100, 151, 197, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--ethereal-white);
+}
+.status code {
+  transition: all 0.2s ease;
+  background: rgba(147, 51, 234, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--ethereal-white);
+  font-weight: bold;
+}
+
+.status code:hover {
+  background: rgba(100, 151, 197, 0.4);
+}
+
+.status summary code {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+.status summary code:hover {
+  white-space: normal;
+}
+
+.status summary pre:hover{
+  max-height: 17em;
+}
+
+.status details.run_command summary  pre:hover{
+  max-height: 21em;
+}
+
+
+.status summary pre code,
+.status summary pre code:hover {
+  white-space: pre;
+}
+
+.status summary pre code:hover {
+  text-overflow: initial !important;
+  overflow: auto;
+}
+
+.status summary code:hover {
+  white-space: normal;
+}
+
+.status pre {
+  display: inline;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5em 1em;
+  overflow: auto;
+  border-radius: 1em;
+  margin: 0;
+  font-size: 0.85em;
+  border: none;
+  font-family: var(--mono);
+  font-style: normal;
+  font-weight: 100;
+  box-shadow: none;
+  display: block;
+  background: rgba(20, 20, 20, 0.7);
+  position: relative;
+  margin-bottom: 1rem;
+  color: var(--ethereal-white);
+  max-height: 17em;
+  transition: all 0.3s ease;
+}
+
+.status .run_command summary pre {
+  max-height: 4em;
+  width: 100%;
+}
+
+/* Tool arguments display */
+.status .tool-args {
+  color: var(--argonaut-ethereal);
+  font-style: italic;
+  transition: color 0.2s ease;
+  margin-left: 20px;
+}
+
+/* Thinking indicator with subtle animation */
+.status:has-text("🧠") {
+  animation: thinkingPulse 1.5s ease-in-out infinite alternate;
+  border-left-width: 4px;
+}
+
+@keyframes thinkingPulse {
+  0% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+
+/* Tool execution status colors */
+.status:has-text("⚡️") {
+  border-left-color: var(--argonaut-amber);
+  background: linear-gradient(135deg, rgba(255, 206, 0, 0.1), rgba(217, 119, 6, 0.1));
+}
+
+.status:has-text("✅") {
+  border-left-color: var(--argonaut-emerald);
+  background: linear-gradient(135deg, rgba(6, 150, 14, 0.1), rgba(5, 150, 105, 0.1));
+}
+
+.status:has-text("❌") {
+  border-left-color: var(--argonaut-crimson);
+  background: linear-gradient(135deg, rgba(219, 0, 28, 0.1), rgba(220, 38, 38, 0.1));
+}
+
+.status:has-text("🎯") {
+  border-left-color: var(--argonaut-azure);
+  background: linear-gradient(135deg, rgba(0, 166, 255, 0.1), rgba(8, 145, 178, 0.1));
+  font-weight: bold;
+}
+
+/* File overview status styling */
+.file-overview-status {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  line-height: 1.4;
+  background: rgba(0, 12, 22, 0.05);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  border: 1px solid rgba(100, 151, 197, 0.1);
+}
+
+.file-overview-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(100, 151, 197, 0.2);
+}
+
+.language-badge {
+  background: linear-gradient(135deg, var(--argonaut-mystic), var(--argonaut-sage));
+  color: var(--ethereal-white);
+  padding: 0.3rem 0.8rem;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 0.8em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.line-count, .file-size {
+  color: var(--argonaut-shadow);
+  font-size: 0.85em;
+  opacity: 0.9;
+  background: rgba(100, 151, 197, 0.1);
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+}
+
+.structure-summary {
+  color: var(--argonaut-shadow);
+  font-size: 0.85em;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+}
+
+.hierarchy-preview,
+.imports-exports-preview,
+.notes-preview {
+  margin-top: 0.75rem;
+  border-top: 1px solid rgba(100, 151, 197, 0.1);
+  padding-top: 0.75rem;
+}
+
+.hierarchy-preview summary,
+.imports-exports-preview summary,
+.notes-preview summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--argonaut-mystic);
+  margin-bottom: 0.5rem;
+}
+
+.hierarchy-preview-item {
+  font-family: var(--mono);
+  font-size: 0.8em;
+  line-height: 1.6;
+  color: var(--argonaut-steel);
+  margin: 0.2rem 0;
+  padding-left: 1rem;
+  border-left: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.hierarchy-preview-item:hover {
+  color: var(--argonaut-mystic);
+  border-left-color: rgba(100, 151, 197, 0.3);
+  background: rgba(100, 151, 197, 0.05);
+}
+
+.line-number {
+  color: var(--argonaut-shadow);
+  font-size: 0.75em;
+  margin-left: 0.5rem;
+}
+
+.scope {
+  color: var(--argonaut-shadow);
+  font-size: 0.7em;
+  background: rgba(96, 110, 126, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.3rem;
+}
+
+.imports-exports-list {
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.imports-exports-list div {
+  margin: 0.3rem 0;
+  padding-left: 1rem;
+}
+
+.notes-list {
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.note-item {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: rgba(100, 151, 197, 0.05);
+  border-radius: 6px;
+  border-left: 3px solid rgba(100, 151, 197, 0.3);
+}
+
+.note-item strong {
+  color: var(--argonaut-mystic);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+/* Responsive design for file overview */
+@media (max-width: 768px) {
+  .file-overview-header {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .hierarchy-preview-item {
+    font-size: 0.75em;
+  }
+  
+  .file-overview-status {
+    padding: 0.75rem;
+  }
+}
+/* Multiple attachment styles */
+/*
+.attachment-preview {
+  background: rgba(100, 151, 197, 0.08);
+  border: 1px solid rgba(100, 151, 197, 0.2);
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  position: relative;
+}
+
+.attachment-preview:first-child {
+  margin-top: 0;
+}
+
+.attachment-preview:last-child {
+  margin-bottom: 0;
+}
+
+.attachment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--argonaut-mystic);
+}
+
+.attachment-header button {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 1.1em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.attachment-header button:hover {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff4444;
+}
+
+.attachment-meta {
+  font-size: 0.8em;
+  color: #666;
+  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.attachment-meta span {
+  background: rgba(100, 151, 197, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.attachment-content {
+  background: rgba(100, 151, 197, 0.05);
+  border: 1px solid rgba(100, 151, 197, 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-family: monospace;
+  font-size: 0.9em;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+*/
+/* Tag cloud styles */
+.tag-cloud-preview,
+.file-cloud-preview {
+  margin: 0.5rem 0;
+}
+
+.tag-cloud,
+.file-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.tag-cloud .tag,
+.file-cloud .file-link {
+  background: rgba(100, 151, 197, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8em;
+  color: var(--argonaut-mystic);
+  border: 1px solid rgba(100, 151, 197, 0.2);
+}
+
+.tag-cloud .tag:hover,
+.file-cloud .file-link:hover {
+  background: rgba(100, 151, 197, 0.2);
+  border-color: rgba(100, 151, 197, 0.4);
+}

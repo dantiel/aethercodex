@@ -197,7 +197,7 @@ class OpusInstrumenta
                                          maximum:  10 }
                               } do |step: nil, limit: 3|
       task = task_engine.instance_variable_get(:@mnemosyne).get_task task_id
-      return { ok: true, task_id: task_id, results: {} } unless task && task[:step_results]
+      next { ok: true, task_id: task_id, results: {} } unless task && task[:step_results]
 
       begin
         results = JSON.parse(task[:step_results] || '{}')
@@ -211,11 +211,11 @@ class OpusInstrumenta
           end
 
           if step_key && results[step_key]
-            return { ok: true, task_id: task_id, results: { step_key => results[step_key] } }
+            next { ok: true, task_id: task_id, results: { step_key => results[step_key] } }
           end
 
 
-          return { ok: true, task_id: task_id, results: {}, error: "Step '#{step}' not found" }
+          next { ok: true, task_id: task_id, results: {}, error: "Step '#{step}' not found" }
 
         end
 

@@ -667,7 +667,7 @@ def do_preview_markdown(p)
   content = File.read full_path
   
   # Render markdown to HTML using scriptorium basic renderer (unescaped HTML)
-  html = AetherCodexMarkdownPreview.convert_to_html content
+  html = ÆtherCodexMarkdownPreview.convert_to_html content
   
   # Extract title from first heading or use filename
   title = File.basename full_path, '.md'

@@ -7,7 +7,7 @@ class Pythia
   constructor: ->
     @DEFAULT_PORT = 4567
     @isThinking = false
-    @pairProgramming = false
+    @pairProgramming = true  # Temporarily disabled globally
     @port = window.AETHER_PORT ? @DEFAULT_PORT
     @project_root = window.AETHER_PROJECT_ROOT ? null
     @ws = null
@@ -492,14 +492,14 @@ class Pythia
         @updateToolGroupSummary()
         @toolGroupAppend "<div class=\"tool-item\" id=\"tool-#{uuid}\"><span class=\"tool-name\">#{@replaceFileTags data.message} #{timestamp_html}</span></div>"
       when 'oracle_conjuration_revelation'
-        @log 'ai', uuid, """
+        @log 'system', uuid, """
           <details>
             <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
           </details>"""
       when 'oracle_conjuration'
         @closeToolGroup()
-        @log 'ai', uuid, """
+        @log 'system', uuid, """
           <details class="oracle-conjuration">
             <summary>#{data.message} #{timestamp_html}</summary>
             #{@replaceFileTags data.content}
@@ -1127,6 +1127,9 @@ class Pythia
         method: 'userResponse'
         params: { uuid: uuid, response: response }
       @closeAskUserModal()
+      @log 'system', null, "☿ User: #{response || '(dismissed)'}"
+      @setThinking true
+      @log 'status', null, 'Consulting the astral codex...'
 
     switch type
       when 'confirm'

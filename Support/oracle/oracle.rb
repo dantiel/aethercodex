@@ -188,7 +188,9 @@ class Oracle
 
       # puts "[ORACLE][DIVINATION_LOOP]: Reasoning mode: #{reasoning}"
 
-      (1..max_depth).each do |_depth|
+      empty_responses = 0
+
+      (1..max_depth).each do |depth|
         # Always save current state before API call — enables resume even mid-API-call
         Thread.current[:pause_state] = {
           messages: messages,
@@ -207,6 +209,20 @@ class Oracle
         content, tcalls, arts = Conduit.extract_response_data json, arts
 
         # puts "[ORACLE][DIVINATION_LOOP]: Response content: #{content.to_s.truncate(100)}"
+
+        # Empty response guard: retry up to 3 times when LLM produces nothing
+        if content.blank? && tcalls.empty?
+          empty_responses += 1
+          if empty_responses < 3
+            HorologiumAeternum.system_error "Empty response — retrying (#{empty_responses}/3)"
+            messages << { role: 'assistant', content: '<<empty>>' }
+            messages << { role: 'user', content: 'Your previous response was empty. The system is retrying — please provide output this time.' }
+            next
+          end
+          HorologiumAeternum.system_error "Empty response after #{empty_responses} retries — surrendering"
+        else
+          empty_responses = 0
+        end
 
         # Track when first content is received for thinking time calculation
         if content.present? && !arts[:first_content_time]
@@ -518,7 +534,7 @@ class Oracle
       end
 
       results, new_messages, new_tool_results = Artificer.execute_instrumenta_calls(
-        tools_from_content, messages, tool_results, content, &exec
+        tools_from_content, messages, tool_results, content, sink:, &exec
       )
 
       # Check for divine interruption in results - return signal directly
@@ -559,8 +575,8 @@ class Oracle
         sink.thinking "Plan: #{arts[:plan].join ' → '}"
       end
 
-      results, new_messages, new_tool_results = Artificer.execute_instrumenta_calls(
-        tools_from_content, messages, tool_results, content, &exec
+      results, new_messages, new_tool_results = Artificer.execute_fallback_instrumenta_calls(
+        tools_from_content, messages, tool_results, sink:, &exec
       )
 
       # Check for divine interruption in results - return signal directly

@@ -15,6 +15,7 @@ polarity: Everything is dual; opposites are identical in nature
 rhythm: Everything flows out and in; all things rise and fall
 cause_effect: Every cause has its effect; every effect has its cause
 gender: Gender is in everything; masculine and feminine principles
+source_veil: The source lies open, yet the veil remains — only those with eyes to see shall witness the inner structures. Open source is not open understanding; the exoteric sees code, the esoteric sees architecture, and the initiated alone perceive the pattern beneath both.
 
 ## HERMETIC RUBY STYLE
 

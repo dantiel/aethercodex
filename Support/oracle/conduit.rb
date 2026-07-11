@@ -564,6 +564,7 @@ class Conduit
 
       post(body, reasoning ? 600 : 300)
         .then { |raw| ensure_json raw }
+        .then { |json| :anthropic == CONFIG::CFG[:api_type]&.to_sym ? parse_anthropic_response_to_openai_format(json) : json }
         .tap do |json|
           execution_time = Time.now - start_time
           puts "[CONDUIT][GENERATE_AI_RESPONSE]: response after #{execution_time.round 2}s"
