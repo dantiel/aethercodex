@@ -125,9 +125,17 @@ class Pythia
   saveMessages: =>
     messages = @stored = Array.from(document.querySelectorAll('#messages > div:not(.error)')).map (el) ->
       className: el.className
-      innerHTML: el.innerHTML
-    localStorage.setItem @STORAGE_KEY, 
-      JSON.stringify(messages.slice -@MAX_MESSAGES)
+      innerHTML: el.innerHTML.slice 0, 50000  # Cap each message at ~50KB
+    try
+      localStorage.setItem @STORAGE_KEY,
+        JSON.stringify(messages.slice -@MAX_MESSAGES)
+    catch e
+      return unless e.name is 'QuotaExceededError'
+      # Halve until it fits (minimum 10 messages)
+      max = Math.max 10, @MAX_MESSAGES // 2
+      localStorage.setItem @STORAGE_KEY,
+        JSON.stringify(messages.slice -max)
+      console.warn "localStorage quota exceeded, trimmed to #{max} messages"
 
 
   loadMessages: =>
@@ -771,7 +779,7 @@ class Pythia
       when 'task'
         @handleTaskResponse data.result
       when 'step_result'
-        @handleStepResult data.result
+        @handleStepResult data.result.data
       when 'toolResult'
         # Special handling for task evaluation results
         console.log("DEBUG: toolResult received:", data.result)

@@ -451,14 +451,15 @@ class MagnumOpus
   handleStepResult: (result) =>
     console.log("DEBUG: Step result received:", result)
     
-    if result.ok && result.result
-      # Display step result immediately
+    if result?.ok
+      # Display step result immediately (even if empty)
       task_id = result.task_id
       step_name = @getAlchemicalStage(result.step) || "Step #{result.step}"
+      result_content = result.result || "<em>No result content</em>"
       @pythia.log 'system', null, """
         <details open>
           <summary><strong>📊 #{step_name} Result</strong></summary>
-          <div class="step-result-content">#{result.result}</div>
+          <div class="step-result-content">#{result_content}</div>
         </details>
       """
       
@@ -470,7 +471,8 @@ class MagnumOpus
             action: 'evaluate'
             id: task_id
     else
-      @pythia.log 'error', null, "Step result error: #{result.error}"
+      error_msg = result?.error || "Unknown error (ok=#{result?.ok})"
+      @pythia.log 'error', null, "Step result error: #{error_msg}"
 
   ###
   Task List Management
