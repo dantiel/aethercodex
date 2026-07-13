@@ -17,10 +17,10 @@ class ErrorHandler
       
       HorologiumAeternum.system_error("Divination failed: #{error_message}", backtrace:)
 
-      if error_message.include?('invalid_request_error') &&
-         error_message.include?('insufficient tool messages')
+      if error_message.include?('insufficient tool messages') ||
+         error_message.include?('tool_calls') && error_message.include?('must be followed by tool messages')
 
-        return ['<<empty>>', { error: 'Tool execution protocol violation' }, tool_results]
+        return ['<<empty>>', { error: 'Tool execution protocol violation — insufficient tool messages following tool_calls' }, tool_results]
       end
 
       ['<<empty>>', { error: "Divination failed: #{error_message}" }, tool_results]

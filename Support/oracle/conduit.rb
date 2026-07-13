@@ -147,6 +147,7 @@ class Conduit
       # Reasoning models cannot use tools, so we omit the tools field entirely
       # Also detect reasoning models by name pattern for future compatibility
       # Sanitize messages: DeepSeek API requires content to be string or list, never nil
+      messages = sanitize_tool_call_messages(messages)
       messages = messages.map.with_index do |msg, idx|
         m = msg.dup
         content = m[:content]
@@ -183,6 +184,80 @@ class Conduit
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to build request body: #{e.message.truncate 100}"
       raise
+    end
+
+
+    # Validates that every assistant message with tool_calls has matching tool messages.
+    # DeepSeek API strictly requires: assistant(tool_calls:[id1,id2]) must be immediately
+    # followed by tool(id1), tool(id2) — one tool message per tool_call_id.
+    # If orphaned tool_calls are found, strips them to prevent 400 API errors.
+    def sanitize_tool_call_messages(messages)
+      return messages unless messages.is_a?(Array)
+
+      cleaned = []
+      pending_tool_ids = []
+      orphaned_count = 0
+
+      messages.each do |msg|
+        role = msg[:role]
+        tool_calls = msg[:tool_calls]
+        tool_call_id = msg[:tool_call_id]
+
+        # Drain pending tool ids from tool messages
+        if role == 'tool' && tool_call_id && pending_tool_ids.include?(tool_call_id)
+          pending_tool_ids.delete(tool_call_id)
+          cleaned << msg
+          next
+        end
+
+        # If we encounter a new assistant with tool_calls while there are still
+        # pending tool ids from a previous assistant, that assistant is orphaned.
+        # Strip its tool_calls to avoid API rejection.
+        if role == 'assistant' && tool_calls.is_a?(Array) && tool_calls.any?
+          unless pending_tool_ids.empty?
+            orphaned_count += pending_tool_ids.size
+            pending_tool_ids.clear
+          end
+          tool_calls.each { |tc| pending_tool_ids << tc['id'] || tc[:id] }
+          cleaned << msg
+        elsif role == 'tool'
+          # Tool message with no matching pending id — skip it (stale)
+          next
+        else
+          cleaned << msg
+        end
+      end
+
+      unless pending_tool_ids.empty?
+        # Find and strip tool_calls from the last assistant message(s) that have
+        # unmatched pending ids. Walk backwards and patch.
+        cleaned.reverse_each do |msg|
+          next unless msg[:role] == 'assistant' && msg[:tool_calls].is_a?(Array)
+
+          msg_tool_ids = msg[:tool_calls].map { |tc| tc['id'] || tc[:id] }
+          overlap = msg_tool_ids & pending_tool_ids
+          if overlap.any?
+            remaining = msg[:tool_calls].reject { |tc| pending_tool_ids.include?(tc['id'] || tc[:id]) }
+            orphaned_count += (msg[:tool_calls].size - remaining.size)
+            if remaining.any?
+              msg[:tool_calls] = remaining
+            else
+              msg.delete(:tool_calls)
+              msg[:content] = "[Tool calls removed — responses missing] #{msg[:content]}"
+            end
+            pending_tool_ids -= overlap
+          end
+          break if pending_tool_ids.empty?
+        end
+      end
+
+      if orphaned_count > 0
+        HorologiumAeternum.system_error(
+          "Sanitized #{orphaned_count} orphaned tool call(s) — messages had assistant tool_calls without matching tool responses"
+        )
+      end
+
+      cleaned
     end
 
 
