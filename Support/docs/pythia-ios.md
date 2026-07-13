@@ -2,7 +2,7 @@
 
 ## Vision
 
-Pythia iOS is the **uber vibe coding, agentic engineering companion** for the TextMate + Pythia development environment. It's not a remote control — it's a second self. 
+Pythia iOS is the **uber vibe coding, ætheric engineering companion** for the TextMate + Pythia development environment. It's not a remote control — it's a second self.
 
 While the Mac is the temple where code is forged, the iPhone is the portable interface to the agentic mind. You think it, speak it, tap it — the oracle executes on the Mac. You walk away, the agents keep working. The phone buzzes when they need a decision. You answer from anywhere.
 
@@ -15,7 +15,7 @@ THINK  →  SPEAK/TAP  →  AGENTS EXECUTE ON MAC  →  PHONE BUZZES  →  REVIE
 ```
 
 - **Vibe Coding**: No ceremony. No file navigation. No boilerplate. Speak an idea, get code. See a problem, describe it, get a fix. The phone is optimized for *intent*, not *mechanics*.
-- **Agentic Engineering**: Long-running autonomous tasks (`create_task`) are managed from the pocket. Refactors, test generation, code review — agents work on the Mac while you live your life. The phone is mission control.
+- **Ætheric Engineering**: Not just agents — a tuned ecosystem. Long-running autonomous tasks (`create_task`) are managed from the pocket, but the paradigm is deeper: the memory persists, the context is shared, the oracle knows your codebase, the tools form one coherent system. The phone is mission control for the entire æther.
 - **Companion, Not Terminal**: The oracle knows your codebase. It has context. It asks clarifying questions via `ask_user`. You answer from the phone. The conversation continues wherever you are.
 
 ### What Makes It "Uber"

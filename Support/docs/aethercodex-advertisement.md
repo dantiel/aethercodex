@@ -39,10 +39,30 @@ whisper and the oracles speak. It doesn't replace the four. It completes them.
 |---|---|
 | 128k tokens, then amnesia | **Infinite** — memory spans sessions, days, codebases |
 | You re-explain your architecture every chat | Oracle already knows your codebase structure |
-| Notes rot in stale comments | Notes self-organize by tags, links, and relevance scoring |
-| One tool at a time | **Agentic pipeline** — tools chain across decisions |
+| Notes rot in stale comments | Mnemosyne — self-organizing memory by tags, links, relevance |
+| Isolated agents, no shared context | **Ætheric engineering** — a tuned ecosystem where AI, memory, tools, and UI form one coherent whole |
+| One tool at a time | **Ætheric pipeline** — tools chain across decisions |
 | Cut-and-paste workflows | Hermetic execution domain with error recovery |
 | AI trapped in the editor | Pythia scrying mirror on macOS, iOS, anywhere |
+
+---
+
+## A new paradigm: Ætheric Engineering
+
+The industry speaks of "agentic engineering" — deploying autonomous AI agents to write code. But an agent without memory is blind. An agent without a tuned ecosystem is a loose cannon. An agent without the fifth element is just fire without earth, water, or air.
+
+**Ætheric engineering** is the paradigm shift: not deploying agents, but *crafting the ecosystem they inhabit*.
+
+| Agentic Engineering | Ætheric Engineering |
+|---|---|
+| Deploy agents to do work | Tune the medium they work *through* |
+| Agents are the product | The ecosystem is the product; agents are inhabitants |
+| Each agent starts fresh | Mnemosyne gives every agent persistent, scored context |
+| Tools are static | Tools are living, hermetic, self-healing (retry, isolate, recover) |
+| You prompt the AI | The AI already knows your codebase; you converse |
+| Sessions die | Context is eternal |
+
+The fifth element doesn't replace the four — it is the medium that lets them finally work together as one.
 
 ---
 
