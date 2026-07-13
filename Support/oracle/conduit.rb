@@ -212,13 +212,31 @@ class Conduit
 
         # If we encounter a new assistant with tool_calls while there are still
         # pending tool ids from a previous assistant, that assistant is orphaned.
-        # Strip its tool_calls to avoid API rejection.
+        # Strip its tool_calls from the previous assistant immediately.
         if role == 'assistant' && tool_calls.is_a?(Array) && tool_calls.any?
           unless pending_tool_ids.empty?
+            cleaned.reverse_each do |cmsg|
+              next unless cmsg[:role] == 'assistant' && cmsg[:tool_calls].is_a?(Array)
+
+              cmsg_tool_ids = cmsg[:tool_calls].map { |tc| tc['id'] || tc[:id] }
+              overlap = cmsg_tool_ids & pending_tool_ids
+              if overlap.any?
+                remaining = cmsg[:tool_calls].reject { |tc| pending_tool_ids.include?(tc['id'] || tc[:id]) }
+                orphaned_count += (cmsg[:tool_calls].size - remaining.size)
+                if remaining.any?
+                  cmsg[:tool_calls] = remaining
+                else
+                  cmsg.delete(:tool_calls)
+                  cmsg[:content] = "[Tool calls removed — responses missing] #{cmsg[:content]}"
+                end
+                pending_tool_ids -= overlap
+              end
+              break if pending_tool_ids.empty?
+            end
             orphaned_count += pending_tool_ids.size
             pending_tool_ids.clear
           end
-          tool_calls.each { |tc| pending_tool_ids << tc['id'] || tc[:id] }
+          tool_calls.map { |tc| tc['id'] || tc[:id] }.each { |id| pending_tool_ids << id }
           cleaned << msg
         elsif role == 'tool'
           # Tool message with no matching pending id — skip it (stale)
@@ -283,6 +301,7 @@ class Conduit
       # Also strip control characters that break JSON serialization
       # Now also handles multimodal content (arrays with text + images)
       messages = transform_messages_for_vision(messages) if messages
+      messages = sanitize_tool_call_messages(messages) if messages
 
       base_body = { model:, messages:, max_tokens:, temperature: }
 
