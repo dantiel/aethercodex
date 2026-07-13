@@ -687,10 +687,13 @@ module HorologiumAeternum
   end
 
 
-  def self.aegis_unveiled(tags, summary, temperature, notes, uuid: nil)
-    temperature = if temperature then "\n\nTemperature #{temperature}" else '' end
+  def self.aegis_unveiled(tags, summary, temperature, thinking, notes, uuid: nil)
+    parts = []
+    parts << "**Thinking:** `#{thinking}`" if thinking
+    parts << "Temperature `#{temperature}`" if temperature
+    meta = parts.empty? ? '' : "\n\n#{parts.join ' · '}"
     notes = "\n\n**Notes:**\n\n#{render_notes notes}"
-    content = [summary, temperature, notes].join
+    content = [summary, meta, notes].join
     send_status('aegis_unveiled', {
                   message: Scriptorium.html("🔮 Aegis unveiled#{": `#{tags.join ', '}`" if tags}"),
                   content: Scriptorium.html_with_syntax_highlight(content)
@@ -995,5 +998,35 @@ module HorologiumAeternum
       queue = @user_responses[uuid]
       queue&.push(response)
     end
+  end
+
+  # ── Screenshot (CapturaVisus) logging ──────────────────────────────────
+
+  def self.screenshot_capturing(mode, display: nil, x: nil, y: nil,
+                                width: nil, height: nil, uuid: nil)
+    desc = case mode.to_s
+           when 'screen' then 'entire display'
+           when 'window' then 'frontmost window'
+           when 'area' then "region (#{x},#{y} #{width}x#{height})"
+           when 'display' then "display ##{display}"
+           when 'active-app' then 'active app bounds'
+           when 'menu-bar' then 'menu bar'
+           else mode.to_s
+           end
+    send_status('screenshot_capturing', { mode:, description: desc }, uuid:)
+  end
+
+  def self.screenshot_captured(mode, path, bytes, uuid: nil, execution_time: nil)
+    send_status('screenshot_captured', {
+                  mode:,
+                  path:,
+                  bytes:,
+                  size: display_bytes(bytes),
+                  execution_time:
+                }, uuid:)
+  end
+
+  def self.screenshot_failed(mode, error, uuid: nil)
+    send_status('screenshot_failed', { mode:, error: }, uuid:)
   end
 end

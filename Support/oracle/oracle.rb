@@ -233,7 +233,7 @@ class Oracle
           msg_uuid = nil
         end
 
-        messages << (add_assistant_message messages, content, tcalls)
+        messages << (add_assistant_message messages, content, tcalls, arts)
         arts = collect_prelude_content arts, content
         stream_reasoning_content arts
 
@@ -499,9 +499,10 @@ class Oracle
     # end
 
 
-    def add_assistant_message(_messages, content, tcalls)
+    def add_assistant_message(_messages, content, tcalls, arts = {})
       assistant_msg = { role: 'assistant', content: }
       assistant_msg[:tool_calls] = tcalls if tcalls.present?
+      assistant_msg[:reasoning_content] = arts[:reasoning_content] if arts[:reasoning_content].present?
       assistant_msg
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to add assistant message: #{e.message.truncate 100}"

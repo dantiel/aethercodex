@@ -139,6 +139,15 @@ class ErrorHandler
 
 
     def add_solution_guidance(message, status)
+      # Check for payload size issues specifically
+      if (status == 400 || status == 422) && message.to_s.match?(/length limit|too large|exceed|payload|buffer/i)
+        return format_solution(message, "reduce request payload size. If using screenshots:\n" \
+                                       "  • Use smaller area: take_screenshot(mode: 'area', width: 800, height: 600)\n" \
+                                       "  • Use JPG format: take_screenshot(format: 'jpg')\n" \
+                                       "  • Take one screenshot at a time, not multiple\n" \
+                                       "  • The system auto-removes older screenshots to prevent this error")
+      end
+
       case status
       when 400, 422
         format_solution(message, 'modify your request according to the error hints. ' \

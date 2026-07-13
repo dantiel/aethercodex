@@ -2,9 +2,11 @@
 
 require_relative 'error_handler'
 require_relative '../instrumentarium/hermetic_execution_domain'
+require_relative '../instrumentarium/vision_coordinator'
 
 # Instrumentator provides hermetic, side-effect-free execution of instrumenta
 # with proper message handling and error management. Designed for reuse across the system.
+# Now with vision support via VisionCoordinator for screenshot analysis.
 class Artificer
   TOOL_CALLS_ALIASES = {
     'toolcalls'  => 'tool_calls',
@@ -48,9 +50,16 @@ class Artificer
         safe_result = safe_encode exec_result
         sink&.send_status 'tool_completed', { name:, execution_time: exec_time, result: safe_result.to_s.truncate(80) }#, tool_name: name
         updated_instrumenta_results = instrumenta_results + [{ id:, name:, result: safe_result, args:, execution_time: exec_time.round(3) }]
-        updated_messages = messages + [{ role:         'tool',
-                                         tool_call_id: id,
-                                         content:      safe_result.to_json }]
+
+        # Build messages: standard tool result + optional vision user message
+        tool_message = { role: 'tool', tool_call_id: id, content: safe_result.to_json }
+        vision_message = build_vision_user_message(result: exec_result)
+        
+        updated_messages = if vision_message
+                           messages + [tool_message, vision_message]
+                         else
+                           messages + [tool_message]
+                         end
         [exec_result, updated_messages, updated_instrumenta_results]
       end
 
@@ -92,9 +101,10 @@ class Artificer
                                                                result: safe_result,
                                                                args:   instrumenta_call[:args],
                                                                execution_time: exec_time.round(3) }]
-        updated_messages = messages + [{ role:         'tool',
-                                         tool_call_id: instrumenta_call_id,
-                                         content:      safe_result.to_json }]
+
+        # Detect and process images from tool result for vision support
+        tool_message = build_tool_message_with_vision(id: instrumenta_call_id, result: exec_result, safe_result:)
+        updated_messages = messages + [tool_message]
         [exec_result, updated_messages, updated_instrumenta_results]
       end
 
@@ -266,6 +276,34 @@ class Artificer
       when Array  then value.map { |v| safe_encode v }
       else value
       end
+    end
+
+    # Build user message with screenshot image for vision models
+    # Returns nil if no images found, or a user message with image content
+    def build_vision_user_message(result:)
+      image_refs = VisionCoordinator.extract_image_references(result)
+      return nil if image_refs.empty?
+
+      image_attachments = image_refs.map { |ref| VisionCoordinator.load_and_encode(ref) }.compact
+      return nil if image_attachments.empty?
+
+      # Build content array with text preamble + images
+      content_parts = [
+        { type: 'text', text: 'Screenshot captured for visual analysis:' }
+      ]
+
+      image_attachments.each do |img|
+        if img[:error]
+          content_parts << { type: 'text', text: "[Image error: #{img[:error]}]" }
+        else
+          content_parts << {
+            type: 'image_url',
+            image_url: { url: img[:data_uri] }
+          }
+        end
+      end
+
+      { role: 'user', content: content_parts }
     end
   end
 end

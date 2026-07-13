@@ -19,15 +19,39 @@ class Conduit
   @tokenizer = Tiktoken.encoding_for_model 'gpt-4'
   
   class << self
+    THINKING_LEVELS = %w[max high normal fast].freeze
+
     def select_model(config, reasoning)
-      if reasoning
-        config[:reasoning_model] || 'deepseek-reasoner'
-      else
+      case Mnemosyne.aegis[:thinking]
+      when 'fast' then config[:fast_model] || 'deepseek-flash'
+      when 'max', 'high', 'normal'
         config[:model] || 'deepseek-chat'
+      else
+        # nil or unknown — legacy fallback
+        if reasoning
+          rm = config[:reasoning_model]
+          rm == true ? (config[:model] || 'deepseek-chat') : (rm || 'deepseek-reasoner')
+        else
+          config[:model] || 'deepseek-chat'
+        end
       end
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to select model: #{e.message.truncate 100}"
       'deepseek-chat'
+    end
+
+
+    def use_thinking_mode?(_config, _reasoning)
+      THINKING_LEVELS.take(3).include?(Mnemosyne.aegis[:thinking])
+    end
+
+
+    def reasoning_effort_from_aegis
+      case Mnemosyne.aegis[:thinking]
+      when 'max' then 'max'
+      when 'high' then 'high'
+      else nil # normal → API default; fast → n/a
+      end
     end
 
 
@@ -146,7 +170,12 @@ class Conduit
       end
       base_body = { model:, messages:, max_tokens:, temperature: }
 
-      if reasoning || is_deepseek_reasoning_model?(model)
+      if use_thinking_mode?(CONFIG::CFG, reasoning)
+        effort = reasoning_effort_from_aegis
+        body = { tools:, thinking: { type: 'enabled' } }
+        body[:reasoning_effort] = effort if effort
+        base_body.merge(body).tap { |b| b.delete(:temperature) }
+      elsif reasoning || is_deepseek_reasoning_model?(model)
         base_body.merge tools: nil
       else
         base_body.merge tools: tools
@@ -160,6 +189,7 @@ class Conduit
     # Unified message building that handles both normal chat and task execution
     # When messages array is provided, it's used directly (ignoring standard prompt)
     # When prompt is provided, it builds standard system + user message structure
+    # Now supports multimodal (vision) content with images
     def build_body_for_execution(messages: nil,
                                  prompt: nil,
                                  tools: nil,
@@ -176,37 +206,321 @@ class Conduit
 
       # Sanitize messages: DeepSeek API requires content to be string or list, never nil
       # Also strip control characters that break JSON serialization
-      messages = messages.map do |msg|
-        m = msg.dup
-        content = m[:content]
-        if content.nil?
-          if m[:role] == 'assistant' && m[:tool_calls]
-            m.delete(:content)
-          else
-            m[:content] = ''
-          end
-        elsif !content.is_a?(String) && !content.is_a?(Array)
-          m[:content] = sanitize_json_string(content.to_s)
-        elsif content.is_a?(String)
-          m[:content] = sanitize_json_string(content)
-        end
-        m
-      end if messages
+      # Now also handles multimodal content (arrays with text + images)
+      messages = transform_messages_for_vision(messages) if messages
 
       base_body = { model:, messages:, max_tokens:, temperature: }
 
-      base_body.merge(if reasoning || is_deepseek_reasoning_model?(model)
-                        { tools: nil }
-                      elsif :gemini == CONFIG::CFG[:api_type]&.to_sym
-                        rewrite_tools_to_gemini_format tools
-                      elsif :anthropic == CONFIG::CFG[:api_type]&.to_sym
-                        rewrite_tools_to_anthropic_format tools
-                      else
-                        { tools: tools }
-                      end)
+      body = base_body.merge(if use_thinking_mode?(CONFIG::CFG, reasoning)
+                               effort = reasoning_effort_from_aegis
+                               body = { tools:, thinking: { type: 'enabled' } }
+                               body[:reasoning_effort] = effort if effort
+                               body.tap { |b| b.delete(:temperature) }
+                             elsif reasoning || is_deepseek_reasoning_model?(model)
+                               { tools: nil }
+                             elsif :gemini == CONFIG::CFG[:api_type]&.to_sym
+                               rewrite_tools_to_gemini_format tools
+                             elsif :anthropic == CONFIG::CFG[:api_type]&.to_sym
+                               rewrite_tools_to_anthropic_format tools
+                             else
+                               { tools: tools }
+                             end)
+
+      # Enforce payload size limits - auto-cleanup images if too large
+      enforce_payload_limits(body)
     rescue StandardError => e
       HorologiumAeternum.system_error "Failed to build execution body: #{e.message.truncate 100}"
       raise
+    end
+
+
+    # Maximum safe payload size for Bedrock/Kimi (20MB to be safe)
+    MAX_PAYLOAD_SIZE = 20 * 1024 * 1024  # 20MB
+
+    # Enforces payload size limits by auto-compressing or removing older images
+    # If payload exceeds limit, keeps only the most recent screenshot and compresses it
+    # Adds a system message explaining what happened and suggesting solutions
+    def enforce_payload_limits(body)
+      return body unless body[:messages]
+
+      json_body = body.to_json
+      current_size = json_body.bytesize
+
+      return body if current_size <= MAX_PAYLOAD_SIZE
+
+      puts "[CONDUIT][PAYLOAD] Size #{current_size / 1024 / 1024}MB exceeds limit, cleaning up..."
+
+      # Step 1: Find all image messages and keep only the most recent
+      cleaned_messages, removed_count = cleanup_old_images(body[:messages])
+      body[:messages] = cleaned_messages
+
+      json_body = body.to_json
+      current_size = json_body.bytesize
+
+      # Step 2: If still too large, compress remaining images further
+      if current_size > MAX_PAYLOAD_SIZE
+        body[:messages] = compress_remaining_images(body[:messages])
+        json_body = body.to_json
+        current_size = json_body.bytesize
+      end
+
+      # Step 3: Add system notice if we removed anything
+      if removed_count > 0 || current_size > MAX_PAYLOAD_SIZE
+        notice = build_payload_notice(removed_count, current_size)
+        body[:messages] << { role: 'system', content: notice }
+      end
+
+      puts "[CONDUIT][PAYLOAD] Final size: #{current_size / 1024}KB"
+      body
+    rescue StandardError => e
+      puts "[CONDUIT][PAYLOAD] Cleanup failed: #{e.message}"
+      body
+    end
+
+
+    # Removes older images from conversation, keeping only the most recent screenshot
+    # Returns [cleaned_messages, removed_count]
+    def cleanup_old_images(messages)
+      return [messages, 0] unless messages.is_a?(Array)
+
+      # Find indices of all messages containing images
+      image_indices = []
+      messages.each_with_index do |msg, idx|
+        next unless msg[:content].is_a?(Array)
+
+        has_image = msg[:content].any? do |part|
+          part[:type] == 'image' || part[:type] == 'image_url' ||
+            (part[:image_url] && part[:image_url][:url]&.start_with?('data:'))
+        end
+        image_indices << idx if has_image
+      end
+
+      return [messages, 0] if image_indices.empty?
+      return [messages, 0] if image_indices.size <= 1  # Keep at least one
+
+      # Keep only the most recent image (last one in the array)
+      to_remove = image_indices[0...-1]  # All except the last
+
+      cleaned = messages.map.with_index do |msg, idx|
+        if to_remove.include?(idx)
+          # Replace this message's image with a text note
+          {
+            role: msg[:role],
+            content: "[Screenshot removed to reduce payload size. Size exceeded limit with multiple images.]"
+          }
+        else
+          msg
+        end
+      end
+
+      [cleaned, to_remove.size]
+    end
+
+
+    # Compresses any remaining images in messages using higher compression
+    def compress_remaining_images(messages)
+      messages.map do |msg|
+        next msg unless msg[:content].is_a?(Array)
+
+        new_content = msg[:content].map do |part|
+          if part[:type] == 'image_url' && part.dig(:image_url, :url)&.start_with?('data:image')
+            # Re-compress with higher compression ratio
+            compressed = compress_image_data(part[:image_url][:url], max_size_bytes: 500_000)
+            if compressed && compressed != part[:image_url][:url]
+              puts "[CONDUIT][COMPRESS] Reduced image from #{part[:image_url][:url].size / 1024}KB"
+              { type: 'image_url', image_url: { url: compressed } }
+            else
+              part
+            end
+          else
+            part
+          end
+        end
+
+        { **msg, content: new_content }
+      end
+    end
+
+
+    # Helper to compress image data that's already base64 encoded
+    # Decodes base64 -> temp file -> re-encode with compression
+    def compress_image_data(data_uri, max_size_bytes: 500_000)
+      return data_uri unless data_uri.is_a?(String) && data_uri.size > max_size_bytes
+
+      # Extract mime type and base64 data
+      match = data_uri.match(/data:(image\/[^;]+);base64,(.+)/)
+      return data_uri unless match
+
+      mime_type = match[1]
+      extension = mime_type == 'image/jpeg' ? 'jpg' : mime_type.split('/').last
+
+      require 'tempfile'
+      tempfile = Tempfile.new(['recompress', ".#{extension}"])
+      tempfile.binmode
+      tempfile.write(Base64.strict_decode64(match[2]))
+      tempfile.close
+
+      # Re-encode through VisionCoordinator which handles compression
+      result = VisionCoordinator.load_and_encode({
+        path: tempfile.path,
+        format: extension,
+        mime_type: 'image/jpeg'
+      })
+
+      if result[:data_uri] && result[:data_uri].size < data_uri.size
+        puts "[CONDUIT][COMPRESS] #{data_uri.size / 1024}KB → #{result[:data_uri].size / 1024}KB"
+        result[:data_uri]
+      else
+        data_uri
+      end
+    rescue StandardError => e
+      puts "[CONDUIT][COMPRESS] Failed: #{e.message}"
+      data_uri
+    ensure
+      tempfile.unlink if tempfile.respond_to?(:unlink) && File.exist?(tempfile.path)
+    end
+
+
+    # Builds a helpful notice message for the agent explaining what happened
+    def build_payload_notice(removed_count, final_size)
+      tips = [
+        "Use smaller area: take_screenshot(mode: 'area', x: 0, y: 0, width: 800, height: 600)",
+        "Use JPG format: take_screenshot(format: 'jpg')",
+        "Capture only relevant region instead of full screen",
+      ]
+
+      notice = <<~NOTICE
+        ⚠️ **Payload Size Management Activated**
+
+        Your request contained multiple screenshots that exceeded API payload limits.
+
+        **What happened:**
+        - #{removed_count} older screenshot(s) were removed to prevent API error
+        - Only the most recent screenshot was retained
+        - Current payload size: #{final_size / 1024}KB
+
+        **How to avoid this:**
+        #{tips.map { |t| "• #{t}" }.join("\n")}
+
+        **If you need multiple views:**
+        Take screenshots one at a time and analyze each before taking the next.
+      NOTICE
+
+      notice.strip
+    end
+
+    # Transform messages to support multimodal/vision content
+    # Detects image arrays and formats them per-provider requirements
+    def transform_messages_for_vision(messages)
+      return [] unless messages
+
+      provider = CONFIG::CFG[:api_type]&.to_sym || :openai
+      messages.map do |msg|
+        transform_single_message_for_vision(msg.dup, provider)
+      end
+    rescue StandardError => e
+      puts "[CONDUIT][VISION] Failed to transform messages: #{e.message}"
+      messages
+    end
+
+    # Transform a single message based on provider requirements
+    def transform_single_message_for_vision(msg, provider)
+      content = msg[:content]
+
+      # If content is already a string, return as-is
+      return msg unless content.is_a?(Array)
+
+      # Content is multimodal (array with text + images)
+      # Transform based on provider
+      case provider
+      when :anthropic
+        transform_for_anthropic(msg, content)
+      when :gemini
+        transform_for_gemini(msg, content)
+      when :openai, nil
+        transform_for_openai(msg, content)
+      when :deepseek
+        # DeepSeek API only supports text content — strip image parts
+        text_parts = content.select { |p| p[:type] == 'text' }
+        msg[:content] = text_parts.map { |p| p[:text] }.join('\n')
+        msg
+      else
+        # Default: return simplified text representation
+        text_parts = content.select { |p| p[:type] == 'text' }
+        msg[:content] = text_parts.map { |p| p[:text] }.join('\\n')
+        msg
+      end
+    end
+
+    # Transform multimodal content for OpenAI API
+    def transform_for_openai(msg, content_parts)
+      # OpenAI requires content as an array with text and image_url objects
+      openai_content = content_parts.map do |part|
+        case part[:type]
+        when 'text'
+          { type: 'text', text: sanitize_json_string(part[:text] || part[:content] || '') }
+        when 'image'
+          { type: 'image_url', image_url: { url: part.dig(:source, :data) || part[:data_uri] || '' } }
+        when 'image_url'
+          # Already in OpenAI format from Artificer
+          { type: 'image_url', image_url: { url: part.dig(:image_url, :url) || part[:image_url] || '' } }
+        else
+          { type: 'text', text: sanitize_json_string(part.to_s) }
+        end
+      end
+
+      msg[:content] = openai_content
+      msg
+    end
+
+    # Transform multimodal content for Anthropic API
+    def transform_for_anthropic(msg, content_parts)
+      # Anthropic uses 'content' array with specific structure
+      anthropic_content = content_parts.map do |part|
+        case part[:type]
+        when 'text'
+          { type: 'text', text: sanitize_json_string(part[:text] || part[:content] || '') }
+        when 'image'
+          source = part[:source] || part
+          {
+            type: 'image',
+            source: {
+              type: source[:type] || 'base64',
+              media_type: source[:media_type] || part[:mime_type] || 'image/png',
+              data: source[:data] || part[:data_uri]&.split(',', 2)&.last || ''
+            }
+          }
+        else
+          { type: 'text', text: sanitize_json_string(part.to_s) }
+        end
+      end
+
+      msg[:content] = anthropic_content
+      msg
+    end
+
+    # Transform multimodal content for Gemini API
+    def transform_for_gemini(msg, content_parts)
+      # Gemini uses 'parts' array inside content
+      gemini_parts = content_parts.map do |part|
+        case part[:type]
+        when 'text'
+          { text: sanitize_json_string(part[:text] || part[:content] || '') }
+        when 'image'
+          source = part[:source] || part
+          {
+            inline_data: {
+              mime_type: source[:media_type] || part[:mime_type] || 'image/png',
+              data: source[:data] || part[:data_uri]&.split(',', 2)&.last || ''
+            }
+          }
+        else
+          { text: sanitize_json_string(part.to_s) }
+        end
+      end
+
+      msg[:content] = { parts: gemini_parts }
+      msg
     end
 
 

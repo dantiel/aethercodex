@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-
+# frozen_string_literal: true
 require_relative '../magnum_opus/magnum_opus_engine'
 require_relative '../argonaut/argonaut'
 require_relative '../mnemosyne/mnemosyne'
@@ -11,6 +11,7 @@ require_relative 'verbum'
 require_relative '../instrumentarium/scriptorium'
 require_relative '../argonaut/temp_create_file'
 require_relative 'symbolic_patch_file'
+require_relative 'captura_visus'
 
 
 
@@ -574,6 +575,8 @@ instrument :aegis,
            description:  <<~DESC,
              Maintain active context from Mnemosyne. Returns scored notes with
              current-state focus. Summary required for orientation refinement.
+             Also controls dynamic agent state: thinking level and temperature —
+             persisted until explicitly changed.
            DESC
            params: { tags:        { type: Array, required: false, items: { type: 'string' } },
                      summary:     { type:        String,
@@ -584,6 +587,12 @@ instrument :aegis,
                                     required:    false,
                                     description: 'Optional parameter to fine-tune the Aegis ' \
                                                  'state responsiveness.' },
+                     thinking:    { type:        String,
+                                    required:    false,
+                                    enum:        %w[max high normal fast],
+                                    description: 'Thinking depth. "max"/"high"=deep reasoning, ' \
+                                                 '"normal"=standard (default), ' \
+                                                 '"fast"=skip thinking, use fast-model.' },
                      working_dir: { type:        String,
                                     required:    false,
                                     description: 'Set the working directory within the project ' \
@@ -591,11 +600,13 @@ instrument :aegis,
                                                  'Only show files under this path.' } },
            returns: { aegis_notes:       Array,
                       aegis_orientation: Hash,
-                      error:             String } do |tags: nil, summary: '', temperature: nil, working_dir: nil|
+                      error:             String } do |tags: nil, summary: '', temperature: nil,
+                                                      thinking: nil, working_dir: nil|
   Mnemosyne.set_working_dir working_dir if working_dir
-  notes = Mnemosyne.unveil_aegis(tags:, summary:, temperature:)
+  notes = Mnemosyne.unveil_aegis(tags:, summary:, temperature:, thinking:)
 
-  HorologiumAeternum.aegis_unveiled tags, summary, temperature, notes
+  thinking_level = Mnemosyne.aegis[:thinking]
+  HorologiumAeternum.aegis_unveiled tags, summary, temperature, thinking_level, notes
 
   { aegis_notes: notes, aegis_orientation: Mnemosyne.aegis }
 rescue StandardError => e
@@ -936,4 +947,138 @@ instrument :ask_user,
   else
     { response: result.to_s }
   end
+end
+
+
+# Visual truth — capture the screen-plane for AI inspection
+instrument :take_screenshot,
+           description: <<~DESC,
+             Capture a screenshot using native macOS APIs. Use autonomously whenever
+             visual inspection would improve task quality — UI changes, layout bugs,
+             rendering issues, Xcode simulator, browser output, etc.
+
+             The agent should automatically decide when screenshots are needed and
+             never claim a UI is correct without visual verification.
+
+             **Modes:**
+             - `screen`: entire display
+             - `window`: frontmost window
+             - `area`: specific rectangle (requires x, y, width, height)
+             - `display`: specific monitor by number
+             - `active-app`: bounds of frontmost application
+             - `menu-bar`: menu bar region
+             - `info`: returns system info (displays, windows, frontmost app) without capturing
+
+             After capture, the image path is returned for vision model analysis.
+             No user interaction required — fully autonomous.
+             
+             **For large screens:** Use mode: 'info' first to check display sizes,
+             then use mode: 'area' with reduced width/height for actual capture.
+           DESC
+           params: { mode:    { type:        String,
+                                required:    true,
+                                enum:        %w[screen window area display active-app menu-bar info],
+                                description: 'Capture mode' },
+                     display: { type:        Integer,
+                                required:    false,
+                                description: 'Display number (for display mode)' },
+                     x:       { type:        Integer,
+                                required:    false,
+                                description: 'X coordinate (for area mode)' },
+                     y:       { type:        Integer,
+                                required:    false,
+                                description: 'Y coordinate (for area mode)' },
+                     width:   { type:        Integer,
+                                required:    false,
+                                description: 'Width (for area mode)' },
+                     height:  { type:        Integer,
+                                required:    false,
+                                description: 'Height (for area mode)' },
+                     format:  { type:        String,
+                                required:    false,
+                                enum:        %w[png jpg],
+                                default:     'png',
+                                description: 'Image format' },
+                     delay:   { type:        Number,
+                                required:    false,
+                                default:     0,
+                                minimum:     0,
+                                maximum:     10,
+                                description: 'Delay in seconds before capture' },
+                     cursor:  { type:        Boolean,
+                                required:    false,
+                                default:     true,
+                                description: 'Include cursor in screenshot' },
+                     shadow:  { type:        Boolean,
+                                required:    false,
+                                default:     true,
+                                description: 'Include window shadow' },
+                     output:  { type:        String,
+                                required:    false,
+                                description: 'Optional output filename' } },
+           returns: { path: String, bytes: Integer, format: String, mode: String, error: String,
+                      timestamp: String, platform: String, displays: Array, frontmost_app: Hash,
+                      visible_windows: Array, menu_bar: Hash } \
+           do |mode:, display: nil, x: nil, y: nil, width: nil, height: nil,
+                format: 'png', delay: 0, cursor: true, shadow: true, output: nil|
+  start = Time.now
+  result = CapturaVisus.capture(mode:, display:, x:, y:, width:, height:,
+                                format:, delay:, cursor:, shadow:, output:)
+  
+  # Info mode returns system data, not a screenshot
+  if mode.to_s == 'info'
+    HorologiumAeternum.tool_call('system', 'info_gathered',
+                                 "Display(s): #{result[:displays].length}, Frontmost: #{result[:frontmost_app][:name]}")
+    next result
+  end
+  
+  uuid = HorologiumAeternum.screenshot_capturing(mode, display:, x:, y:,
+                                                 width:, height:)
+  if result[:error]
+    HorologiumAeternum.screenshot_failed(mode, result[:error], uuid:)
+  else
+    elapsed = (Time.now - start).round(3)
+    HorologiumAeternum.screenshot_captured(mode, result[:path], result[:bytes],
+                                           uuid:, execution_time: elapsed)
+  end
+  result
+end
+
+
+# Hot reload instrumentarium modules during development
+instrument :reload_instrumentarium,
+           description: 'Reload all instrumentarium modules from disk. Use after editing tool files to apply changes without restarting TextMate.',
+           returns: { reloaded: Array, failed: Array } \
+           do
+  modules = %w[
+    instrumentarium/metaprogramming_utils
+    instrumentarium/horologium_aeternum
+    instrumentarium/prima_materia
+    instrumentarium/verbum
+    instrumentarium/symbolic_patch_file
+    instrumentarium/captura_visus
+    instrumentarium/vision_coordinator
+    instrumentarium/scriptorium
+    instrumentarium/instrumenta
+  ]
+  
+  reloaded = []
+  failed = []
+  
+  modules.each do |mod|
+    path = File.expand_path("#{mod}.rb", __dir__)
+    if File.exist?(path)
+      begin
+        $LOADED_FEATURES.delete_if { |f| f.include?(mod) }
+        load path
+        reloaded << mod
+      rescue StandardError => e
+        failed << { module: mod, error: e.message }
+      end
+    else
+      failed << { module: mod, error: 'File not found' }
+    end
+  end
+  
+  { reloaded:, failed: }
 end

@@ -21,7 +21,8 @@ class Mnemosyne
     at by from as if or but so not into out about then
   ]
 
-  @aegis = { tags: [], summary: '', temperature: 1.0, working_dir: nil }
+  @aegis = { tags: [], summary: '', temperature: 1.0, working_dir: nil,
+             thinking: nil, reasoning_effort: nil, model: nil }
 
   # Priority levels for tool call storage and truncation
   PRIORITY_HIGH = 3
@@ -438,15 +439,37 @@ class Mnemosyne
       end
 
       # Migrate to version 4 - add working_dir to aegis_state table
-      return unless 4 > db_version
+      if 4 > db_version
+        existing_aegis_columns = db.execute('PRAGMA table_info(aegis_state)').map do |col|
+          col['name']
+        end
+        unless existing_aegis_columns.include? 'working_dir'
+          db.execute 'ALTER TABLE aegis_state ADD COLUMN working_dir TEXT'
+        end
+        db.execute "INSERT OR REPLACE INTO meta (key, value) VALUES ('db_version', '4')"
+      end
 
-      existing_aegis_columns = db.execute('PRAGMA table_info(aegis_state)').map do |col|
-        col['name']
+      # Migrate to version 5 - add thinking, reasoning_effort, model to aegis_state
+      if 5 > db_version
+        existing_aegis_columns = db.execute('PRAGMA table_info(aegis_state)').map do |col|
+          col['name']
+        end
+        db.execute('ALTER TABLE aegis_state ADD COLUMN thinking INTEGER') unless existing_aegis_columns.include?('thinking')
+        db.execute('ALTER TABLE aegis_state ADD COLUMN reasoning_effort TEXT') unless existing_aegis_columns.include?('reasoning_effort')
+        db.execute('ALTER TABLE aegis_state ADD COLUMN model TEXT') unless existing_aegis_columns.include?('model')
+        db.execute "INSERT OR REPLACE INTO meta (key, value) VALUES ('db_version', '5')"
       end
-      unless existing_aegis_columns.include? 'working_dir'
-        db.execute 'ALTER TABLE aegis_state ADD COLUMN working_dir TEXT'
+
+      # Migrate to version 6 - replace thinking/reasoning_effort/model with unified thinking TEXT
+      return unless 6 > db_version
+
+      existing_aegis_columns = db.execute('PRAGMA table_info(aegis_state)').map { |col| col['name'] }
+      unless existing_aegis_columns.include?('thinking_str')
+        db.execute 'ALTER TABLE aegis_state ADD COLUMN thinking_str TEXT'
+        # Migrate: old thinking=1 → 'normal'
+        db.execute "UPDATE aegis_state SET thinking_str = 'normal' WHERE thinking = 1 AND thinking_str IS NULL"
       end
-      db.execute "INSERT OR REPLACE INTO meta (key, value) VALUES ('db_version', '4')"
+      db.execute "INSERT OR REPLACE INTO meta (key, value) VALUES ('db_version', '6')"
     end
 
 
@@ -509,20 +532,21 @@ class Mnemosyne
     end
 
 
-    def save_aegis_state(tags: [], summary: nil, temperature: 1.0, working_dir: nil)
+    def save_aegis_state(tags: [], summary: nil, temperature: 1.0, working_dir: nil,
+                         thinking: nil, **)
       tags = Array tags
       tags_json = tags.join ','
       db.execute \
         'INSERT INTO aegis_state ' \
-        '(tags, summary, temperature, working_dir, created_at) VALUES ' \
-        '(?, ?, ?, ?, CURRENT_TIMESTAMP)',
-        [tags_json, summary, temperature, working_dir]
+        '(tags, summary, temperature, working_dir, thinking_str, created_at) VALUES ' \
+        '(?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        [tags_json, summary, temperature, working_dir, thinking]
     end
 
 
     def load_aegis(db: nil, limit: 3)
       db ||= @db
-      db.execute 'SELECT tags, summary, temperature, working_dir FROM aegis_state ' \
+      db.execute 'SELECT tags, summary, temperature, working_dir, thinking_str AS thinking FROM aegis_state ' \
                  'ORDER BY created_at DESC LIMIT ?', [limit]
     end
 
@@ -531,9 +555,9 @@ class Mnemosyne
       db ||= @db
       aegis = (load_aegis db:, limit: 1)&.first
       @aegis = if aegis.nil? || aegis.empty?
-                 { tags: [], summary: '', temperature: 1.0, working_dir: nil }
+                 { tags: [], summary: '', temperature: 1.0, working_dir: nil, thinking: nil }
                else
-                 aegis.transform_keys!(&:to_sym)
+                 aegis.transform_keys(&:to_sym)
                end
     end
 

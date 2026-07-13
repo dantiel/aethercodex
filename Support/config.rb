@@ -127,7 +127,8 @@ class CONFIG
     port: 4567,
     model: 'deepseek-chat',
     'api-url': 'https://api.deepseek.com/v1/chat/completions',
-    'reasoning-model': 'deepseek-reasoner',
+    'reasoning-model': true,
+    'fast-model': 'deepseek-v4-flash',
     'tm-ai': '.tm-ai/',
     'memory-db': '.tm-ai/memory.db'
   }
@@ -246,28 +247,20 @@ class CONFIG
                    custom_commands == '"*"' || custom_commands.to_s.strip == '*'
     
     # Handle comma-separated string (e.g., "git,ls,cat")
-    if custom_commands.is_a?(String) && custom_commands.include?(',')
-      custom_commands = custom_commands.split(',').map(&:strip)
-    end
+    custom_commands = custom_commands.split(',').map(&:strip) if custom_commands.is_a?(String)
     
     # Ensure array
     custom_commands = Array(custom_commands)
     
     # Convert string commands to regex patterns
-    custom_commands.map do |cmd|
-      if cmd.is_a?(Regexp)
-        cmd
-      else
-        /^#{Regexp.escape(cmd.to_s)}\b/
-      end
-    end
-    
-    # Get custom blocked commands from configuration
-    def self.blocked_commands
-      custom_commands = CFG[:blocked_commands] || CFG['blocked-commands'] || []
-      return [] if custom_commands == '*' || custom_commands == ['*']
-      custom_commands = custom_commands.split(',').map(&:strip) if custom_commands.is_a?(String) && custom_commands.include?(',')
-      Array(custom_commands).map { |cmd| cmd.is_a?(Regexp) ? cmd : /^#{Regexp.escape(cmd.to_s)}\b/ }
-    end
+    custom_commands.map { |cmd| cmd.is_a?(Regexp) ? cmd : /^#{Regexp.escape(cmd.to_s)}\b/ }
+  end
+  
+  # Get custom blocked commands from configuration
+  def self.blocked_commands
+    custom_commands = CFG[:blocked_commands] || CFG['blocked-commands'] || []
+    return [] if custom_commands == '*' || custom_commands == ['*']
+    custom_commands = custom_commands.split(',').map(&:strip) if custom_commands.is_a?(String)
+    Array(custom_commands).map { |cmd| cmd.is_a?(Regexp) ? cmd : /^#{Regexp.escape(cmd.to_s)}\b/ }
   end
 end
