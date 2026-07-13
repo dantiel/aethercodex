@@ -683,6 +683,34 @@ class Pythia
               <p><strong>Step Results:</strong> #{data.step_results_count} available</p>
             </div>
           </details>"""
+      when 'screenshot_capturing'
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @toolCount += 1
+        @lastToolHtml = "📸 #{data.description} #{timestamp_html}"
+        @updateToolGroupSummary()
+        @toolGroupAppend "<div class=\"tool-item running\" id=\"tool-#{uuid}\"><span class=\"tool-name\">📸 Capturing: #{data.description} #{timestamp_html}</span></div>"
+      when 'screenshot_captured'
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        if data.execution_time
+          @toolTotalTime += data.execution_time
+        @updateToolGroupSummary()
+        sizeStr = data.size || "#{data.bytes} bytes"
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"screenshot_captured\"><summary>📸 Screenshot captured: #{data.description || data.mode} — #{sizeStr} #{timestamp_html}</summary><div class=\"screenshot-result\"><span class=\"screenshot-path\">#{data.path}</span><span class=\"screenshot-size\">#{sizeStr}</span></div></details>"
+        else
+          @toolGroupAppend "<details class=\"screenshot_captured\"><summary>📸 Screenshot captured: #{data.description || data.mode} — #{sizeStr} #{timestamp_html}</summary><div class=\"screenshot-result\"><span class=\"screenshot-path\">#{data.path}</span><span class=\"screenshot-size\">#{sizeStr}</span></div></details>"
+      when 'screenshot_failed'
+        unless @toolGroupOpen
+          @openToolGroup uuid
+        @updateToolGroupSummary()
+        runningEl = document.getElementById "tool-#{uuid}"
+        if runningEl
+          runningEl.outerHTML = "<details class=\"screenshot_failed\"><summary>📸 Screenshot failed: #{data.description || data.mode} #{timestamp_html}</summary><div class=\"screenshot-error\">#{data.error}</div></details>"
+        else
+          @toolGroupAppend "<details class=\"screenshot_failed\"><summary>📸 Screenshot failed: #{data.description || data.mode} #{timestamp_html}</summary><div class=\"screenshot-error\">#{data.error}</div></details>"
       when 'ask_user'
         @showAskUserModal(data, uuid)
           

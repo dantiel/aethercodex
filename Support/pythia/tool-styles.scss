@@ -468,3 +468,27 @@ details {
 .task-list > ul ol li{
   margin: 0 0.5em;
 }
+
+/* ── Screenshot result display ─────────────────────────────── */
+.screenshot-result,
+.screenshot-error {
+  padding: 0.4em 0.6em;
+  font-size: 0.85em;
+  color: var(--argonaut-fg);
+  opacity: 0.8;
+  display: flex;
+  gap: 1em;
+  align-items: center;
+}
+.screenshot-path {
+  font-family: monospace;
+  opacity: 0.7;
+  word-break: break-all;
+}
+.screenshot-size {
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.screenshot-error {
+  color: var(--argonaut-ruby);
+}
