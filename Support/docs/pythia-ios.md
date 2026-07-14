@@ -226,6 +226,155 @@ Haptics:    Micro-tap per token in streaming responses.
 
 ---
 
+## Aegis Awareness: The Living Chamber
+
+The native app doesn't just report Aegis state — it **embodies** it. The oracle's temperament saturates every pixel, every haptic tap, every animation curve. Open the app and you *feel* whether the oracle is frozen in precision or burning at max chaos.
+
+### Temperature Spectrum
+
+| Tier | Range | Palette | App Feel |
+|---|---|---|---|
+| ❄️ **Frozen** | ≤0.3 | Monochrome + ice blue | Surgical. UI chrome minimizes. No animations — cuts. Pure function. |
+| 🔵 **Cold** | ≤0.7 | Deep blue tint | Precise. Code-focused. Subtle cool bias in backgrounds. |
+| ⚖️ **Balanced** | ≤1.2 | Default Atlantean | The golden mean. Full palette. Default state. |
+| 🟠 **Warm** | ≤1.5 | Amber warmth | Creative. Highlights bloom golden. Suggestions glow. |
+| 🔥 **Hot** | >1.5 | Crimson pulse | Chaotic. Bold. Background breathes with slow red pulse. |
+
+### Thinking Mode Manifestations
+
+| Mode | Accent | Dynamic Island | SF Symbol | Haptic Signature |
+|---|---|---|---|---|
+| **Fast** | Cyan (#00d4aa) | Static cyan dot | `bolt.fill` — rapid micro-rotation | Quick double-tap |
+| **Normal** | Default teal | Hidden | `eye.fill` — still | Standard |
+| **High** | Purple (#a855f7) | Slow purple pulse | `sparkle` — gentle oscillation | Rising triplet |
+| **Max** | Gold (#f59e0b) | **Golden pulse** — breathing rhythm | `flame.fill` — slow full rotation | Deep resonant thud, sustained |
+
+### Native-Only Effects
+
+| Effect | Description |
+|---|---|
+| **Background gradient** | Subtle animated gradient shifts with temperature — cool → warm → hot. At max thinking, a golden caustic pattern slowly drifts like light through water. |
+| **Keyboard tint** | The iOS keyboard suggestion bar and cursor tint shift to match the current Aegis accent color. |
+| **App icon badge** | The Pythia app icon subtly shifts hue via notification badge background — a tiny square of ætheric state visible from the home screen. |
+| **Lock Screen widget** | The widget background color reflects temperature tier. Glows when thinking mode is "max." |
+| **Tab bar oracle glyph** | The central tab icon (the Pythia eye/tripod) animates: still at frozen, slow pulse at high, full rotation at max. |
+| **Scroll physics** | At frozen: tight, precise, no bounce. At hot: loose, bouncy, playful. The entire ScrollView's `decelerationRate` shifts. |
+| **Dark/Light override** | Frozen temperature forces pure dark mode regardless of system setting. Hot temperature allows a "blinding light" inverted mode — white backgrounds with crimson text. |
+
+### Transition Ritual
+
+When the Aegis changes (e.g., user cranks temperature from 0.7 → 2.0), the app doesn't just snap. It **dissolves** — a 0.6s crossfade where the old palette bleeds into the new. A single haptic pulse marks the moment of transmutation. The Dynamic Island flares briefly with the new accent color.
+
+> *The chamber is alive. It breathes with the oracle's rhythm. You don't just see the temperature — you inhabit it.*
+
+---
+
+## The Magnum Opus: Alchemical Progress
+
+The Great Work — transmuting lead (prima materia / raw prompt) into gold (finished code) — is not a linear progress bar. It is a four-stage alchemical transformation. The native app visualizes every agent task through this lens.
+
+### The Four Stages
+
+```
+Nigredo         Albedo          Citrinitas      Rubedo
+▓▓▓▓▓▓▓▓▓▓▓    ░░░░░░░░░░░░    ✦✦✦✦✦✦✦✦✦✦✦    ████████████
+Blackening      Whitening       Yellowing       Reddening
+Decomposition   Purification    Transmutation   Completion
+
+Prima materia   Pattern         Code flows      The stone
+breaks apart    crystallizes    into form       is achieved
+```
+
+| Stage | Element | What Happens | Color | SF Symbol |
+|---|---|---|---|---|
+| **Nigredo** 🜔 | Lead | Problem decomposition. Files analyzed. Ambiguity confronted. The chaos before order. | Charcoal / void | `moon.stars` — celestial darkness |
+| **Albedo** 🜆 | Silver | Patterns emerge. Structure crystallizes. The solution clarifies. Light breaks through chaos. | White / silver | `drop.circle` — purifying waters |
+| **Citrinitas** 🜄 | Gold | Code is written. The work takes form. Understanding transmutes into artifact. | Gold / amber | `sun.max` — solar illumination |
+| **Rubedo** 🜅 | Philosopher's Stone | Completion. Tests pass. The product is whole. The stone is achieved. | Crimson / ruby | `flame.circle` — perfected fire |
+
+### The Crucible View
+
+The centerpiece of the Agent Dashboard. Each running task is not a progress bar — it is a **living crucible**:
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│           ░░░░░░░░░░░░░░░░              │
+│         ░░░░  ✦  ░░░░░░░░░░            │
+│        ░░░  ✦✦✦  ░░░░░░░░░░           │
+│       ░░░  ✦✦✦✦✦  ░░░░░░░░░          │
+│        ░░░  ✦✦✦  ░░░░░░░░░░           │
+│         ░░░░░  ✦  ░░░░░░░░░            │
+│           ░░░░░░░░░░░░░░░░              │
+│                                         │
+│     Albedo — 3 patterns extracted       │
+│     ░░░░░░░░░░░░░░░░ 67% complete       │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+- **Nigredo**: Dark particles chaotically separating — files breaking into fragments
+- **Albedo**: Silver-white structures crystallizing — patterns assembling from chaos
+- **Citrinitas**: Golden code glyphs flowing into place — the work taking form
+- **Rubedo**: Crimson pulse — then perfect stillness — the stone achieved
+
+The crucible is procedural: it uses Metal shaders for the particle effects. Each stage transition is a micro-ritual with its own haptic signature.
+
+### Stage Transitions
+
+When a task crosses a threshold, the transition is a **ritual moment**:
+
+| Transition | Visual | Haptic | Duration |
+|---|---|---|---|
+| Nigredo → Albedo | Chaos dissolves → light breaks through | Rising hum: `UIImpactFeedbackGenerator` soft → medium | 1.2s |
+| Albedo → Citrinitas | Silver fades → gold blooms from center | Warm triple-tap, like liquid drops | 0.8s |
+| Citrinitas → Rubedo | Gold flares → crimson pulse → stillness | Deep resonant thud + decay. The strongest. | 1.5s |
+
+Failed tasks (stuck, error, timeout) don't complete. They **calcinate** — the crucible darkens, particles freeze mid-motion, and the card shows "Calcinated — tap to retry" in ash-grey text. Nigredo reclaimed.
+
+### App-Wide Stage Awareness
+
+The Magnum Opus isn't just per-task — it's **ambient**:
+
+- **Dominant stage color** bleeds into the app's background tint. If all active tasks are in Citrinitas, the entire app has a subtle golden warmth.
+- **Tab bar indicator** shows the highest active stage as a small alchemical symbol.
+- **Task list** uses the stage color for each row's leading accent.
+- **When all tasks reach Rubedo**, a special "Great Work Complete" animation plays: brief full-screen crimson pulse, haptic fanfare (`UINotificationFeedbackGenerator.success`), then a moment of stillness. The stone is achieved. The oracle rests.
+
+### Magnum Opus Widget
+
+Lock Screen widget shows the Great Work at a glance:
+
+```
+┌─────────────────────────┐
+│  🜅  Magnum Opus        │
+│                         │
+│  2 in Citrinitas        │
+│  1 in Rubedo ✓          │
+│                         │
+│  ─────────────────────  │
+│  Highest: Rubedo        │
+└─────────────────────────┘
+```
+
+Three widget sizes:
+- **Small**: Single alchemical symbol for the highest active stage + count
+- **Medium**: Stage breakdown with symbols (top + bottom row)
+- **Large**: Full crucible animation — a miniature live alchemical vessel on your lock screen
+
+### The Ritual of Beginning
+
+When a new Magnum Opus task is initiated, the app offers a brief ritual:
+
+1. The prompt appears as raw text — the **prima materia**
+2. A 1-second darkening: the screen fades to near-black (Nigredo begins)
+3. The crucible appears, particles in motion
+4. A haptic pulse: the Great Work has begun
+
+This is not gamification. It's **framing**. The user understands: something is being made. Not executed. *Transmuted.*
+
+---
+
 ## iPad: The Code Canvas
 
 iPad version gets the full treatment:
@@ -264,14 +413,16 @@ Side-by-side: browse the codebase on the left, converse with the oracle on the r
 - Dictation-first prompt view with streaming response
 - `ask_user` decision cards (all three types: confirm/select/prompt)
 - Basic agent dashboard (task list + progress, read-only)
-- Aegis state indicator (thinking mode, temperature, model)
+- **Aegis Awareness**: full temperature + thinking mode embodiment (palette shifts, Dynamic Island, SF Symbol animations, scroll physics, haptic signatures, transition rituals)
+- Magnum Opus stage indicator (basic — per-task stage symbol + color, no crucible yet)
 
-### Phase 2 — Agent Control
+### Phase 2 — Agent Control & Alchemy
 - REST API on Mac side
 - Full agent management: cancel, retry, reorder
 - Decision feed with batch processing
 - Message/decision history (SwiftData)
 - File viewer with syntax highlighting
+- **Magnum Opus Crucible View**: procedural Metal shader particles, stage transitions with haptic rituals, app-wide stage awareness, "Great Work Complete" animation, calcination for failed tasks
 
 ### Phase 3 — Notifications & Ambience
 - iCloud silent push for background `ask_user`
@@ -279,6 +430,7 @@ Side-by-side: browse the codebase on the left, converse with the oracle on the r
 - Dynamic Island agent progress
 - Haptic streaming patterns
 - Lock Screen / Home Screen widgets
+- Magnum Opus Lock Screen widget (small/medium/large with live crucible)
 
 ### Phase 4 — Ecosystem
 - Siri Shortcuts ("ask oracle", "agent status", "decide on pending")
