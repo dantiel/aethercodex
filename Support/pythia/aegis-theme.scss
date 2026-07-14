@@ -1,0 +1,104 @@
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS THEME — The chamber shifts with the oracle's temperament
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Temperature: Frost ── */
+body.aegis-temp-frozen {
+  --aegis-glow: #5B7FFF;
+  --aegis-accent: #3A5FE0;
+}
+body.aegis-temp-frozen #messages {
+  background: linear-gradient(180deg, rgba(10, 20, 60, 0.6) 0%, rgba(0, 12, 22, 0.4) 100%);
+}
+body.aegis-temp-frozen #input-bar {
+  box-shadow: 0 0 1.2rem rgba(91, 127, 255, 0.12);
+  border-color: rgba(91, 127, 255, 0.25);
+}
+
+/* ── Temperature: Cold ── */
+body.aegis-temp-cold {
+  --aegis-glow: #6497C5;
+  --aegis-accent: #4A80B0;
+}
+body.aegis-temp-cold #messages {
+  background: linear-gradient(180deg, rgba(20, 30, 60, 0.4) 0%, rgba(0, 12, 22, 0.35) 100%);
+}
+body.aegis-temp-cold #input-bar {
+  box-shadow: 0 0 0.8rem rgba(100, 151, 197, 0.1);
+  border-color: rgba(100, 151, 197, 0.2);
+}
+
+/* ── Temperature: Balanced (default) ── */
+body.aegis-temp-balanced {
+  --aegis-glow: #815DB3;
+  --aegis-accent: #6A4A9A;
+}
+
+/* ── Temperature: Warm ── */
+body.aegis-temp-warm {
+  --aegis-glow: #F39C12;
+  --aegis-accent: #D68910;
+}
+body.aegis-temp-warm #messages {
+  background: linear-gradient(180deg, rgba(40, 25, 10, 0.4) 0%, rgba(0, 12, 22, 0.35) 100%);
+}
+body.aegis-temp-warm #input-bar {
+  box-shadow: 0 0 1rem rgba(243, 156, 18, 0.12);
+  border-color: rgba(243, 156, 18, 0.22);
+}
+
+/* ── Temperature: Hot ── */
+body.aegis-temp-hot {
+  --aegis-glow: #DB001C;
+  --aegis-accent: #B80018;
+}
+body.aegis-temp-hot #messages {
+  background: linear-gradient(180deg, rgba(40, 10, 15, 0.5) 0%, rgba(0, 12, 22, 0.35) 100%);
+}
+body.aegis-temp-hot #input-bar {
+  box-shadow: 0 0 1.4rem rgba(219, 0, 28, 0.14);
+  border-color: rgba(219, 0, 28, 0.25);
+}
+
+/* ── Thinking: Flash (fast) ── */
+body.aegis-think-fast {
+  --aegis-think-glow: #00E5FF;
+}
+body.aegis-think-fast #input-bar {
+  box-shadow: 0 0 0.8rem rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.15);
+}
+
+/* ── Thinking: High ── */
+body.aegis-think-high {
+  --aegis-think-glow: #A855F7;
+}
+body.aegis-think-high #messages {
+  background: linear-gradient(180deg, rgba(30, 10, 50, 0.35) 0%, rgba(0, 12, 22, 0.3) 100%);
+}
+body.aegis-think-high #input-bar {
+  box-shadow: 0 0 1rem rgba(168, 85, 247, 0.14);
+  border-color: rgba(168, 85, 247, 0.25);
+}
+
+/* ── Thinking: Max ── */
+body.aegis-think-max #messages {
+  background: linear-gradient(180deg, rgba(40, 20, 5, 0.45) 0%, rgba(0, 12, 22, 0.3) 100%);
+}
+body.aegis-think-max #input-bar {
+  box-shadow:
+    0 0 1.2rem rgba(255, 206, 0, 0.18),
+    0 0 2.5rem rgba(255, 160, 0, 0.08);
+  border-color: rgba(255, 206, 0, 0.3);
+  animation: aegis-max-pulse 3s ease-in-out infinite;
+}
+
+@keyframes aegis-max-pulse {
+  0%, 100% { box-shadow: 0 0 1.2rem rgba(255, 206, 0, 0.18), 0 0 2.5rem rgba(255, 160, 0, 0.08); }
+  50%      { box-shadow: 0 0 1.8rem rgba(255, 206, 0, 0.28), 0 0 3.5rem rgba(255, 160, 0, 0.14); }
+}
+
+/* ── Transitions ── */
+#messages, #input-bar {
+  transition: background 0.8s ease, box-shadow 0.8s ease, border-color 0.8s ease;
+}

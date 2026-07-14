@@ -567,6 +567,7 @@ class Pythia
             #{@replaceFileTags data.notes}
           </details>"""
       when 'aegis_unveiled'
+        @applyAegisTheme data
         @log 'system', uuid, """
           <details>
             <summary>#{data.message} #{timestamp_html}</summary>
@@ -1070,6 +1071,28 @@ class Pythia
   setThinking: (is_thinking)=>
     TextMate.isBusy = @isThinking = is_thinking
     do @updateSendButton
+
+
+  # Apply Aegis theme to body based on temperature and thinking mode
+  applyAegisTheme: (data) =>
+    body = document.body
+    # Remove existing aegis classes
+    body.className = body.className.replace /\s*aegis-temp-\S+|\s*aegis-think-\S+/g, ''
+
+    # Temperature class
+    temp = parseFloat data.temperature
+    if !isNaN(temp)
+      tempClass = if temp <= 0.3 then 'aegis-temp-frozen'
+      else if temp <= 0.7 then 'aegis-temp-cold'
+      else if temp <= 1.2 then 'aegis-temp-balanced'
+      else if temp <= 1.5 then 'aegis-temp-warm'
+      else 'aegis-temp-hot'
+      body.classList.add tempClass
+
+    # Thinking class
+    think = data.thinking
+    if think && think != 'normal'
+      body.classList.add "aegis-think-#{think}"
 
 
   # Ask User Modal — interactive user input during AI execution

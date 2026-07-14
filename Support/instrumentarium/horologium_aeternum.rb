@@ -695,8 +695,10 @@ module HorologiumAeternum
     notes = "\n\n**Notes:**\n\n#{render_notes notes}"
     content = [summary, meta, notes].join
     send_status('aegis_unveiled', {
-                  message: Scriptorium.html("🔮 Aegis unveiled#{": `#{tags.join ', '}`" if tags}"),
-                  content: Scriptorium.html_with_syntax_highlight(content)
+                  message:     Scriptorium.html("🔮 Aegis unveiled#{" · `#{tags.join ', '}`" if tags}"),
+                  content:     Scriptorium.html_with_syntax_highlight(content),
+                  temperature: temperature,
+                  thinking:    thinking
                 }, uuid:)
   end
 
