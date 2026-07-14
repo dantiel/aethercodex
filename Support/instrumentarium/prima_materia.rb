@@ -374,12 +374,13 @@ class PrimaMateria
 
     @tools.each do |name, tool|
       tool_name = name.to_s
+      description = name == :run_command ? dynamic_run_command_description : tool.description
 
       schema_entry = {
         type:     'function',
         function: {
           name:        tool_name,
-          description: tool.description,
+          description:,
           parameters:  {
             type:       'object',
             properties: {},
@@ -545,6 +546,17 @@ class PrimaMateria
 
   def self.blocked_commands
     CONFIG::blocked_commands
+  end
+
+  # Dynamic description for run_command tool — reflects live config
+  def self.dynamic_run_command_description
+    allowed = allowed_commands
+    if allowed.any? { |re| // == re }
+      "Run an allowed shell command in project base dir. ⬢ ALL commands are permitted (wildcard: *). ⬢"
+    else
+      cmds = (ALLOW_CMDS + allowed).map { |re| re.source.sub(/\A\^/, '').sub(/\\b\z/, '') }.reject(&:empty?).uniq
+      "Run an allowed shell command in project base dir. Permitted: #{cmds.join(', ')}."
+    end
   end
 
   ALLOW_CMDS   = [/^rspec\b/, /^rubocop\b/, /^git\b/, /^ls\b/, /^cat\b/, /^mkdir\b/,

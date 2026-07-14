@@ -195,12 +195,8 @@ end
 
 
 instrument :run_command,
-           description: <<~DESC,
-             Run an allowed shell command in project base dir. Allowed: `rspec`, `rubocop`,
-             `git`, `ls`, `cat`, `mkdir`, `$TM_QUERY`, `echo`, `grep`, `bundle exec ruby`,
-             `bundle exec irb`, `ruby`, `irb`, `cd`, `curl`, `ag`, `ast-grep`. Please suggest to#{' '}
-             add more cmds to this list if you like. To have more execution time u
-           DESC
+           description: 'Run an allowed shell command in project base dir. The server '\
+                        'configuration controls which commands are permitted.',
            params: { cmd:     { type: String, required: true },
                      timeout: { type: Integer, default: 30 } },
            timeout: 30_000,
