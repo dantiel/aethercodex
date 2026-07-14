@@ -195,8 +195,7 @@ end
 
 
 instrument :run_command,
-           description: 'Run an allowed shell command in project base dir. The server '\
-                        'configuration controls which commands are permitted.',
+           description: PrimaMateria.dynamic_run_command_description,
            params: { cmd:     { type: String, required: true },
                      timeout: { type: Integer, default: 30 } },
            timeout: 30_000,
@@ -204,13 +203,18 @@ instrument :run_command,
                       exit_status: Integer,
                       result:      String,
                       error:       String } do |cmd:, timeout:|
+  # ── Gate: command permission ──────────────────────────────────────────
+  # Check wildcard FIRST, directly, before any method delegation
   allowed_commands = PrimaMateria.allowed_commands
-
   blocked_commands = PrimaMateria.blocked_commands
-  command_allowed  = allowed_commands.any? { |re| // == re } || allowed_commands.any? { |re| cmd =~ re }
+
+  # Direct wildcard check — regardless of what PrimaMateria returns
+  wildcard_active  = allowed_commands.any? { |re| // == re }
+  command_allowed  = wildcard_active || allowed_commands.any? { |re| cmd =~ re }
   command_blocked  = blocked_commands.any? { |re| cmd =~ re }
 
   if !command_allowed || command_blocked
+    $stderr.puts "[AEGIS] run_command blocked: cmd=#{cmd.inspect} wildcard=#{wildcard_active} allowed=#{command_allowed} blocked=#{command_blocked} allow_list=#{allowed_commands.inspect} block_list=#{blocked_commands.inspect}"
     ask_uuid = SecureRandom.uuid
     HorologiumAeternum.send_status('ask_user', {
                                      type: 'confirm',

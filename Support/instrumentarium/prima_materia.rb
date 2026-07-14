@@ -538,7 +538,9 @@ class PrimaMateria
     custom_commands = CONFIG::allowed_commands
     puts "[PRIMA_MATERIA][ALLOWED_COMMANDS]: #{custom_commands.inspect}"
     # If custom commands include wildcard, allow everything
-    return [//] if custom_commands.any? { |re| re == // }
+    # Belt: check for // (from CONFIG)  Suspenders: check for * in pattern source
+    return [//] if custom_commands.any? { |re| // == re }
+    return [//] if custom_commands.any? { |re| re.source.include?('*') }
     
     default_commands + custom_commands
   end
