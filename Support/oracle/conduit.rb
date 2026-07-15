@@ -904,15 +904,10 @@ class Conduit
         unless 200 == response.status
           error_message = ErrorHandler.handle_http_status_codes response
           if error_message.is_a?(String)
-            # Retry tool_calls format errors after sanitizing messages
+            # Retry tool_calls format errors: raise so the rescue block below
+            # (which has valid `retry` context) handles sanitization + retry.
             if retries < TOOL_CALLS_RETRY_MAX && error_message.match?(TOOL_CALLS_FORMAT_ERROR_RE)
-              retries += 1
-              HorologiumAeternum.system_error(
-                "Tool calls format error — sanitizing messages and retrying (#{retries}/#{TOOL_CALLS_RETRY_MAX})",
-                message: error_message.truncate(200)
-              )
-              sanitize_body_messages!(body)
-              retry
+              raise Faraday::ClientError.new(error_message, { status: 400, body: error_message })
             end
             HorologiumAeternum.system_error('API request malformed — sending error back to model',
                                             message: error_message.truncate(300))
