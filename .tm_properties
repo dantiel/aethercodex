@@ -31,7 +31,7 @@ excludeInArgonaut     = "{$excludeInBrowser}"
 
 # Variables
 
-TM_ORGANIZATION_NAME  = 'darographix'
+TM_ORGANIZATION_NAME  = 'aethercodex'
 
 IOSEVKA_CURLY_FONT    = 'Iosevka-Curly-Light'
 INPUT_MONO_COMPRESSED = 'InputMonoCompressed-ExtraLight'
