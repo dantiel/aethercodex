@@ -864,65 +864,104 @@ class Conduit
     end
 
 
+    # Max retries for tool_calls format errors from DeepSeek et al.
+    TOOL_CALLS_RETRY_MAX = 3
+
+    # Pattern matching the DeepSeek "tool_calls must be followed by tool messages" error
+    TOOL_CALLS_FORMAT_ERROR_RE = /
+      tool_calls.*must\s+be\s+followed\s+by\s+tool\s+messages |
+      insufficient\s+tool\s+messages\s+following\s+tool_calls |
+      tool_call_id.*not\s+found |
+      orphaned\s+tool_calls?
+    /ix
+
     def execute_api_request(connection, endpoint, api_key, body, timeout, headers = {})
-      # Debug: attempt JSON conversion and catch errors
-      json_body = nil
+      retries = 0
+
       begin
         json_body = body.to_json
-        # Validate it's parseable
-        JSON.parse(json_body)
-      rescue JSON::GeneratorError, JSON::ParserError => e
-        puts "[CONDUIT][JSON_ERROR]: Failed to generate/parse JSON: #{e.message}"
-        puts "[CONDUIT][JSON_ERROR_BODY_DUMP]: #{body.inspect.truncate(500)}"
-        raise
-      end
+        JSON.parse(json_body) # Validate
 
-      response = connection.post endpoint do |request|
-        if :gemini == CONFIG::CFG[:api_type].to_sym
-          request.headers['X-goog-api-key'] = api_key.to_s
-        elsif :anthropic == CONFIG::CFG[:api_type].to_sym
-          request.headers['x-api-key'] = api_key.to_s
-          request.headers['anthropic-version'] = '2023-06-01'
-        else
-          request.headers['Authorization'] = "Bearer #{api_key}"
+        response = connection.post endpoint do |request|
+          if :gemini == CONFIG::CFG[:api_type].to_sym
+            request.headers['X-goog-api-key'] = api_key.to_s
+          elsif :anthropic == CONFIG::CFG[:api_type].to_sym
+            request.headers['x-api-key'] = api_key.to_s
+            request.headers['anthropic-version'] = '2023-06-01'
+          else
+            request.headers['Authorization'] = "Bearer #{api_key}"
+          end
+          request.headers['Content-Type'] = 'application/json'
+
+          # Apply custom headers from .aethercodex config (e.g., OpenAI-Project)
+          headers.each { |k, v| request.headers[k.to_s] = v.to_s }
+
+          request.body = json_body
+          request.options.timeout = timeout
+          request.options.open_timeout = timeout / 2
         end
-        request.headers['Content-Type'] = 'application/json'
 
-        # Apply custom headers from .aethercodex config (e.g., OpenAI-Project)
-        headers.each { |k, v| request.headers[k.to_s] = v.to_s }
+        unless 200 == response.status
+          error_message = ErrorHandler.handle_http_status_codes response
+          if error_message.is_a?(String)
+            # Retry tool_calls format errors after sanitizing messages
+            if retries < TOOL_CALLS_RETRY_MAX && error_message.match?(TOOL_CALLS_FORMAT_ERROR_RE)
+              retries += 1
+              HorologiumAeternum.system_error(
+                "Tool calls format error — sanitizing messages and retrying (#{retries}/#{TOOL_CALLS_RETRY_MAX})",
+                message: error_message.truncate(200)
+              )
+              sanitize_body_messages!(body)
+              retry
+            end
+            HorologiumAeternum.system_error('API request malformed — sending error back to model',
+                                            message: error_message.truncate(300))
+            return { 'choices' => [{ 'message' => { 'content' => "❌ API Error: #{error_message}" } }] }.to_json
+          end
+        end
 
-        request.body = json_body
-        request.options.timeout = timeout
-        request.options.open_timeout = timeout / 2
-      end
-
-      unless 200 == response.status
-        error_message = ErrorHandler.handle_http_status_codes response
-        # 400/500: return synthetic error so model can self-correct
+        response
+      rescue Faraday::ClientError, Faraday::ServerError => e
+        error_message = ErrorHandler.handle_faraday_client_error e
         if error_message.is_a?(String)
-          HorologiumAeternum.system_error('API request malformed — sending error back to model',
+          # Retry tool_calls format errors after sanitizing messages
+          if retries < TOOL_CALLS_RETRY_MAX && error_message.match?(TOOL_CALLS_FORMAT_ERROR_RE)
+            retries += 1
+            HorologiumAeternum.system_error(
+              "Tool calls format error — sanitizing messages and retrying (#{retries}/#{TOOL_CALLS_RETRY_MAX})",
+              message: error_message.truncate(200)
+            )
+            sanitize_body_messages!(body)
+            retry
+          end
+          HorologiumAeternum.system_error('API request error — sending back to model for self-correction',
                                           message: error_message.truncate(300))
           return { 'choices' => [{ 'message' => { 'content' => "❌ API Error: #{error_message}" } }] }.to_json
         end
+      rescue Faraday::ConnectionFailed, EOFError => e
+        if :retry == handle_connection_error(e)
+          puts 'RETRY'
+          retry
+        end
+      rescue StandardError => e
+        HorologiumAeternum.system_error "Failed to execute API request: #{e.message.truncate 100}"
+        raise e
       end
+    end
 
-      response
-    rescue Faraday::ClientError, Faraday::ServerError => e
-      error_message = ErrorHandler.handle_faraday_client_error e
-      # 400/500: return synthetic error response so model can self-correct
-      if error_message.is_a?(String)
-        HorologiumAeternum.system_error('API request error — sending back to model for self-correction',
-                                        message: error_message.truncate(300))
-        return { 'choices' => [{ 'message' => { 'content' => "❌ API Error: #{error_message}" } }] }.to_json
-      end
-    rescue Faraday::ConnectionFailed, EOFError => e
-      if :retry == handle_connection_error(e)
-        puts 'RETRY'
-        retry
-      end
-    rescue StandardError => e
-      HorologiumAeternum.system_error "Failed to execute API request: #{e.message.truncate 100}"
-      raise e
+
+    # Mutates body[:messages] in-place: strips orphaned tool_calls that lack
+    # matching tool responses, preventing DeepSeek "tool_calls must be followed
+    # by tool messages" errors.
+    def sanitize_body_messages!(body)
+      return unless body.is_a?(Hash) && body[:messages].is_a?(Array)
+
+      before = body[:messages].size
+      body[:messages] = sanitize_tool_call_messages(body[:messages])
+      after = body[:messages].size
+      HorologiumAeternum.system_error(
+        "Re-sanitized messages: #{before - after} removed (#{before} → #{after})"
+      ) if before != after
     end
     
 
