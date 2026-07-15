@@ -374,7 +374,7 @@ class PrimaMateria
 
     @tools.each do |name, tool|
       tool_name = name.to_s
-      description = name == :run_command ? dynamic_run_command_description : tool.description
+      description = name == :run_command ? PrimaMateria::dynamic_run_command_description : tool.description
 
       schema_entry = {
         type:     'function',
