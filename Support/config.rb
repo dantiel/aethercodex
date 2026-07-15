@@ -1,3 +1,4 @@
+require 'fileutils'
 require 'yaml'
 require 'pathname'
 require 'dotenv'
@@ -209,32 +210,56 @@ class CONFIG
     return relative_path if relative_path.start_with?('/')
     
     # For relative paths, resolve relative to the highest-priority config's directory
-    project_root = ENV['TM_PROJECT_DIRECTORY'] || CFG[:__base_dir] || Dir.pwd
+    project_root = ENV['TM_PROJECT_DIRECTORY']
+    
+    # Fall back to config base dir only if outside the bundle (pristine copies are read-only)
+    if !project_root && CFG[:__base_dir]
+      bundle_dir = File.expand_path('..', __dir__)
+      project_root = CFG[:__base_dir] unless CFG[:__base_dir].start_with?(bundle_dir)
+    end
+    
+    project_root ||= Dir.pwd
     File.join(project_root, relative_path)
   end
   
   
   # Get the tm-ai directory path
   def self.tm_ai_dir
-    resolve_path(self[:tm_ai] || '.tm-ai/')
+    path = resolve_path(self[:tm_ai] || '.tm-ai/')
+    # Safety: never resolve inside the bundle
+    bundle_dir = File.expand_path('..', __dir__)
+    if path.start_with?(bundle_dir)
+      fallback = File.expand_path('~/Library/Application Support/TextMate/AetherCodex/')
+      FileUtils.mkdir_p(fallback)
+      return fallback
+    end
+    path
   end
   
   
   # Get the memory database path
   def self.memory_db_path
-    resolve_path(self[:memory_db] || '.tm-ai/memory.db')
+    path = resolve_path(self[:memory_db] || '.tm-ai/memory.db')
+    # Safety: never resolve inside the bundle (Pristine Copy is read-only)
+    bundle_dir = File.expand_path('..', __dir__)
+    if path.start_with?(bundle_dir)
+      fallback = File.expand_path('~/Library/Application Support/TextMate/AetherCodex/memory.db')
+      FileUtils.mkdir_p(File.dirname(fallback))
+      return fallback
+    end
+    path
   end
   
   
   # Get the log file path
   def self.log_file_path
-    resolve_path('.tm-ai/limen.log')
+    File.join(tm_ai_dir, 'limen.log')
   end
   
   
   # Get the PID file path
   def self.pid_file_path
-    resolve_path('.tm-ai/limen.pid')
+    File.join(tm_ai_dir, 'limen.pid')
   end
   
   
