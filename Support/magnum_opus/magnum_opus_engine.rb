@@ -709,12 +709,14 @@ class MagnumOpusEngine
         current_stage:       stage_name,
         total_steps:         total_steps,
         progress_percentage: ((current_step.to_f / total_steps) * 100).round(1),
+        parent_task_id:      task[:parent_task_id],
         created_at:          task[:created_at],
         updated_at:          task[:updated_at]
       },
-      step_results:           step_results,        # Return raw step results for navigation
-      formatted_step_results: formatted_results,   # Return formatted version for display
+      step_results:           step_results,
+      formatted_step_results: formatted_results,
       execution_logs:         task_logs,
+      sub_tasks:              aggregate_subtask_status(task_id),
       alchemical_progression: STATES.map.with_index do |stage, idx|
         {
           stage:     stage,
@@ -848,18 +850,92 @@ class MagnumOpusEngine
   end
 
 
-  # Execute sub-tasks recursively, respecting max_steps
-  def execute_sub_tasks(task_id, max_steps)
+  # Dispatch sub-tasks — each inherits the parent's wisdom via shared context.
+  # Executes sequentially; future enhancement: parallel agent dispatch via thread pool.
+  def execute_sub_tasks(task_id, max_depth = 10)
     sub_tasks = @mnemosyne.manage_tasks({ 'action' => 'list', 'parent_task_id' => task_id })
     sub_tasks.each do |sub_task|
-      next if halted?(sub_task[:id]) || 0 >= max_steps
+      next if halted?(sub_task[:id]) || 0 >= max_depth
 
-      execute_task sub_task[:id], max_steps: max_steps - 1
-      @mnemosyne.manage_tasks({ 'action'    => 'update',
-                                'id'        => task_id,
-                                'max_steps' => max_steps - 1 })
+      log_message task_id, "Dispatching sub-task ##{sub_task[:id]}: #{sub_task[:title]}"
+      execute_task sub_task[:id]
+      @mnemosyne.manage_tasks({ 'action' => 'update',
+                                'id'     => task_id })
     end
-    max_steps - 1
+    max_depth - 1
+  end
+
+
+  # Inscribe parent task's current wisdom (plan, phase results) as shared notes
+  # so the sub-task inherits the global task context when it awakens.
+  def inherit_parent_context_to_subtask(parent_id, subtask_id)
+    parent = @mnemosyne.get_task parent_id
+    return unless parent
+
+    sub_id = subtask_id.is_a?(Hash) ? (subtask_id[:id] || subtask_id['id']) : subtask_id
+    return unless sub_id
+
+    parent_results = load_step_results parent_id
+    context_note = <<~INHERITANCE
+      [INHERITED FROM PARENT TASK ##{parent_id}]
+
+      Parent Plan: #{parent[:plan]}
+      Parent Phase Results: #{parent_results.any? ? parent_results.map { |s, r| "Step #{s}: #{r.to_s.truncate(200)}" }.join(' | ') : 'No phase results yet'}
+      Inheritance Time: #{Time.now.iso8601}
+    INHERITANCE
+
+    @mnemosyne.create_note content: context_note,
+                           links:  [parent_id.to_s],
+                           tags:   ['subtask_context', "task_#{sub_id}", "parent_task_#{parent_id}",
+                                    'magnum_opus']
+    log_message parent_id,
+                "Inscribed parent context as inherited wisdom for sub-task ##{sub_id}"
+  end
+
+
+  # Fetch parent task's context for injection into sub-task system prompt.
+  # Returns formatted string or nil if no parent exists.
+  def parent_task_context_for(task_id)
+    task = @mnemosyne.get_task task_id
+    return nil unless task && task[:parent_task_id]
+
+    parent = @mnemosyne.get_task task[:parent_task_id]
+    return nil unless parent
+
+    parent_results = load_step_results parent[:id]
+    formatted_results = parent_results.any? ? parent_results.map { |s, r|
+      "  Step #{s}: #{r.to_s.truncate(250)}"
+    }.join("\n") : '  (No phase results yet)'
+
+    <<~PARENT_CONTEXT
+      # PARENT TASK CONTEXT (Task ##{parent[:id]})
+      You are a sub-agent of the Magnum Opus. The parent task's wisdom is your inheritance.
+
+      PARENT PLAN: #{parent[:plan]}
+
+      PARENT PHASE RESULTS:
+      #{formatted_results}
+
+      PARENT STATUS: #{parent[:status]} | Step #{parent[:current_step] || 0}
+    PARENT_CONTEXT
+  end
+
+
+  # Aggregate the status of all sub-tasks for a parent task.
+  def aggregate_subtask_status(task_id)
+    subtasks = @mnemosyne.manage_tasks action: :list, parent_task_id: task_id
+    return [] if subtasks.nil? || subtasks.empty?
+
+    subtasks.map do |st|
+      {
+        id:             st[:id],
+        title:          st[:title],
+        status:         st[:status],
+        current_step:   st[:current_step] || 0,
+        workflow_type:  st[:workflow_type],
+        created_at:     st[:created_at]
+      }
+    end
   end
 
 
@@ -935,19 +1011,9 @@ class MagnumOpusEngine
       update_state task_id, :active
     end
 
-    # TODO: this is not the right position for sub tasks... currently they would only executed AFTER the task is finished...
-    # Execute sub-tasks recursively, respecting max_loops
-    max_loops = 10 # max_loops may not be needed?!
-    if 1 < max_loops
-      sub_tasks = @mnemosyne.manage_tasks action: :list, parent_task_id: task_id
-      sub_tasks.each do |sub_task|
-        next if halted?(sub_task[:id]) || 1 >= max_loops
-
-        execute_task sub_task[:id]
-      end
-      @mnemosyne.manage_tasks({ 'action' => 'update',
-                                'id'     => task_id })
-    end
+    # Dispatch pending sub-tasks — each inherits the parent's wisdom via shared context.
+    # Sub-tasks execute after the parent phase concludes (future: parallel agent dispatch).
+    execute_sub_tasks(task_id, 10)
 
     # Broadcast task completion with duration
     task = @mnemosyne.get_task task_id
@@ -1194,6 +1260,12 @@ class MagnumOpusEngine
                  EXECUTION_CONTEXT
       }
     ]
+
+    # If this task is a sub-task, inject the parent's wisdom as additional context
+    parent_context = parent_task_context_for(task_id)
+    if parent_context
+      messages.insert(2, { role: 'system', content: parent_context })
+    end
 
 
     begin

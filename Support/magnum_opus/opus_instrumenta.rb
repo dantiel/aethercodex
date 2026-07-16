@@ -25,35 +25,32 @@ class OpusInstrumenta
   # Build a PrimaMateria with just the task-specific tools
   def self.build_task_prima(task_id, task_engine)
     task_prima = PrimaMateria.new
-    # end
-    #
-    # def self.none
-    # Task creation within task context
-    # task_prima.add_instrument :create_sub_task,
-    #                           description: 'Create a sub-task with parent task context for complex workflows.',
-    #                           params: {
-    #                             title: { type: 'string', required: true, minLength: 1 },
-    #                             plan:  { type: 'string', required: true, minLength: 1 },
-    #                             workflow_type: { type: 'string', required: false, enum: ['full', 'simple', 'analysis'], default: 'simple' }
-    #                           } do |title:, plan:, workflow_type: 'simple'|
-    #   # Create sub-task with parent context and workflow type
-    #   sub_task = task_engine.create_task(title: title, plan: plan, parent_task_id: task_id, workflow_type: workflow_type)
-    #
-    #   # Store workflow type in task metadata for simplified execution
-    #   Mnemosyne.manage_tasks({
-    #     'action' => 'update',
-    #     'id' => sub_task['id'],
-    #     'workflow_type' => workflow_type,
-    #     'max_steps' => case workflow_type
-    #                   when 'simple' then 3
-    #                   when 'analysis' then 5
-    #                   else 10
-    #                   end
-    #   })
-    #
-    #   HorologiumAeternum.task_created(**sub_task)
-    #   sub_task
-    # end
+
+    # Task creation within task context — spawn a Magnum Opus sub-agent
+    task_prima.add_instrument :create_sub_task,
+                              description: 'Create a Magnum Opus sub-task sharing the parent ' \
+                                           "task's context (plan, phase results, common notes). " \
+                                           'The sub-task operates as an independent agent that ' \
+                                           'inherits the global task wisdom.',
+                              params: {
+                                title: { type: 'string', required: true, minLength: 1 },
+                                plan:  { type: 'string', required: true, minLength: 1 },
+                                workflow_type: { type:     'string',
+                                                 required: false,
+                                                 enum:     %w[full simple analysis],
+                                                 default:  'simple' }
+                              } do |title:, plan:, workflow_type: 'simple'|
+      sub_task = task_engine.create_task(title:          title,
+                                         plan:           plan,
+                                         parent_task_id: task_id,
+                                         workflow_type:  workflow_type)
+
+      # Inscribe the parent's current phase results as inherited wisdom
+      task_engine.inherit_parent_context_to_subtask(task_id, sub_task['id'] || sub_task[:id])
+
+      HorologiumAeternum.task_created(**sub_task)
+      sub_task
+    end
 
     # Task-specific file operations
     task_prima.add_instrument :task_read_file,
