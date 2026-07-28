@@ -12,6 +12,7 @@ require_relative '../instrumentarium/scriptorium'
 require_relative '../argonaut/temp_create_file'
 require_relative 'symbolic_patch_file'
 require_relative 'captura_visus'
+require_relative 'nuntius'
 
 
 
@@ -360,6 +361,8 @@ instrument :tell_user,
                      level:   { type: String, required: false, enum: %w[info warn] } },
            returns: { say: Hash, error: String } do |message:, level: 'info'|
   HorologiumAeternum.info_message message
+  sound = level == 'warn' ? 'Basso' : 'Glass'
+  Nuntius.deliver(title: 'ÆtherCodex', message: message, sound: sound)
   { say: { level: level, message: message } }
 end
 
