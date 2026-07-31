@@ -474,6 +474,25 @@ instrument :remove_note,
 end
 
 
+instrument :metempsychosis,
+           description: 'Consult the memory of another task — the transmigration of knowledge ' \
+                        'between contexts. Query notes and state from a specific task (by ID) or ' \
+                        'the global memory. Use this when reasoning would benefit from another ' \
+                        "task's discoveries, plan, or phase results.",
+           params: {
+             query:     { type: String, required: true },
+             from_task: { type: Integer, required: false, description: 'Task ID whose memory to consult (nil for global only)' },
+             limit:     { type: Integer, required: false, default: 3 }
+           },
+           returns: { notes: Array, task_summary: Hash, error: String } do |query:, from_task: nil, limit: 3|
+  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit)
+  HorologiumAeternum.notes_recalled "metempsychosis: #{query}", limit, result[:notes] if result[:notes]
+  result
+rescue StandardError => e
+  { error: e.message }
+end
+
+
 instrument :patch_file,
            description: <<~DESC,
              Request to apply PRECISE, TARGETED modifications to an existing file by searching

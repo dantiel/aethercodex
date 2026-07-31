@@ -101,6 +101,27 @@ class OpusInstrumenta
       result.merge task_id: task_id if result.is_a? Hash
     end
 
+
+# Metempsychosis — consult another task's memory from within a task context.
+# The soul of one task transmigrates into the mind of another.
+task_prima.add_instrument :task_metempsychosis,
+                          description: 'Consult the memory of another task — transmigration of ' \
+                                       'knowledge between task-souls. Query notes and state ' \
+                                       '(plan, phase results, status) from a sibling or parent ' \
+                                       'task. Use this to coordinate with parallel agents or ' \
+                                       'inherit wisdom from tasks that have already traversed ' \
+                                       'similar ground.',
+                          params: {
+                            query:     { type: 'string', required: true },
+                            from_task: { type: 'integer', required: true, description: 'Task ID whose memory to consult' },
+                            limit:     { type: 'integer', required: false, default: 5 }
+                          } do |query:, from_task:, limit: 5|
+  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit)
+  HorologiumAeternum.notes_recalled "metempsychosis(task #{task_id} -> #{from_task}): #{query}",
+                                    limit, result[:notes] if result[:notes]
+  result
+end
+
     # TODO: this is wrong and violates our schema, instead there should be only TASK_STOP_EXECUTION
     # # Task progress and state management
     # task_prima.add_instrument :task_update_progress,

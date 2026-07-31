@@ -532,6 +532,61 @@ class Mnemosyne
     end
 
 
+# Metempsychosis — the transmigration of memory between contexts.
+# Queries another task's notes (or global memory) as if recalling a past life.
+# +from_task+ : integer task ID whose memory to consult; nil for global notes only.
+# Returns matching notes plus a summary of the target task's state (plan, status, phase results).
+def metempsychosis(query:, from_task: nil, limit: 3)
+  query_tokens = tokenize query.to_s
+
+  sql = if from_task
+          task_tag = "task_#{from_task}"
+          'WHERE tags LIKE ?'
+        else
+          'WHERE tags NOT LIKE ?'
+        end
+
+  params = from_task ? ["%task_#{from_task}%"] : ['%task_%']
+  if query_tokens.any?
+    clauses = %w[content tags links].map { |f| query_tokens.map { |kw| "#{f} LIKE ?" }.join(' OR ') }.join(' OR ')
+    sql += " AND (#{clauses})"
+    params += query_tokens.flat_map { |kw| ["%#{kw}%"] * 3 }
+  end
+
+  notes = db.execute("SELECT id, content, tags, links, created_at FROM project_notes #{sql} ORDER BY created_at DESC", params)
+    .map { |n| n.transform_keys!(&:to_sym) }
+
+  scored = notes.map do |note|
+    score = 0
+    if query_tokens.any?
+      score += 4 * (query_tokens & tokenize(note[:content])).size
+      score += 3 * (query_tokens & tokenize(note[:tags])).size
+      score += 2 * (query_tokens & tokenize(note[:links])).size
+    else
+      score = note[:created_at] ? Time.parse(note[:created_at]).to_f % 100 : 1
+    end
+    { **note, score: }
+  end
+    .select { |n| n[:score].positive? }
+    .sort_by { |n| -n[:score] }
+    .take(limit)
+
+  task_summary = if from_task
+                   task = get_task from_task
+                   if task
+                     results = JSON.parse(task[:step_results] || '{}') rescue {}
+                     { id: task[:id], title: task[:title], status: task[:status],
+                       current_step: task[:current_step],
+                       plan: task[:plan].to_s.truncate(300),
+                       phase_results: results.map { |s, r| [s, r.to_s.truncate(150)] }.to_h }
+                   end
+                 end
+
+  { notes: scored, task_summary: task_summary }.compact
+end
+
+
+
     def save_aegis_state(tags: [], summary: nil, temperature: 1.0, working_dir: nil,
                          thinking: nil, **)
       tags = Array tags
