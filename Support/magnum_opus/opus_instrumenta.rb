@@ -107,19 +107,28 @@ class OpusInstrumenta
 task_prima.add_instrument :task_metempsychosis,
                           description: 'Consult the memory of another task — transmigration of ' \
                                        'knowledge between task-souls. Query notes and state ' \
-                                       '(plan, phase results, status) from a sibling or parent ' \
-                                       'task. When +subscribe+ is true, the other task\'s ' \
-                                       'context merges into your Aegis orientation and persists ' \
-                                       'across invocations — the soul moves in, not just visits. ' \
+                                       '(plan, phase results, status) from a sibling, parent, ' \
+                                       'or remote ÆtherLink context (+from_context+). Push notes ' \
+                                       'to a remote context with +to_context+. Spawn a task on ' \
+                                       'a remote context with +create_task_in+. When +subscribe+ is true, ' \
+                                       'the other task\'s context merges into your Aegis orientation and ' \
+                                       'persists across invocations — the soul moves in, not just visits. ' \
                                        'Use +unsubscribe+ to release it.',
                           params: {
-                            query:       { type: 'string', required: true },
-                            from_task:   { type: 'integer', required: true, description: 'Task ID whose memory to consult' },
-                            limit:       { type: 'integer', required: false, default: 5 },
-                            subscribe:   { type: 'boolean', required: false, default: false, description: 'Merge the other task\'s context into your Aegis orientation' },
-                            unsubscribe: { type: 'boolean', required: false, default: false, description: 'Remove the other task\'s context from your Aegis orientation' }
-                          } do |query:, from_task:, limit: 5, subscribe: false, unsubscribe: false|
-  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit, subscribe: subscribe, unsubscribe: unsubscribe)
+                            query:          { type: 'string', required: true },
+                            from_task:      { type: 'integer', required: false, description: 'Task ID whose memory to consult' },
+                            limit:          { type: 'integer', required: false, default: 5 },
+                            subscribe:      { type: 'boolean', required: false, default: false, description: 'Merge the other task\'s context into your Aegis orientation' },
+                            unsubscribe:    { type: 'boolean', required: false, default: false, description: 'Remove the other task\'s context from your Aegis orientation' },
+                            from_context:   { type: 'string', required: false, description: 'Remote context name — query peer\'s memory via ÆtherLink' },
+                            to_context:     { type: 'string', required: false, description: 'Remote context name — push notes into peer\'s memory' },
+                            create_task_in: { type: 'string', required: false, description: 'Remote context name — spawn a task on peer' }
+                          } do |query:, from_task: nil, limit: 5, subscribe: false, unsubscribe: false,
+                                 from_context: nil, to_context: nil, create_task_in: nil|
+  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit,
+                                    subscribe: subscribe, unsubscribe: unsubscribe,
+                                    from_context: from_context, to_context: to_context,
+                                    create_task_in: create_task_in)
   HorologiumAeternum.notes_recalled "metempsychosis(task #{task_id} -> #{from_task}): #{query}",
                                     limit, result[:notes] if result[:notes]
   result

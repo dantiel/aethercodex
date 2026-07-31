@@ -535,8 +535,39 @@ class Mnemosyne
 # Metempsychosis — the transmigration of memory between contexts.
 # Queries another task's notes (or global memory) as if recalling a past life.
 # +from_task+ : integer task ID whose memory to consult; nil for global notes only.
+# +from_context+ : remote context name — queries peer via ÆtherLink instead of local DB.
+# +to_context+ : remote context name — pushes matching notes into peer's memory.
+# +create_task_in+ : remote context name — spawns a task on peer, using +query+ as title.
 # Returns matching notes plus a summary of the target task's state (plan, status, phase results).
-def metempsychosis(query:, from_task: nil, limit: 3, subscribe: false, unsubscribe: false)
+def metempsychosis(query:, from_task: nil, limit: 3, subscribe: false, unsubscribe: false,
+                   from_context: nil, to_context: nil, create_task_in: nil)
+  # Cross-context: query remote context's memory
+  if from_context
+    result = AetherLink.query(from_context, '/aether/metempsychosis',
+                              { query: query, from_task: from_task, limit: limit,
+                                subscribe: subscribe, unsubscribe: unsubscribe })
+    return result || { error: "Context '#{from_context}' unreachable" }
+  end
+
+  # Cross-context: push local notes into remote context
+  if to_context
+    local_result = metempsychosis(query: query, from_task: from_task, limit: limit)
+    notes = local_result[:notes] || []
+    notes.each do |note|
+      AetherLink.query(to_context, '/aether/transmigrate',
+                       { content: note[:content], tags: note[:tags], links: note[:links],
+                         source_context: AetherLink.own_name })
+    end
+    return local_result.merge(transmigrated_to: to_context, transmigrated_count: notes.size)
+  end
+
+  # Cross-context: spawn a task on remote context
+  if create_task_in
+    result = AetherLink.query(create_task_in, '/aether/create_task',
+                              { title: query, plan: query, source_context: AetherLink.own_name })
+    return result || { error: "Context '#{create_task_in}' unreachable" }
+  end
+
   query_tokens = tokenize query.to_s
 
   sql = if from_task

@@ -28,6 +28,7 @@ require_relative 'oracle/coniunctio'
 require_relative 'oracle/oracle'
 require_relative 'oracle/aetherflux'
 require_relative 'oracle/continuum_weaver'
+require_relative 'aether_link'
 puts "FIM Completion loaded successfully" if defined?(Rails)
 require_relative 'markdown_preview'
 require_relative 'config'
@@ -48,6 +49,19 @@ if ARGV.include?('--daemon') || ENV['AETHER_DAEMON']
 end
 
 trap('TERM') { exit }
+
+# ── ÆtherLink: discover peer contexts on startup ──
+Thread.new do
+  sleep 2 # let the server finish binding
+  AetherLink.discover!
+  HorologiumAeternum.send('proactive_suggestion', 'info', {
+    message: "ÆtherLink discovered #{AetherLink.known_contexts.size} peer context(s)",
+    contexts: AetherLink.known_contexts.keys,
+    timestamp: Time.now.to_f
+  })
+rescue StandardError => e
+  warn "[AETHERLINK] discovery failed: #{e.message}"
+end
 
 # Optional landing page not required if you inline HTML in command
 get '/' do
@@ -83,6 +97,87 @@ post '/hermetic_live_update' do
     { method: 'hermetic_live_update', result: result }.to_json
   rescue StandardError => e
     { method: 'error', result: { error: e.message } }.to_json
+  end
+end
+
+
+# ── ÆtherLink Endpoints ──
+# Cross-context metempsychosis: heartbeat, remote query, transmigration, task spawning.
+
+get '/aether/heartbeat' do
+  content_type :json
+  {
+    name:         AetherLink.own_name,
+    path:         Dir.pwd,
+    port:         AetherLink.own_port,
+    capabilities: %w[metempsychosis task_spawn],
+    version:      '1.0'
+  }.to_json
+end
+
+post '/aether/metempsychosis' do
+  content_type :json
+  begin
+    payload = JSON.parse(request.body.read, symbolize_names: true)
+    limit = (payload[:limit] || 3).to_i
+    limit = [[limit, 1].max, 100].min  # clamp: 1..100, no negative or zero
+    result = Mnemosyne.metempsychosis(
+      query:       payload[:query],
+      from_task:   payload[:from_task],
+      limit:       limit,
+      subscribe:   payload[:subscribe] || false,
+      unsubscribe: payload[:unsubscribe] || false
+    )
+    result.to_json
+  rescue StandardError => e
+    status 500
+    { error: e.message }.to_json
+  end
+end
+
+post '/aether/transmigrate' do
+  content_type :json
+  begin
+    payload = JSON.parse(request.body.read, symbolize_names: true)
+    content = payload[:content]
+    unless content.is_a?(String) && !content.empty?
+      status 422
+      return { error: 'content is required and must be a non-empty string' }.to_json
+    end
+    tags = Array(payload[:tags])
+    tags << "source_context:#{payload[:source_context]}" if payload[:source_context]
+    id = Mnemosyne.remember(
+      content: content,
+      tags:    tags,
+      links:   payload[:links]
+    )
+    note = Mnemosyne.get_note(id)
+    HorologiumAeternum.note_added(note) if note
+    { ok: true, id: id }.to_json
+  rescue StandardError => e
+    status 500
+    { error: e.message }.to_json
+  end
+end
+
+post '/aether/create_task' do
+  content_type :json
+  begin
+    payload = JSON.parse(request.body.read, symbolize_names: true)
+    title = payload[:title]
+    plan  = payload[:plan]
+    unless title.is_a?(String) && !title.empty? && plan.is_a?(String) && !plan.empty?
+      status 422
+      return { error: 'title and plan are required and must be non-empty strings' }.to_json
+    end
+    result = Mnemosyne.create_task(title: title, plan: plan)
+    if result[:ok]
+      HorologiumAeternum.system_message("Aether task spawned from #{payload[:source_context]}: #{title}")
+    end
+    { ok: true, id: result[:id], source_context: AetherLink.own_name }.to_json
+  rescue StandardError => e
+    status 500
+    { error: e.message }.to_json
   end
 end
 

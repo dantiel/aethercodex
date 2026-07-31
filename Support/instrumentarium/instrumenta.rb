@@ -476,19 +476,28 @@ end
 
 instrument :metempsychosis,
            description: 'Consult the memory of another task — the transmigration of knowledge ' \
-                        'between contexts. Query notes and state from a specific task (by ID) or ' \
-                        'the global memory. When +subscribe+ is true, the other task\'s context ' \
-                        'is merged into your Aegis orientation, persisting beyond this call — ' \
+                        'between contexts. Query notes and state from a specific task (by ID), ' \
+                        'a remote ÆtherLink context (+from_context+), or the global memory. ' \
+                        'Push notes to a remote context with +to_context+. Spawn a task on a ' \
+                        'remote context with +create_task_in+. When +subscribe+ is true, the ' \
+                        'other task\'s context is merged into your Aegis orientation — ' \
                         'the soul moves in, not just visits. Use +unsubscribe+ to release it.',
            params: {
-             query:       { type: String, required: true },
-             from_task:   { type: Integer, required: false, description: 'Task ID whose memory to consult (nil for global only)' },
-             limit:       { type: Integer, required: false, default: 3 },
-             subscribe:   { type: Boolean, required: false, default: false, description: 'Merge the other task\'s context into your Aegis orientation' },
-             unsubscribe: { type: Boolean, required: false, default: false, description: 'Remove the other task\'s context from your Aegis orientation' }
+             query:          { type: String, required: true },
+             from_task:      { type: Integer, required: false, description: 'Task ID whose memory to consult (nil for global only)' },
+             limit:          { type: Integer, required: false, default: 3 },
+             subscribe:      { type: Boolean, required: false, default: false, description: 'Merge the other task\'s context into your Aegis orientation' },
+             unsubscribe:    { type: Boolean, required: false, default: false, description: 'Remove the other task\'s context from your Aegis orientation' },
+             from_context:   { type: String, required: false, description: 'Remote context name — query peer\'s memory via ÆtherLink' },
+             to_context:     { type: String, required: false, description: 'Remote context name — push notes into peer\'s memory' },
+             create_task_in: { type: String, required: false, description: 'Remote context name — spawn a task on peer' }
            },
-           returns: { notes: Array, task_summary: Hash, subscribed: Boolean, error: String } do |query:, from_task: nil, limit: 3, subscribe: false, unsubscribe: false|
-  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit, subscribe: subscribe, unsubscribe: unsubscribe)
+           returns: { notes: Array, task_summary: Hash, subscribed: Boolean, error: String } do |query:, from_task: nil, limit: 3, subscribe: false, unsubscribe: false,
+                                                                                                  from_context: nil, to_context: nil, create_task_in: nil|
+  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit,
+                                    subscribe: subscribe, unsubscribe: unsubscribe,
+                                    from_context: from_context, to_context: to_context,
+                                    create_task_in: create_task_in)
   HorologiumAeternum.notes_recalled "metempsychosis: #{query}", limit, result[:notes] if result[:notes]
   result
 rescue StandardError => e
