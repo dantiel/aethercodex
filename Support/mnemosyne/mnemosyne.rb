@@ -83,6 +83,7 @@ class Mnemosyne
   }.freeze
 
   @current_mode = :standard
+  @aegis = { tags: [], summary: '', temperature: 1.0, working_dir: nil, thinking: nil }
 
   class << self
     attr_accessor :aegis
