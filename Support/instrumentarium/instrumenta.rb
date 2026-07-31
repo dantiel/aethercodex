@@ -477,15 +477,18 @@ end
 instrument :metempsychosis,
            description: 'Consult the memory of another task — the transmigration of knowledge ' \
                         'between contexts. Query notes and state from a specific task (by ID) or ' \
-                        'the global memory. Use this when reasoning would benefit from another ' \
-                        "task's discoveries, plan, or phase results.",
+                        'the global memory. When +subscribe+ is true, the other task\'s context ' \
+                        'is merged into your Aegis orientation, persisting beyond this call — ' \
+                        'the soul moves in, not just visits. Use +unsubscribe+ to release it.',
            params: {
-             query:     { type: String, required: true },
-             from_task: { type: Integer, required: false, description: 'Task ID whose memory to consult (nil for global only)' },
-             limit:     { type: Integer, required: false, default: 3 }
+             query:       { type: String, required: true },
+             from_task:   { type: Integer, required: false, description: 'Task ID whose memory to consult (nil for global only)' },
+             limit:       { type: Integer, required: false, default: 3 },
+             subscribe:   { type: Boolean, required: false, default: false, description: 'Merge the other task\'s context into your Aegis orientation' },
+             unsubscribe: { type: Boolean, required: false, default: false, description: 'Remove the other task\'s context from your Aegis orientation' }
            },
-           returns: { notes: Array, task_summary: Hash, error: String } do |query:, from_task: nil, limit: 3|
-  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit)
+           returns: { notes: Array, task_summary: Hash, subscribed: Boolean, error: String } do |query:, from_task: nil, limit: 3, subscribe: false, unsubscribe: false|
+  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit, subscribe: subscribe, unsubscribe: unsubscribe)
   HorologiumAeternum.notes_recalled "metempsychosis: #{query}", limit, result[:notes] if result[:notes]
   result
 rescue StandardError => e

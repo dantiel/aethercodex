@@ -108,15 +108,18 @@ task_prima.add_instrument :task_metempsychosis,
                           description: 'Consult the memory of another task — transmigration of ' \
                                        'knowledge between task-souls. Query notes and state ' \
                                        '(plan, phase results, status) from a sibling or parent ' \
-                                       'task. Use this to coordinate with parallel agents or ' \
-                                       'inherit wisdom from tasks that have already traversed ' \
-                                       'similar ground.',
+                                       'task. When +subscribe+ is true, the other task\'s ' \
+                                       'context merges into your Aegis orientation and persists ' \
+                                       'across invocations — the soul moves in, not just visits. ' \
+                                       'Use +unsubscribe+ to release it.',
                           params: {
-                            query:     { type: 'string', required: true },
-                            from_task: { type: 'integer', required: true, description: 'Task ID whose memory to consult' },
-                            limit:     { type: 'integer', required: false, default: 5 }
-                          } do |query:, from_task:, limit: 5|
-  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit)
+                            query:       { type: 'string', required: true },
+                            from_task:   { type: 'integer', required: true, description: 'Task ID whose memory to consult' },
+                            limit:       { type: 'integer', required: false, default: 5 },
+                            subscribe:   { type: 'boolean', required: false, default: false, description: 'Merge the other task\'s context into your Aegis orientation' },
+                            unsubscribe: { type: 'boolean', required: false, default: false, description: 'Remove the other task\'s context from your Aegis orientation' }
+                          } do |query:, from_task:, limit: 5, subscribe: false, unsubscribe: false|
+  result = Mnemosyne.metempsychosis(query: query, from_task: from_task, limit: limit, subscribe: subscribe, unsubscribe: unsubscribe)
   HorologiumAeternum.notes_recalled "metempsychosis(task #{task_id} -> #{from_task}): #{query}",
                                     limit, result[:notes] if result[:notes]
   result

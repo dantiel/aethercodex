@@ -536,7 +536,7 @@ class Mnemosyne
 # Queries another task's notes (or global memory) as if recalling a past life.
 # +from_task+ : integer task ID whose memory to consult; nil for global notes only.
 # Returns matching notes plus a summary of the target task's state (plan, status, phase results).
-def metempsychosis(query:, from_task: nil, limit: 3)
+def metempsychosis(query:, from_task: nil, limit: 3, subscribe: false, unsubscribe: false)
   query_tokens = tokenize query.to_s
 
   sql = if from_task
@@ -582,7 +582,20 @@ def metempsychosis(query:, from_task: nil, limit: 3)
                    end
                  end
 
-  { notes: scored, task_summary: task_summary }.compact
+  # Aegis subscription — merge the other task's tag into current Aegis orientation
+  raw_tags = @aegis[:tags] || []
+  aegis_tags = raw_tags.is_a?(String) ? raw_tags.split(',').map(&:strip) : raw_tags.dup
+  task_tag = "task_#{from_task}"
+  if subscribe && from_task
+    aegis_tags |= [task_tag]
+    unveil_aegis tags: aegis_tags
+  elsif unsubscribe && from_task
+    aegis_tags -= [task_tag]
+    unveil_aegis tags: aegis_tags
+  end
+  subscribed = aegis_tags.include?(task_tag) if from_task
+
+  { notes: scored, task_summary: task_summary, subscribed: subscribed }.compact
 end
 
 
