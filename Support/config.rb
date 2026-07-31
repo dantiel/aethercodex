@@ -226,28 +226,24 @@ class CONFIG
   # Get the tm-ai directory path
   def self.tm_ai_dir
     path = resolve_path(self[:tm_ai] || '.tm-ai/')
-    # Safety: never resolve inside the bundle
-    bundle_dir = File.expand_path('..', __dir__)
-    if path.start_with?(bundle_dir)
-      fallback = File.expand_path('~/Library/Application Support/TextMate/AetherCodex/')
-      FileUtils.mkdir_p(fallback)
-      return fallback
-    end
+    FileUtils.mkdir_p(path)
     path
+  rescue Errno::EACCES, Errno::EROFS
+    fallback = File.expand_path('~/.tm-ai/')
+    FileUtils.mkdir_p(fallback)
+    fallback
   end
   
   
   # Get the memory database path
   def self.memory_db_path
     path = resolve_path(self[:memory_db] || '.tm-ai/memory.db')
-    # Safety: never resolve inside the bundle (Pristine Copy is read-only)
-    bundle_dir = File.expand_path('..', __dir__)
-    if path.start_with?(bundle_dir)
-      fallback = File.expand_path('~/Library/Application Support/TextMate/AetherCodex/memory.db')
-      FileUtils.mkdir_p(File.dirname(fallback))
-      return fallback
-    end
+    FileUtils.mkdir_p(File.dirname(path))
     path
+  rescue Errno::EACCES, Errno::EROFS
+    fallback = File.expand_path('~/.tm-ai/memory.db')
+    FileUtils.mkdir_p(File.dirname(fallback))
+    fallback
   end
   
   
