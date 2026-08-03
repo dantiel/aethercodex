@@ -10,9 +10,11 @@ require 'timeout'
 require 'open3'
 
 module CapturaVisus
-  DEFAULT_FORMAT = 'jpg'
-  DEFAULT_DIR    = File.join '/tmp', 'aethercodex_capturae'
-  CAPTURE_BIN    = '/usr/sbin/screencapture'
+  DEFAULT_FORMAT    = 'jpg'
+  DEFAULT_DIR       = File.join '/tmp', 'aethercodex_capturae'
+  CAPTURE_BIN       = '/usr/sbin/screencapture'
+  WINDOWLIST_SRC    = File.join(__dir__, 'aether_windowlist.swift')
+  WINDOWLIST_BIN    = File.join(DEFAULT_DIR, 'aether_windowlist')
 
   # ── Public API ────────────────────────────────────────────────────────────
 
@@ -27,7 +29,9 @@ module CapturaVisus
                    cursor: true,
                    shadow: true,
                    output: nil,
-                   dismiss_dialogs: false)
+                   dismiss_dialogs: false,
+                   window_title: nil,
+                   window_id: nil)
     # Special case: info mode returns system intel instead of capturing
     return gather_system_info if mode.to_s == 'info'
     
@@ -57,7 +61,7 @@ module CapturaVisus
     
     path = output || generate_path(format)
     args = build_args(mode: actual_mode, display:, x:, y:, width:, height:,
-                      format:, cursor:, shadow:)
+                      format:, cursor:, shadow:, window_title:, window_id:)
     run_capture(path, args, delay:)
     verify! path
     result = { path:, bytes: File.size(path), format:, mode: actual_mode }
@@ -68,7 +72,6 @@ module CapturaVisus
   end
 
   # ── Backend: screencapture CLI ────────────────────────────────────────────
-
   def self.build_args(mode:,
                       display:,
                       x:,
@@ -77,7 +80,9 @@ module CapturaVisus
                       height:,
                       format:,
                       cursor:,
-                      shadow:)
+                      shadow:,
+                      window_title: nil,
+                      window_id: nil)
     args = []
 
     case mode.to_s
@@ -87,10 +92,8 @@ module CapturaVisus
     when 'screen'
       # entire display — no extra flags needed
     when 'window'
-      # Use -R with frontmost window bounds (non-interactive) instead of -w
-      # -w enters interactive window selection mode requiring a user click
-      bounds = frontmost_app_bounds
-      raise 'could not determine frontmost window bounds' unless bounds
+      bounds = resolve_window_bounds(window_title:, window_id:)
+      raise 'could not determine window bounds' unless bounds
 
       args += ['-R', bounds]
     when 'area'
@@ -102,8 +105,8 @@ module CapturaVisus
 
       args += ['-D', display.to_s]
     when 'active-app'
-      bounds = frontmost_app_bounds
-      raise 'could not determine frontmost app bounds' unless bounds
+      bounds = resolve_window_bounds(window_title:, window_id:)
+      raise 'could not determine app bounds' unless bounds
 
       args += ['-R', bounds]
     when 'menu-bar'
@@ -167,6 +170,92 @@ module CapturaVisus
     run_osascript script
   end
 
+  # Resolves window bounds from title, ID, or falls back to frontmost.
+  # Used by both `window` and `active-app` modes for precise targeting.
+  def self.resolve_window_bounds(window_title: nil, window_id: nil)
+    if window_title
+      window_bounds_by_title(window_title)
+    elsif window_id
+      window_bounds_by_id(window_id)
+    else
+      frontmost_app_bounds
+    end
+  end
+
+  # Fast CG-based window lookup by title or process name (case-insensitive).
+  # Tries app name match first, then window title substring match.
+  # Returns "x,y,width,height" string for screencapture -R, or nil.
+  def self.window_bounds_by_title(title)
+    return nil if title.nil? || title.empty?
+
+    windows = gather_windows
+    return nil if windows.empty?
+
+    title_down = title.downcase
+
+    # Pass 1: match by app name — pick the largest onscreen window for that app
+    app_match = windows
+      .select { |w| w[:app]&.downcase&.include?(title_down) && w[:onscreen] }
+      .max_by { |w| (w[:width] || 0) * (w[:height] || 0) }
+    return format_bounds(app_match) if app_match
+
+    # Pass 2: match by window title substring
+    title_match = windows
+      .select { |w| w[:title]&.downcase&.include?(title_down) && w[:onscreen] }
+      .max_by { |w| (w[:width] || 0) * (w[:height] || 0) }
+    return format_bounds(title_match) if title_match
+
+    nil
+  end
+
+  # Look up a window by its CoreGraphics window ID.
+  # Returns "x,y,width,height" string for screencapture -R, or nil.
+  def self.window_bounds_by_id(id)
+    return nil unless id
+
+    windows = gather_windows
+    match = windows.find { |w| w[:id] == id }
+    return nil unless match
+
+    format_bounds(match)
+  end
+
+  # Format a window hash as "x,y,width,height" for screencapture -R.
+  def self.format_bounds(win)
+    "#{win[:x]},#{win[:y]},#{win[:width]},#{win[:height]}"
+  end
+
+  # Gather all onscreen windows via compiled CGWindowList helper.
+  # Returns array of {id:, pid:, app:, title:, x:, y:, width:, height:, onscreen:, alpha:, layer:}.
+  # Caches result for 2 seconds to avoid repeated subprocess calls.
+  def self.gather_windows
+    return @gather_windows_cache[:data] if @gather_windows_cache && (Time.now - @gather_windows_cache[:ts]) < 2
+
+    data = if windowlist_ready?
+      raw = `'#{WINDOWLIST_BIN}' 2>/dev/null`
+      raw.empty? ? [] : JSON.parse(raw, symbolize_names: true)
+    else
+      []
+    end
+    @gather_windows_cache = { ts: Time.now, data: }
+    data
+  rescue StandardError
+    []
+  end
+
+  # Lazy-compile the Swift CGWindowList helper if source is newer than binary.
+  def self.windowlist_ready?
+    return true if File.exist?(WINDOWLIST_BIN) &&
+                   File.mtime(WINDOWLIST_BIN) >= File.mtime(WINDOWLIST_SRC)
+
+    FileUtils.mkdir_p(DEFAULT_DIR)
+    system('swiftc', '-O', '-o', WINDOWLIST_BIN, WINDOWLIST_SRC,
+           err: File::NULL, out: File::NULL)
+    File.exist?(WINDOWLIST_BIN)
+  rescue StandardError
+    false
+  end
+
 
   def self.menu_bar_bounds
     script = <<~APPLESCRIPT
@@ -199,7 +288,7 @@ module CapturaVisus
       system: gather_system_hardware,
       displays: gather_displays_cg,
       frontmost_app: gather_frontmost_app,
-      visible_windows: gather_windows_cg,
+      visible_windows: gather_windows,
       menu_bar: gather_menu_bar_info,
       permissions: check_permissions,
       tcc_dialogs: detect_tcc_dialogs,
@@ -354,47 +443,10 @@ module CapturaVisus
   end
 
   # CoreGraphics window list (no permissions needed)
+  # CoreGraphics window list via compiled Swift helper — fast, no permissions needed.
+  # Returns array of {id:, pid:, app:, title:, x:, y:, width:, height:, onscreen:, alpha:, layer:}.
   def self.gather_windows_cg
-    begin
-      require 'fiddle'
-      
-      cg = Fiddle.dlopen('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
-      
-      # CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID)
-      kCGWindowListOptionOnScreenOnly = 2
-      kCGNullWindowID = 0
-      
-      cg_window_list = cg['CGWindowListCopyWindowInfo']
-      window_list = cg_window_list.call(kCGWindowListOptionOnScreenOnly, kCGNullWindowID)
-      
-      return [] if window_list == 0
-      
-      # Convert CFArrayRef to Ruby array via toll-free bridging
-      require 'cfpropertylist'
-      plist = CFPropertyList::List.new(data: Fiddle::Pointer.new(window_list).to_str(65536))
-      window_data = CFPropertyList.native_types(plist.value)
-      
-      window_data.map do |win|
-        bounds = win['kCGWindowBounds'] || {}
-        {
-          pid: win['kCGWindowOwnerPID'],
-          app: win['kCGWindowOwnerName'],
-          title: win['kCGWindowName'],
-          alpha: win['kCGWindowAlpha'],
-          layer: win['kCGWindowLayer'],
-          bounds: {
-            x: bounds['X'],
-            y: bounds['Y'],
-            width: bounds['Width'],
-            height: bounds['Height']
-          },
-          is_onscreen: win['kCGWindowIsOnscreen']
-        }
-      end.compact.first(20) # Limit to avoid huge payloads
-    rescue StandardError => e
-      # Fallback to System Events
-      gather_visible_windows
-    end
+    gather_windows
   end
 
   def self.gather_system_hardware
@@ -637,39 +689,6 @@ module CapturaVisus
     }
   end
 
-  def self.gather_visible_windows
-    script = <<~APPLESCRIPT
-      tell application "System Events"
-        set windowList to {}
-        set allProcesses to application processes whose background only is false
-        repeat with proc in allProcesses
-          set procName to name of proc
-          set procWindows to every window of proc whose visible is true
-          repeat with win in procWindows
-            set winName to name of win
-            set {x1, y1, x2, y2} to bounds of win
-            set winBounds to x1 & "," & y1 & "," & x2 & "," & y2
-            set end of windowList to procName & "::" & winName & "::" & winBounds
-          end repeat
-        end repeat
-        return windowList
-      end tell
-    APPLESCRIPT
-    
-    result = run_osascript(script)
-    return [] unless result
-    
-    result.split(',').map do |entry|
-      parts = entry.split('::')
-      next if parts.length < 3
-      
-      {
-        app: parts[0],
-        title: parts[1],
-        bounds: parts[2]
-      }
-    end.compact.first(10) # Limit to avoid huge payloads
-  end
 
   def self.gather_menu_bar_info
     {

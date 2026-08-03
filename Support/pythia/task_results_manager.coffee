@@ -32,7 +32,7 @@ class TaskResultsManager
     numeric_keys = Object.keys(parsed_results).filter((key) -> !isNaN(Number(key)))
     return null unless numeric_keys.length > 0
     
-    latest_step = Math.max(...numeric_keys.map(Number))
+    latest_step = Math.max.apply(Math, numeric_keys.map(Number))
     return {
       step: latest_step,
       result: parsed_results[latest_step]

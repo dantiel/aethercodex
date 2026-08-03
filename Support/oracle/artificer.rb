@@ -36,36 +36,33 @@ class Artificer
       log_instrumenta_call 'INSTRUMENTA_CALL', name, args
       safe_context = create_safe_context instrumenta_results
       start_time = Time.now
-      sink&.send_status 'tool_starting', { name:, args: args.to_s.truncate(120) }#, tool_name: name
+      sink&.send_status 'tool_starting', { name:, args: args.to_s.truncate(120) }
 
       result = HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
         exec_result = execution_block.call name, args, safe_context
         exec_time = Time.now - start_time
 
-        # Check for divine interruption signal - terminate current oracle call if detected
         if exec_result.is_a?(Hash) && exec_result.key?(:__divine_interrupt)
-          break [:__divine_interrupt, exec_result, messages, instrumenta_results]
+          break [:__divine_interrupt, exec_result, messages, instrumenta_results, nil]
         end
 
         safe_result = safe_encode exec_result
-        sink&.send_status 'tool_completed', { name:, execution_time: exec_time, result: safe_result.to_s.truncate(80) }#, tool_name: name
+        sink&.send_status 'tool_completed', { name:, execution_time: exec_time, result: safe_result.to_s.truncate(80) }
         updated_instrumenta_results = instrumenta_results + [{ id:, name:, result: safe_result, args:, execution_time: exec_time.round(3) }]
 
-        # Build messages: standard tool result + optional vision user message
+        # Build tool message and vision message separately.
+        # Vision messages (user role with image) MUST NOT be interleaved between
+        # tool messages — DeepSeek requires assistant(tool_calls) → tool → tool
+        # with no user messages breaking the chain. Vision is appended after
+        # all tool messages in execute_instrumenta_calls.
         tool_message = { role: 'tool', tool_call_id: id, content: safe_result.to_json }
         vision_message = build_vision_user_message(result: exec_result)
-        
-        updated_messages = if vision_message
-                           messages + [tool_message, vision_message]
-                         else
-                           messages + [tool_message]
-                         end
-        [exec_result, updated_messages, updated_instrumenta_results]
+
+        [exec_result, messages + [tool_message], vision_message, updated_instrumenta_results]
       end
 
-      # Handle divine interruption signal
       if result.is_a?(Array) && result.first == :__divine_interrupt
-        return [result[1], result[2], result[3]]
+        return [result[1], result[2], result[3], result[4]]
       end
 
       result
@@ -82,19 +79,18 @@ class Artificer
                            instrumenta_call[:args]
       safe_context = create_safe_context instrumenta_results
       start_time = Time.now
-      sink&.send_status 'tool_starting', { name:, args: instrumenta_call[:args].to_s.truncate(120) }#, tool_name: name
+      sink&.send_status 'tool_starting', { name:, args: instrumenta_call[:args].to_s.truncate(120) }
 
       result = HermeticExecutionDomain.execute max_retries: 2, timeout: 86_400 do
         exec_result = execution_block.call name, instrumenta_call[:args], safe_context
         exec_time = Time.now - start_time
 
-        # Check for divine interruption signal - terminate current oracle call if detected
         if exec_result.is_a?(Hash) && exec_result.key?(:__divine_interrupt)
-          break [:__divine_interrupt, exec_result, messages, instrumenta_results]
+          break [:__divine_interrupt, exec_result, messages, instrumenta_results, nil]
         end
 
         safe_result = safe_encode exec_result
-        sink&.send_status 'tool_completed', { name:, execution_time: exec_time, result: safe_result.to_s.truncate(80) }#, tool_name: name
+        sink&.send_status 'tool_completed', { name:, execution_time: exec_time, result: safe_result.to_s.truncate(80) }
         instrumenta_call_id = instrumenta_call[:id] || SecureRandom.uuid
         updated_instrumenta_results = instrumenta_results + [{ id:     instrumenta_call_id,
                                                                name:,
@@ -102,15 +98,13 @@ class Artificer
                                                                args:   instrumenta_call[:args],
                                                                execution_time: exec_time.round(3) }]
 
-        # Detect and process images from tool result for vision support
-        tool_message = build_tool_message_with_vision(id: instrumenta_call_id, result: exec_result, safe_result:)
-        updated_messages = messages + [tool_message]
-        [exec_result, updated_messages, updated_instrumenta_results]
+        tool_message = { role: 'tool', tool_call_id: instrumenta_call_id, content: safe_result.to_json }
+        vision_message = build_vision_user_message(result: exec_result)
+        [exec_result, messages + [tool_message], vision_message, updated_instrumenta_results]
       end
 
-      # Handle divine interruption signal
       if result.is_a?(Array) && result.first == :__divine_interrupt
-        return [result[1], result[2], result[3]]
+        return [result[1], result[2], result[3], result[4]]
       end
 
       result
@@ -128,12 +122,20 @@ class Artificer
                                   sink: nil,
                                   &exec_call)
       instrumenta_results << { content: }
-      instrumenta_calls.reduce [[], messages, instrumenta_results] do
+      vision_messages = []
+      results, final_messages, final_tool_results = instrumenta_calls.reduce [[], messages, instrumenta_results] do
       |(results, current_messages, prev_instrumenta_results), instrumenta_call|
-        result, new_messages, new_instrumenta_results =
+        result, new_messages, vision_msg, new_instrumenta_results =
           execute_standard(instrumenta_call, current_messages, prev_instrumenta_results, sink:, &exec_call)
+        vision_messages << vision_msg if vision_msg
         [results + [result], new_messages, new_instrumenta_results]
       end
+
+      # Append all vision user messages AFTER all tool messages to avoid
+      # breaking the DeepSeek-enforced chain: assistant(tool_calls) → tool → tool
+      final_messages += vision_messages if vision_messages.any?
+
+      [results, final_messages, final_tool_results]
     end
 
 
@@ -144,12 +146,18 @@ class Artificer
                                            instrumenta_results,
                                            sink: nil,
                                            &execution_block)
-      instrumenta_calls.reduce [[], messages,
+      vision_messages = []
+      results, final_messages, final_tool_results = instrumenta_calls.reduce [[], messages,
                                 instrumenta_results] do |(results, current_messages, prev_instrumenta_results), instrumenta_call|
-        result, new_messages, new_instrumenta_results = execute_fallback(instrumenta_call,
+        result, new_messages, vision_msg, new_instrumenta_results = execute_fallback(instrumenta_call,
                                                                          current_messages, prev_instrumenta_results, sink:, &execution_block)
+        vision_messages << vision_msg if vision_msg
         [results + [result], new_messages, new_instrumenta_results]
       end
+
+      final_messages += vision_messages if vision_messages.any?
+
+      [results, final_messages, final_tool_results]
     end
 
 

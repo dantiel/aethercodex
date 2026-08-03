@@ -122,11 +122,14 @@ post '/aether/metempsychosis' do
     limit = (payload[:limit] || 3).to_i
     limit = [[limit, 1].max, 100].min  # clamp: 1..100, no negative or zero
     result = Mnemosyne.metempsychosis(
-      query:       payload[:query],
-      from_task:   payload[:from_task],
-      limit:       limit,
-      subscribe:   payload[:subscribe] || false,
-      unsubscribe: payload[:unsubscribe] || false
+      query:          payload[:query],
+      from_task:      payload[:from_task],
+      limit:          limit,
+      subscribe:      payload[:subscribe] || false,
+      unsubscribe:    payload[:unsubscribe] || false,
+      from_context:   payload[:from_context],
+      to_context:     payload[:to_context],
+      create_task_in: payload[:create_task_in]
     )
     result.to_json
   rescue StandardError => e

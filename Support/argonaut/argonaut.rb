@@ -33,28 +33,36 @@ class Argonaut
 
 
   # Reads a file relative to base of project folder.
-  def self.read(path, range = nil)
+  def self.read(path, range = nil, line_numbers: false)
     base = project_root
     full_path = File.join base, path
     return { content: nil, error: "File not found: #{full_path}" } unless File.exist? full_path
 
     src = File.read full_path
+    all_lines = src.lines
 
     result = if range && 2 == range.size
                l0, l1 = range
                l0 -= 1
                l0 = [0, l0].max
 
-               if l0 > src.lines.count
-                 { error: "line range #{l0}-#{l1} exceeds lines in file = #{src.lines.count}" }
+               if l0 > all_lines.count
+                 { error: "line range #{l0}-#{l1} exceeds lines in file = #{all_lines.count}" }
                else
-                 lines = src.lines[l0..l1] || []
-
-                 { content: lines.join, range: [l0, l1] }
+                 lines = all_lines[l0..l1] || []
+                 content = lines.join
+                 content = with_line_numbers(content, l0 + 1) if line_numbers
+                 { content: content, range: [l0, l1] }
                end
              else
-               { content: src }
+               content = src
+               content = with_line_numbers(content, 1) if line_numbers
+               { content: content }
              end
+  end
+
+  def self.with_line_numbers(text, start_line)
+    text.lines.map.with_index(start_line) { |line, n| "#{n}| #{line}" }.join
   end
 
 

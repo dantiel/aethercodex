@@ -174,6 +174,12 @@ class CONFIG
   end
   
   
+  # Check if dev mode is enabled (allows dangerous instruments)
+  def self.dev_mode?
+    val = CFG[:dev_mode] || CFG['dev_mode']
+    val == true || val.to_s.downcase == 'true'
+  end
+
   # Check if configuration is loaded from specific source
   def self.loaded_from_project?
     CFG[:__loaded_from] == :project

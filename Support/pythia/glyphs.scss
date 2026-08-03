@@ -522,6 +522,62 @@ pre > code {
     white-space: pre-wrap;
 }
 
+/* Blockquote styling */
+.ai blockquote {
+  border-left: 0.3rem solid color-mix(in srgb, var(--argonaut-amber) 60%, transparent);
+  margin: 0.8rem 0;
+  padding: 0.5rem 1.2rem;
+  color: color-mix(in srgb, var(--argonaut-amber) 80%, var(--argonaut-void));
+  font-style: italic;
+  background: rgba(255, 206, 0, 0.05);
+  border-radius: 0 0.3rem 0.3rem 0;
+}
+
+/* Copy button wrapper and button */
+.copy-btn-wrapper {
+  position: relative;
+  margin: 0.6rem 0;
+}
+
+.copy-btn-wrapper pre,
+.copy-btn-wrapper blockquote {
+  margin: 0;
+}
+
+.copy-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.copy-btn {
+  display: inline-block;
+  margin: 0.2rem 0 0 0;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  background: rgba(255, 206, 0, 0.1);
+  color: color-mix(in srgb, var(--argonaut-amber) 70%, transparent);
+  border: 0.1rem solid rgba(255, 206, 0, 0.2);
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+
+  &:hover {
+    opacity: 1;
+    background: rgba(255, 206, 0, 0.2);
+    border-color: rgba(255, 206, 0, 0.4);
+  }
+
+  &.copied {
+    color: var(--argonaut-nexus);
+    border-color: var(--argonaut-nexus);
+    background: rgba(0, 166, 255, 0.15);
+    opacity: 1;
+  }
+}
+
 /* Status Messages */
 .status {
   color: var(--argonaut-cosmic);

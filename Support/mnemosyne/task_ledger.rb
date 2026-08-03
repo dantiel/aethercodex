@@ -1,4 +1,8 @@
 # frozen_string_literal: true
+require_relative '../instrumentarium/metaprogramming_utils'
+using TokenExtensions
+
+
 
 class Mnemosyne
   # TaskLedger — task ledger

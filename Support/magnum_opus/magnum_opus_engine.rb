@@ -1027,16 +1027,16 @@ class MagnumOpusEngine
       duration = Time.now.to_f - start_time
       HorologiumAeternum.task_completed(duration, **task)
     end
-  rescue MagnumOpusEngine::TaskStateError, Timeout::Error => e
-    # Don't fail entire task for timeouts - allow step rejection/retry
-    log_message task_id, "Task timeout: #{e.message}"
-    # Don't update state to failed - keep task active for retry
+  rescue MagnumOpusEngine::TaskStateError, MagnumOpusEngine::TaskCancelledError, Timeout::Error => e
+    # TaskStateError and TaskCancelledError are expected control-flow exceptions — re-raise unchanged.
+    # Timeout is transient — keep task active for retry.
+    log_message task_id, "Task timeout: #{e.message}" if e.is_a?(Timeout::Error)
     raise e
   rescue StandardError => e
-    # Don't fail entire task for standard errors - allow step rejection/retry
-    log_message task_id, "Task error: #{e.message}"
-    # Don't update state to failed - keep task active for retry
-    raise e
+    # Unexpected errors: fail the task so it doesn't stay stuck in :active
+    log_message task_id, "Task error: #{e.class} — #{e.message}"
+    update_state task_id, :failed
+    raise TaskStateError, "Task #{task_id} failed: #{e.message}"
   end
 
 
@@ -1555,6 +1555,17 @@ class MagnumOpusEngine
   end
 
 
+  # Alchemical phase names keyed by 1-indexed step number
+  ALCHEMICAL_PHASES = {
+    1 => :nigredo, 2 => :albedo, 3 => :citrinitas, 4 => :rubedo, 5 => :solve,
+    6 => :coagula, 7 => :test, 8 => :purificatio, 9 => :validatio, 10 => :documentatio
+  }.freeze
+
+  # Convert step index to alchemical phase name symbol
+  def alchemical_phase_name(step_index)
+    ALCHEMICAL_PHASES[step_index] || :"step_#{step_index}"
+  end
+
   # Store tool calls for a specific step in the task's tool_calls_json field
   def store_step_tool_calls(task_id, step_index, tool_calls)
     return if tool_calls.nil? || tool_calls.empty?
@@ -1574,19 +1585,7 @@ class MagnumOpusEngine
                          end
 
     # Convert step index to alchemical phase name
-    step_name = case step_index
-                when 1 then 'nigredo'
-                when 2 then 'albedo'
-                when 3 then 'citrinitas'
-                when 4 then 'rubedo'
-                when 5 then 'solve'
-                when 6 then 'coagula'
-                when 7 then 'test'
-                when 8 then 'purificatio'
-                when 9 then 'validatio'
-                when 10 then 'documentatio'
-                else "step_#{step_index}"
-                end
+    step_name = alchemical_phase_name(step_index)
 
     # Apply priority-based truncation to tool calls before storage using Mnemosyne helper
     truncated_tool_calls = @mnemosyne.truncate_tool_calls_by_priority tool_calls
@@ -1616,19 +1615,7 @@ class MagnumOpusEngine
     tool_calls_hash = parsed.is_a?(Hash) ? parsed.deep_symbolize_keys : {}
 
     # Convert step index to alchemical phase name
-    step_name = case step_index
-                when 1 then 'nigredo'
-                when 2 then 'albedo'
-                when 3 then 'citrinitas'
-                when 4 then 'rubedo'
-                when 5 then 'solve'
-                when 6 then 'coagula'
-                when 7 then 'test'
-                when 8 then 'purificatio'
-                when 9 then 'validatio'
-                when 10 then 'documentatio'
-                else "step_#{step_index}"
-                end
+    step_name = alchemical_phase_name(step_index)
 
     tool_calls = tool_calls_hash[step_name.to_sym] || []
 
@@ -1740,17 +1727,32 @@ class MagnumOpusEngine
   end
 
 
-  # Reject current step and optionally restart from specific step
-  def reject_step(task_id, reason = nil, restart_from_step = nil)
+  # Reject current step and optionally restart from specific step.
+  # restart_from_step is 1-indexed (step number to restart FROM).
+  # current_step is a completed-step counter (0 = none done).
+  # So restarting from step N means setting progress to N-1 (N-1 steps done, next: step N).
+  def reject_step(task_id, reason: nil, restart_from_step: nil)
     current_step = current_step task_id
     log_message task_id, "Step #{current_step} rejected: #{reason}" if reason
 
+    # Fetch workflow max steps for proper boundary clamping
+    task = @mnemosyne.get_task(task_id)
+    max_steps = if task
+                  case task[:workflow_type] || 'full'
+                  when 'simple' then 3
+                  when 'analysis' then 5
+                  else WORKFLOW_STEPS
+                  end
+                else
+                  WORKFLOW_STEPS
+                end
+
     if restart_from_step
-      # Boundary check: restart_from_step must be between 1 and WORKFLOW_STEPS
-      restart_from_step = [[restart_from_step, 1].max, WORKFLOW_STEPS].min
-      # Set progress to restart from specific step (current_step is 0-indexed)
-      update_progress task_id, restart_from_step
-      log_message task_id, "Restarting from step #{restart_from_step}"
+      # Boundary check: restart_from_step must be between 1 and max_steps
+      restart_from_step = [[restart_from_step, 1].max, max_steps].min
+      # Convert to 0-indexed: restarting FROM step N → set completed count to N-1
+      update_progress task_id, restart_from_step - 1
+      log_message task_id, "Restarting from step #{restart_from_step} (progress=#{restart_from_step - 1})"
     elsif 1 < current_step
       # Default: go back to previous step
       update_progress task_id, current_step - 1
@@ -1766,7 +1768,7 @@ class MagnumOpusEngine
 
 
   # Complete current step with optional result - terminates current reasoning
-  def complete_step(task_id, result = nil)
+  def complete_step(task_id, result: nil)
     current_step = current_step task_id
     log_message task_id, "Step #{current_step} completed: #{result.inspect.truncate 50}" if result
 
@@ -1914,8 +1916,20 @@ class MagnumOpusEngine
 
     old_step = current_step task_id
 
-    # Boundary check: step must be between 0 and WORKFLOW_STEPS
-    step = [[step, 0].max, WORKFLOW_STEPS].min
+    # Fetch workflow-specific max steps for boundary clamping
+    task = @mnemosyne.get_task(task_id)
+    max_steps = if task
+                  case task[:workflow_type] || 'full'
+                  when 'simple' then 3
+                  when 'analysis' then 5
+                  else WORKFLOW_STEPS
+                  end
+                else
+                  WORKFLOW_STEPS
+                end
+
+    # Boundary check: step must be between 0 and max_steps
+    step = [[step, 0].max, max_steps].min
 
     puts "[MAGNUM_OPUS_ENGINE][UPDATE_PROGRESS]: #{old_step} --> #{step}"
     @mnemosyne.manage_tasks({ 'action'       => 'update',

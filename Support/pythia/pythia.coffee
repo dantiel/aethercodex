@@ -282,12 +282,13 @@ class Pythia
 
 
 
-  log: (cls, uuid, html) =>
+  log: (cls, uuid, html, rawMarkdown) =>
     console.log "logging #{cls}", uuid, html
     
     add_message = =>
       m = document.getElementById 'messages'
       existing = document.getElementById uuid unless null is uuid
+      target_el = null
     
       if existing
         is_near_bottom = (existing.offsetTop - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
@@ -297,8 +298,10 @@ class Pythia
         else
           existing.innerHTML = ''
           existing.appendChild html
+        if rawMarkdown then existing.setAttribute 'data-raw-answer', rawMarkdown
         if is_near_bottom
           m.scrollTop = 100 + existing.offsetTop - m.offsetHeight + existing.offsetHeight
+        target_el = existing
       else
         is_near_bottom = (m.scrollHeight - m.scrollTop - m.offsetHeight) < m.offsetHeight * 0.5
         el = document.createElement 'div'
@@ -308,13 +311,16 @@ class Pythia
           el.innerHTML = html
         else
           el.appendChild html
+        if rawMarkdown then el.setAttribute 'data-raw-answer', rawMarkdown
         m.appendChild el
         m.scrollTop = 100 + m.scrollHeight if is_near_bottom
+        target_el = el
         
       do @saveMessages
       
-      # Render any Mermaid diagrams in the new content
+      # Render any Mermaid diagrams and add copy buttons
       @renderMermaidDiagrams()
+      @addCopyButtons(target_el) if target_el
       
     if uuid
       @messageBuffer.push add_message
@@ -802,9 +808,9 @@ class Pythia
               when 'prelude' then @log 'ai', null, l.data
               when 'say'     then @log 'ai', null, l.data.message
         if result.html
-          @log 'ai', null, result.html
+          @log 'ai', null, result.html, result.answer
         else if result.answer
-          @log 'ai', null, result.answer
+          @log 'ai', null, result.answer, result.answer
       when 'task'
         @handleTaskResponse data.result
       when 'step_result'
@@ -925,7 +931,9 @@ class Pythia
     attachment_uuid = do crypto.randomUUID
     
     # Add to attachments array with UUID
-    attachment_data = { data..., uuid: attachment_uuid }
+    attachment_data = {}
+    attachment_data[key] = val for key, val of data
+    attachment_data.uuid = attachment_uuid
     @attachments.push(attachment_data)
     
     preview = @renderAttachmentPreview attachment_data
@@ -2105,8 +2113,116 @@ class Pythia
       , 500)
     else
       console.error('Mermaid not available or run method missing')
-  
-  
+
+
+  # Add copy buttons to blockquotes and code blocks within a container
+  addCopyButtons: (container) =>
+    return unless container
+
+    # Find all <pre> elements (handles Rouge div.highlight>pre>code and plain pre>code)
+    seen = new Set()
+    allPres = container.querySelectorAll('pre')
+    console.log "addCopyButtons: found #{allPres.length} pre elements in", container
+    allPres.forEach (pre) =>
+      return if pre.closest('.copy-btn-wrapper') or seen.has(pre)
+      seen.add pre
+      console.log "  pre:", pre.className
+      code = pre.querySelector('code')
+      text = (if code then code.textContent else pre.textContent) || ''
+      @_attachCopyButton pre, text, 'code'
+
+    # Parse markdown blockquote sources from raw answer
+    rawAnswer = container.getAttribute('data-raw-answer') || ''
+    console.log "addCopyButtons: rawAnswer length=#{rawAnswer.length}", rawAnswer.substring(0, 200)
+    mdQuotes = @_extractMdBlockquotes(rawAnswer)
+    console.log "addCopyButtons: extracted #{mdQuotes.length} md blockquotes", mdQuotes
+
+    # Find blockquotes — assign markdown source by order
+    blockquotes = container.querySelectorAll('blockquote')
+    console.log "addCopyButtons: found #{blockquotes.length} HTML blockquotes"
+    blockquotes.forEach (bq) =>
+      return if bq.closest('.copy-btn-wrapper')
+      @_attachBlockquoteButtons bq, mdQuotes.shift()
+
+  # Extract blockquote sources from raw markdown
+  _extractMdBlockquotes: (md) =>
+    quotes = []
+    md.replace /(?:^|\n)((?:>[^\n]*(?:\n|$))+)/gm, (_match, group) =>
+      quotes.push group.trim()
+    quotes
+
+  # Attach two buttons to a blockquote: plain text copy + markdown source copy
+  _attachBlockquoteButtons: (bq, mdSrc) =>
+    wrapper = document.createElement 'div'
+    wrapper.className = 'copy-btn-wrapper'
+    bq.parentNode.insertBefore wrapper, bq
+    wrapper.appendChild bq
+
+    btnRow = document.createElement 'div'
+    btnRow.className = 'copy-btn-row'
+    wrapper.appendChild btnRow
+
+    # Plain text copy button
+    plainText = bq.innerText || bq.textContent || ''
+    btnText = @_makeCopyBtn '📋', "Copy plain text", plainText
+    btnRow.appendChild btnText
+
+    # Markdown source copy button (only if we have the source)
+    if mdSrc
+      btnMd = @_makeCopyBtn '📝', "Copy markdown source", mdSrc
+      btnRow.appendChild btnMd
+
+  # Create a single copy button
+  _makeCopyBtn: (icon, title, text) =>
+    btn = document.createElement 'button'
+    btn.className = 'copy-btn'
+    btn.title = title
+    btn.innerHTML = icon
+    btn.addEventListener 'click', =>
+      # Try modern API first, fall back to execCommand for TextMate WebView
+      if navigator.clipboard?.writeText
+        navigator.clipboard.writeText(text).then =>
+          btn.innerHTML = '✓'
+          btn.classList.add 'copied'
+          setTimeout =>
+            btn.innerHTML = icon
+            btn.classList.remove 'copied'
+          , 1500
+        .catch =>
+          btn.innerHTML = '✗'
+          setTimeout (=> btn.innerHTML = icon), 1500
+      else
+        try
+          ta = document.createElement 'textarea'
+          ta.value = text
+          ta.style.position = 'fixed'
+          ta.style.left = '-9999px'
+          document.body.appendChild ta
+          ta.select()
+          document.execCommand 'copy'
+          document.body.removeChild ta
+          btn.innerHTML = '✓'
+          btn.classList.add 'copied'
+          setTimeout =>
+            btn.innerHTML = icon
+            btn.classList.remove 'copied'
+          , 1500
+        catch
+          btn.innerHTML = '✗'
+          setTimeout (=> btn.innerHTML = icon), 1500
+    btn
+
+  # Attach a copy button after an element
+  _attachCopyButton: (el, text, type) =>
+    wrapper = document.createElement 'div'
+    wrapper.className = 'copy-btn-wrapper'
+    el.parentNode.insertBefore wrapper, el
+    wrapper.appendChild el
+
+    btn = @_makeCopyBtn '📋', "Copy #{if type is 'code' then 'code' else 'quote'}", text
+    wrapper.appendChild btn
+
+
   openMermaidPopup: (svgContent) =>
     console.log('Opening Mermaid diagram in new window')
     

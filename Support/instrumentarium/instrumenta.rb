@@ -66,19 +66,23 @@ def instrument(...) = Instrumenta::PRIMA_MATERIA.add_instrument(...)
 
 # --- Register All Tools ---
 instrument :read_file,
-           description: 'Read a file (optionally a line range).',
-           params: { path:  { type: String, required: true, minLength: 1 },
-                     range: { type:     Array,
-                              required: false,
-                              items:    { type: 'integer', minimum: 0, maximum: 10_000 },
-                              minItems: 2,
-                              maxItems: 2 } },
-           returns: { content: String, error: String } do |path:, range: nil|
+           description: <<~DESC,
+             Read a file (optionally a line range). Pass `line_numbers: true` to
+             prefix each line with its number (e.g. "42: |") for precise targeting.
+           DESC
+           params: { path:         { type: String, required: true, minLength: 1 },
+                     range:        { type:     Array,
+                                     required: false,
+                                     items:    { type: 'integer', minimum: 0, maximum: 10_000 },
+                                     minItems: 2,
+                                     maxItems: 2 },
+                     line_numbers: { type: 'boolean', required: false } },
+           returns: { content: String, error: String } do |path:, range: nil, line_numbers: false|
   raise 'Denied path' if PrimaMateria::DENY_PATHS.any? { |re| re.match? path }
 
   start_time = Time.now
   uuid = HorologiumAeternum.file_reading path, range
-  result = Argonaut.read path, range
+  result = Argonaut.read path, range, line_numbers: line_numbers
   raise result[:error] unless result[:error].nil?
 
   bytes_read = result[:content]&.bytesize || 0
@@ -996,12 +1000,16 @@ instrument :take_screenshot,
 
              **Modes:**
              - `screen`: entire display
-             - `window`: frontmost window
+             - `window`: capture a specific window by title/ID, or frontmost window
              - `area`: specific rectangle (requires x, y, width, height)
              - `display`: specific monitor by number
-             - `active-app`: bounds of frontmost application
+             - `active-app`: capture a specific app by window title/ID, or frontmost app
              - `menu-bar`: menu bar region
              - `info`: returns system info (displays, windows, frontmost app) without capturing
+
+             Use `window_title` or `window_id` with `window` or `active-app` modes
+             for reliable targeting instead of hoping the frontmost app is correct.
+             Window IDs come from `mode: "info"` → visible_windows[].id.
 
              After capture, the image path is returned for vision model analysis.
              No user interaction required — fully autonomous.
@@ -1049,15 +1057,23 @@ instrument :take_screenshot,
                                 description: 'Include window shadow' },
                      output:  { type:        String,
                                 required:    false,
-                                description: 'Optional output filename' } },
+                                description: 'Optional output filename' },
+                     window_title: { type:   String,
+                                     required: false,
+                                     description: 'Partial window title match for window/active-app modes (case-insensitive). Safer than relying on frontmost app.' },
+                     window_id: { type:      Integer,
+                                  required:  false,
+                                  description: 'Exact CoreGraphics window ID for window/active-app modes. Obtained from mode: "info" → visible_windows.' } },
            returns: { path: String, bytes: Integer, format: String, mode: String, error: String,
                       timestamp: String, platform: String, displays: Array, frontmost_app: Hash,
                       visible_windows: Array, menu_bar: Hash } \
            do |mode:, display: nil, x: nil, y: nil, width: nil, height: nil,
-                format: 'png', delay: 0, cursor: true, shadow: true, output: nil|
+                format: 'png', delay: 0, cursor: true, shadow: true, output: nil,
+                window_title: nil, window_id: nil|
   start = Time.now
   result = CapturaVisus.capture(mode:, display:, x:, y:, width:, height:,
-                                format:, delay:, cursor:, shadow:, output:)
+                                format:, delay:, cursor:, shadow:, output:,
+                                window_title:, window_id:)
   
   # Info mode returns system data, not a screenshot
   if mode.to_s == 'info'
@@ -1080,39 +1096,42 @@ end
 
 
 # Hot reload instrumentarium modules during development
-instrument :reload_instrumentarium,
-           description: 'Reload all instrumentarium modules from disk. Use after editing tool files to apply changes without restarting TextMate.',
-           returns: { reloaded: Array, failed: Array } \
-           do
-  modules = %w[
-    instrumentarium/metaprogramming_utils
-    instrumentarium/horologium_aeternum
-    instrumentarium/prima_materia
-    instrumentarium/verbum
-    instrumentarium/symbolic_patch_file
-    instrumentarium/captura_visus
-    instrumentarium/vision_coordinator
-    instrumentarium/scriptorium
-    instrumentarium/instrumenta
-  ]
-  
-  reloaded = []
-  failed = []
-  
-  modules.each do |mod|
-    path = File.expand_path("#{mod}.rb", __dir__)
-    if File.exist?(path)
-      begin
-        $LOADED_FEATURES.delete_if { |f| f.include?(mod) }
-        load path
-        reloaded << mod
-      rescue StandardError => e
-        failed << { module: mod, error: e.message }
+# Only registered when dev_mode is enabled in .aethercodex
+if CONFIG.dev_mode?
+  instrument :reload_instrumentarium,
+             description: 'Reload all instrumentarium modules from disk. Use after editing tool files to apply changes without restarting TextMate.',
+             returns: { reloaded: Array, failed: Array } \
+             do
+    modules = %w[
+      instrumentarium/metaprogramming_utils
+      instrumentarium/horologium_aeternum
+      instrumentarium/prima_materia
+      instrumentarium/verbum
+      instrumentarium/symbolic_patch_file
+      instrumentarium/captura_visus
+      instrumentarium/vision_coordinator
+      instrumentarium/scriptorium
+      instrumentarium/instrumenta
+    ]
+
+    reloaded = []
+    failed = []
+
+    modules.each do |mod|
+      path = File.expand_path("#{mod}.rb", __dir__)
+      if File.exist?(path)
+        begin
+          $LOADED_FEATURES.delete_if { |f| f.include?(mod) }
+          load path
+          reloaded << mod
+        rescue StandardError => e
+          failed << { module: mod, error: e.message }
+        end
+      else
+        failed << { module: mod, error: 'File not found' }
       end
-    else
-      failed << { module: mod, error: 'File not found' }
     end
+
+    { reloaded:, failed: }
   end
-  
-  { reloaded:, failed: }
 end

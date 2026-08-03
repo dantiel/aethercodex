@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require_relative '../instrumentarium/metaprogramming_utils'
+using TokenExtensions
 
 class Mnemosyne
   # Aegis — aegis
@@ -88,7 +90,7 @@ class Mnemosyne
 
 
         def working_dir
-          Mnemosyne.aegis[:working_dir]
+          Mnemosyne.aegis[:working_dir] unless Mnemosyne.aegis.nil?
         end
 
 
@@ -103,8 +105,11 @@ class Mnemosyne
 
 
         def recall_aegis_notes(max_tokens: nil, max_content_length: nil)
-          tags = Mnemosyne.aegis[:tags] || []
-          tags = Mnemosyne.aegis[:summary]&.gsub(' ', ',') if tags.empty?
+          tags = []
+          unless Mnemosyne.aegis.nil?
+            tags = Mnemosyne.aegis[:tags] unless Mnemosyne.aegis[:tags].nil?
+            tags = Mnemosyne.aegis[:summary]&.gsub(' ', ',') if tags.empty?
+          end
           tags = tags.split ',' if tags.is_a? String
           notes = Mnemosyne.recall_notes(tags&.join(' '), limit: 8, max_content_length: max_content_length)
 

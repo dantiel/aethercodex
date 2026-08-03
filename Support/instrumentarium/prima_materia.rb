@@ -490,6 +490,8 @@ class PrimaMateria
             HorologiumAeternum.system_error("Unknown tool #{tool}")
             { error: "Unknown tool #{tool}" }
           end
+
+    out = truncate_tool_output(tool, out)
   rescue Oracle::StepTerminationException => e
     # Step completion is expected termination - handle differently based on context
     puts "[PRIMA_MATERIA][STEP_COMPLETE]: #{tool}: #{e.message.truncate(100)}"
@@ -532,6 +534,54 @@ class PrimaMateria
   end
 
 
+  # Truncate tool output to per-tool character limit with audit notice.
+  # Prevents context-window flooding from large file reads / command outputs.
+  def truncate_tool_output(tool, out)
+    return out if out.nil? || out.is_a?(Oracle::StepTerminationException)
+
+    limit = TOOL_OUTPUT_LIMITS[tool.to_sym] || DEFAULT_MAX_OUTPUT_CHARS
+    original = nil
+
+    truncated = case out
+                when String
+                  return out if out.length <= limit
+                  original = out.length
+                  "#{out[0, limit]}…\n\n[TRUNCATED: #{original} → #{limit} chars. Use range/limit params to narrow results.]"
+                when Hash
+                  json = out.to_json
+                  return out if json.length <= limit
+                  original = json.length
+                  out.transform_values { |v|
+                    v.is_a?(String) && v.length > (limit / 2) ? "#{v[0, limit / 2]}…" : v
+                  }.tap { |h|
+                    if h.to_json.length > limit
+                      return { _truncated: true, _original_chars: original, _limit: limit,
+                               _notice: "[TRUNCATED: #{original} → #{limit} chars. Use range/limit params to narrow results.]",
+                               partial: h.transform_values { |v| v.to_s[0, 512] } }
+                    end
+                  }
+                when Array
+                  json = out.to_json
+                  return out if json.length <= limit
+                  original = json.length
+                  { _truncated: true, _original_chars: original, _limit: limit,
+                    _notice: "[TRUNCATED: #{original} → #{limit} chars. #{out.length} items.]",
+                    partial: out.first([out.length, 8].min) }
+                else
+                  out
+                end
+
+    if original && !truncated.is_a?(Hash)
+      truncated
+    elsif truncated.is_a?(Hash)
+      truncated[:_notice] ||= "[TRUNCATED: #{original} → #{limit} chars. Use range/limit params to narrow results.]"
+      truncated
+    else
+      truncated
+    end
+  end
+
+
   # Get merged allowed commands (default + custom)
   def self.allowed_commands
     default_commands = ALLOW_CMDS
@@ -569,4 +619,20 @@ class PrimaMateria
   DENY_PATHS   = [/\.aethercodex$/, /\.env$/, %r{\.git/}].freeze
   MAX_DIFF     = 800
   MAX_CMD_TIME = 10
+
+  # Per-tool output character limits — prevents context-window flooding.
+  # Tools not listed here fall back to DEFAULT_MAX_OUTPUT_CHARS.
+  TOOL_OUTPUT_LIMITS = {
+    read_file:            8000,
+    run_command:          6000,
+    recall_notes:         4000,
+    recall_history:       4000,
+    metempsychosis:       4000,
+    file_overview:        5000,
+    symbolic_patch_file:  5000,
+    oracle_conjuration:   6000,
+    evaluate_task:        5000,
+    list_tasks:           3000,
+  }.freeze
+  DEFAULT_MAX_OUTPUT_CHARS = 12_000
 end

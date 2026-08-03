@@ -54,7 +54,9 @@ module AetherLink
     # POST a JSON payload to a peer context's endpoint.
     # Returns parsed response body (symbolized keys) or nil on failure.
     # Stale contexts are marked and returned nil.
+    # Lazily discovers peers if none known — first cross-context call triggers scan.
     def query(context_name, endpoint, payload = {})
+      discover! if @known_contexts.empty?
       ctx = lookup(context_name) or return nil
 
       uri = URI("http://127.0.0.1:#{ctx[:port]}#{endpoint}")
